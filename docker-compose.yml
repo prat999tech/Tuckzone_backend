@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:18
+    container_name: canteen-postgres
+    environment:
+      POSTGRES_DB: canteen
+      POSTGRES_USER: canteen
+      POSTGRES_PASSWORD: canteen
+    ports:
+      # host 5433 -> container 5432, so this never collides with a local Postgres on 5432
+      - "5433:5432"
+    volumes:
+      # Postgres 18+ images store data in a major-version subdir, so the mount must be
+      # at /var/lib/postgresql (not /var/lib/postgresql/data as in older images).
+      - canteen_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U canteen -d canteen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  canteen_pgdata:

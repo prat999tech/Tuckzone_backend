@@ -1,0 +1,156 @@
+/* ─── User Approval Page ─── */
+.status-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+  padding: 4px;
+  width: fit-content;
+  margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--gray-500);
+  font-family: var(--font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover:not(.active) { color: var(--gray-700); background: rgba(255,255,255,0.6); }
+
+.tab-btn.active {
+  background: var(--white);
+  color: var(--gray-900);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Table ─── */
+.users-table-container {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.admin-table thead {
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+.admin-table tbody tr {
+  border-bottom: 1px solid var(--gray-100);
+  transition: background 0.15s;
+}
+
+.admin-table tbody tr:last-child { border-bottom: none; }
+.admin-table tbody tr:hover { background: var(--gray-50); }
+
+.admin-table td {
+  padding: 0.875rem 1.25rem;
+  color: var(--gray-700);
+  vertical-align: middle;
+}
+
+.admin-table .user-name {
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.contact-info { line-height: 1.6; font-size: 0.8125rem; }
+.contact-info .text-muted { color: var(--gray-400); font-size: 0.75rem; }
+
+.user-details { font-size: 0.8rem; color: var(--gray-500); }
+
+/* Role Badges */
+.role-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.role-student { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+.role-teacher { background: #f3e8ff; color: #7c3aed; border: 1px solid #d8b4fe; }
+.role-parent  { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+.role-canteen_admin { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-icon-success {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--success-bg);
+  border: 1.5px solid var(--success-border);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon-success:hover {
+  background: var(--success);
+  color: white;
+}
+
+.btn-icon-danger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--error-bg);
+  border: 1.5px solid var(--error-border);
+  border-radius: var(--radius-sm);
+  color: var(--error);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon-danger:hover {
+  background: var(--error);
+  color: white;
+}
+
+.text-amber { color: var(--primary); }
+.text-muted { color: var(--gray-400); }
+
+/* Responsive table */
+@media (max-width: 768px) {
+  .users-table-container { overflow-x: auto; }
+  .admin-table { min-width: 640px; }
+}

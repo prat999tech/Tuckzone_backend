@@ -1,0 +1,302 @@
+/* ─── Orders Board Page (Canteen Admin) ─── */
+.board-controls {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.date-picker-wrapper.inline {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.date-picker-wrapper svg { color: var(--primary); flex-shrink: 0; }
+
+.date-input {
+  padding: 0.5rem 0.875rem;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  color: var(--gray-700);
+  font-family: var(--font);
+  cursor: pointer;
+  width: auto;
+  min-width: 160px;
+  background: var(--white);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.12);
+}
+
+/* ─── Status Filter Pills ─── */
+.status-filters-pills {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--gray-600);
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.pill-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+.pill-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.pill-btn .count {
+  background: rgba(255,255,255,0.25);
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+}
+
+.pill-btn:not(.active) .count {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+/* ─── Orders Grid ─── */
+.orders-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+/* ─── Kitchen Card ─── */
+.kitchen-card {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+  border-top: 3px solid var(--gray-200);
+}
+
+.kitchen-card:hover { box-shadow: var(--shadow); }
+
+/* Status colored top border */
+.kitchen-card.status-placed          { border-top-color: var(--info); }
+.kitchen-card.status-accepted        { border-top-color: var(--warning); }
+.kitchen-card.status-preparing       { border-top-color: var(--warning); }
+.kitchen-card.status-packed          { border-top-color: #7c3aed; }
+.kitchen-card.status-out_for_delivery{ border-top-color: var(--success); }
+.kitchen-card.status-delivered       { border-top-color: var(--success); }
+.kitchen-card.status-cancelled,
+.kitchen-card.status-rejected        { border-top-color: var(--error); }
+
+.kc-header {
+  padding: 0.875rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--gray-100);
+  gap: 0.5rem;
+}
+
+.kc-header h3 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.slot-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--primary-light);
+  color: var(--primary-600);
+  border: 1px solid var(--primary-100);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.kc-body {
+  padding: 1rem 1.25rem;
+}
+
+.recipient-info {
+  font-size: 0.8125rem;
+  color: var(--gray-600);
+  line-height: 1.8;
+  margin-bottom: 0.75rem;
+  padding: 0.625rem;
+  background: var(--gray-50);
+  border-radius: var(--radius-sm);
+}
+
+.recipient-info strong {
+  color: var(--gray-800);
+}
+
+.kc-items {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.kc-items li {
+  font-size: 0.875rem;
+  color: var(--gray-700);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kc-items .qty {
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 28px;
+  background: var(--primary-light);
+  text-align: center;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.kc-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--gray-100);
+  background: var(--gray-50);
+}
+
+/* ─── Action Buttons ─── */
+.action-buttons {
+  display: flex;
+  gap: 0.625rem;
+}
+
+.btn-success {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1.5px solid var(--success-border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-success:hover {
+  background: var(--success);
+  color: white;
+}
+
+.btn-success.w-100 {
+  width: 100%;
+}
+
+.btn-danger {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--error-bg);
+  color: var(--error);
+  border: 1.5px solid var(--error-border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-danger:hover {
+  background: var(--error);
+  color: white;
+}
+
+.btn-amber {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  background: var(--primary-light);
+  color: var(--primary-600);
+  border: 1.5px solid var(--primary-100);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-amber:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: var(--gray-100);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary-100);
+}
+
+.dispatch-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dispatch-form input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.status-locked {
+  font-size: 0.8rem;
+  color: var(--gray-400);
+  text-align: center;
+  padding: 0.25rem;
+}
+
+.text-muted { color: var(--gray-400); }
+
+@media (max-width: 640px) {
+  .orders-board-grid { grid-template-columns: 1fr; }
+}

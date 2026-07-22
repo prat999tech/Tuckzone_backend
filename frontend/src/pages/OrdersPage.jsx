@@ -1,0 +1,148 @@
+import React, { useEffect, useState } from 'react';
+import { Package, Clock, XCircle, CheckCircle, Truck, Info } from 'lucide-react';
+import { cancelOrder, getMyOrders } from '../api/orders';
+import toast from 'react-hot-toast';
+import './OrdersPage.css';
+
+export default function OrdersPage() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const data = await getMyOrders();
+      setOrders(data);
+    } catch (err) {
+      toast.error('Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelOrderAction = async (orderId) => {
+    try {
+      await cancelOrder(orderId);
+      toast.success('Order cancelled successfully');
+      fetchOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to cancel order');
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'PLACED':
+        return <Clock size={20} className="text-blue" />;
+      case 'ACCEPTED':
+        return <CheckCircle size={20} className="text-amber" />;
+      case 'PREPARING':
+      case 'PACKED':
+        return <Package size={20} className="text-amber" />;
+      case 'OUT_FOR_DELIVERY':
+        return <Truck size={20} className="text-amber" />;
+      case 'DELIVERED':
+        return <CheckCircle size={20} className="text-green" />;
+      case 'CANCELLED':
+      case 'REJECTED':
+        return <XCircle size={20} className="text-red" />;
+      default:
+        return <Info size={20} />;
+    }
+  };
+
+  return (
+    <div className="orders-container">
+      <div className="page-header">
+        <h1>My Orders</h1>
+        <p>Track your food deliveries</p>
+      </div>
+
+      {loading ? (
+        <div className="loading-state">Loading your orders...</div>
+      ) : orders.length === 0 ? (
+        <div className="empty-state">
+          <Package size={48} className="text-amber" />
+          <h2>No orders yet</h2>
+          <p>Go to the menu to place your first order.</p>
+        </div>
+      ) : (
+        <div className="orders-list">
+          {orders.map((order) => (
+            <div className="order-card" key={order.id}>
+              <div className="order-header">
+                <div className="order-id">
+                  <h3>Order {order.orderNumber}</h3>
+                  <span className="order-date">{new Date(order.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className={`status-badge status-${order.status.toLowerCase()}`}>
+                  {getStatusIcon(order.status)}
+                  <span>{order.status.replace(/_/g, ' ')}</span>
+                </div>
+              </div>
+
+              <div className="order-details-grid">
+                <div className="detail-item">
+                  <span className="label">Delivery Slot</span>
+                  <span className="value">{order.slotName} ({order.deliveryTime})</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Recipient</span>
+                  <span className="value">{order.recipientName}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Location</span>
+                  <span className="value">{order.deliveryLocation}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Total Amount</span>
+                  <span className="value highlight">₹{order.totalAmount}</span>
+                </div>
+              </div>
+
+              <div className="order-items-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Qty</th>
+                      <th>Price</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {order.items.map((item) => (
+                      <tr key={item.menuItemId}>
+                        <td>{item.itemName}</td>
+                        <td>{item.quantity}</td>
+                        <td>₹{item.unitPrice}</td>
+                        <td>₹{item.lineTotal}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="order-footer">
+                {order.status === 'PLACED' && (
+                  <button className="btn-danger-outline" onClick={() => cancelOrderAction(order.id)}>
+                    Cancel Order
+                  </button>
+                )}
+                {order.status === 'OUT_FOR_DELIVERY' && order.deliveryPersonName && (
+                  <div className="delivery-info">
+                    <Truck size={16} />
+                    <span>Out for delivery by <strong>{order.deliveryPersonName}</strong></span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: canteen
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/canteen
+    username: canteen
+    password: canteen
+
+  jpa:
+    # validate = Hibernate checks its entity mappings against the schema Flyway created,
+    # but never creates or alters tables itself. Flyway is the single source of truth.
+    hibernate:
+      ddl-auto: validate
+    # Close the persistence context at the service boundary, not during view rendering.
+    # Prevents lazy-loading surprises and holding DB connections longer than needed.
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+# Application-specific config
+app:
+  cors:
+    allowed-origins: ${FRONTEND_URL:http://localhost:5173,http://localhost:3000}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789-abcdefghijklmnop}
+      access-token-ttl-minutes: 30
+      refresh-token-ttl-days: 7
+  # Admin accounts cannot self-register (no public admin role), so they are seeded on
+  # startup if missing. Change these in a real deployment via env vars.
+  seed:
+    enabled: true
+    school-admin:
+      full-name: School Administrator
+      email: ${SCHOOL_ADMIN_EMAIL:schooladmin@school.local}
+      mobile: "9000000001"
+      password: ${SCHOOL_ADMIN_PASSWORD:Admin@12345}
+    canteen-admin:
+      full-name: Canteen Administrator
+      email: ${CANTEEN_ADMIN_EMAIL:canteenadmin@school.local}
+      mobile: "9000000002"
+      password: ${CANTEEN_ADMIN_PASSWORD:Admin@12345}
+  # Payment gateway. provider=mock uses an in-process gateway that mirrors Razorpay's
+  # signature scheme, so the flow is fully testable without real keys. Set provider and
+  # real keys to switch to live Razorpay later.
+  payment:
+    provider: mock
+    currency: INR
+    key-id: ${RAZORPAY_KEY_ID:mock_key_id}
+    key-secret: ${RAZORPAY_KEY_SECRET:mock_key_secret}
