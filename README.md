@@ -8,29 +8,17 @@ A full-stack web application for managing a school canteen. Students, parents, a
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 18 + Vite |
+| **Frontend** | React 18 + Vite + Nginx |
 | **Backend** | Spring Boot 3 + Java 17 |
 | **Database** | PostgreSQL |
 | **Auth** | JWT (Access + Refresh tokens) |
+| **Deployment** | Docker + Docker Compose |
 
 ---
 
-## ⚙️ Prerequisites
+## 🐳 Run with Docker (Easiest — Recommended)
 
-Make sure your friend has these installed before running:
-
-| Tool | Version | Download |
-|---|---|---|
-| **Java JDK** | 17 or higher | https://adoptium.net |
-| **Node.js** | 18 or higher | https://nodejs.org |
-| **Docker Desktop** | Latest | https://www.docker.com/products/docker-desktop *(easiest for PostgreSQL)* |
-| **Git** | Any | https://git-scm.com |
-
-> **No Docker?** Install PostgreSQL directly from https://www.postgresql.org/download/
-
----
-
-## 🚀 Quick Start (3 Steps)
+> **Only requirement: [Docker Desktop](https://www.docker.com/products/docker-desktop) installed**
 
 ### Step 1 — Clone the project
 
@@ -39,64 +27,38 @@ git clone https://github.com/prat999tech/management_system_canteen_vendor.git
 cd management_system_canteen_vendor
 ```
 
----
-
-### Step 2 — Start the Database (PostgreSQL via Docker)
+### Step 2 — Build and Start everything
 
 ```bash
-docker-compose up -d
+docker-compose up --build
 ```
 
-This starts a PostgreSQL container on port **5433** with:
-- Database: `canteen`
-- Username: `canteen`
-- Password: `canteen`
+> ⏳ First run takes 3–5 minutes (downloads Java, Node, builds the app).  
+> Subsequent runs are fast (cached layers).
 
-> **Check it's running:** `docker ps` — you should see a postgres container.
+### Step 3 — Open in Browser
 
----
+```
+http://localhost
+```
 
-### Step 3 — Start Backend (Spring Boot)
+That's it! 🎉
 
-Open a terminal in the `backend/` folder:
+### Stop everything
 
 ```bash
-cd backend
-./mvnw spring-boot:run
+docker-compose down
 ```
 
-> **Windows users:** use `mvnw.cmd spring-boot:run`
-
-Wait for this message:
-```
-Started CanteenApplication in X seconds
-```
-
-Backend runs at → **http://localhost:8080**
-
----
-
-### Step 4 — Start Frontend (React)
-
-Open a **new terminal** in the `frontend/` folder:
+### Stop and delete all data (fresh start)
 
 ```bash
-cd frontend
-npm install
-npm run dev
+docker-compose down -v
 ```
 
-Frontend runs at → **http://localhost:5173**
-
 ---
 
-## 🌐 Open in Browser
-
-Go to → **http://localhost:5173**
-
----
-
-## 👤 Default Admin Accounts (Auto-Created)
+## 👤 Default Admin Accounts (Auto-Created on First Start)
 
 | Role | Email | Password |
 |---|---|---|
@@ -107,36 +69,94 @@ Go to → **http://localhost:5173**
 
 ---
 
-## 🗂️ Project Structure
+## 🏗️ Docker Architecture
 
 ```
-school-canteen/
-├── backend/              ← Spring Boot API (port 8080)
-│   ├── src/
-│   │   ├── main/java/    ← Java source code
-│   │   └── resources/    ← Config files + DB migrations
-│   └── pom.xml
-│
-├── frontend/             ← React + Vite UI (port 5173)
-│   ├── src/
-│   │   ├── pages/        ← All pages (Login, Menu, Wallet, etc.)
-│   │   ├── components/   ← Layout, ProtectedRoute
-│   │   ├── api/          ← Axios API calls
-│   │   └── context/      ← Auth & Cart context
-│   └── package.json
-│
-└── docker-compose.yml    ← PostgreSQL container config
+http://localhost (port 80)
+        │
+        ▼
+┌─────────────────────┐
+│  Nginx (Frontend)   │  ← Serves React app + proxies /api/* calls
+└─────────┬───────────┘
+          │  proxy /api/*
+          ▼
+┌─────────────────────┐
+│  Spring Boot (8080) │  ← Backend API
+└─────────┬───────────┘
+          │  JDBC
+          ▼
+┌─────────────────────┐
+│  PostgreSQL (5432)  │  ← Database (data persists in Docker volume)
+└─────────────────────┘
 ```
 
 ---
 
-## 🔄 How to Stop Everything
+## ⚙️ Run Without Docker (Manual Setup)
+
+If you prefer running without Docker:
+
+### Prerequisites
+
+| Tool | Version | Download |
+|---|---|---|
+| **Java JDK** | 17+ | https://adoptium.net |
+| **Node.js** | 18+ | https://nodejs.org |
+| **PostgreSQL** | 15+ | https://www.postgresql.org/download |
+
+### 1. Setup Database
+
+Create a PostgreSQL database:
+```sql
+CREATE DATABASE canteen;
+CREATE USER canteen WITH PASSWORD 'canteen';
+GRANT ALL PRIVILEGES ON DATABASE canteen TO canteen;
+```
+
+### 2. Start Backend
 
 ```bash
-# Stop frontend: Ctrl+C in the frontend terminal
-# Stop backend: Ctrl+C in the backend terminal
-# Stop database:
-docker-compose down
+cd backend
+./mvnw spring-boot:run
+# Windows: mvnw.cmd spring-boot:run
+```
+
+Wait for: `Started CanteenApplication in X seconds`  
+Backend → **http://localhost:8080**
+
+### 3. Start Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend → **http://localhost:5173**
+
+---
+
+## 🗂️ Project Structure
+
+```
+school-canteen/
+├── backend/                  ← Spring Boot API
+│   ├── src/main/java/        ← Java source code
+│   ├── src/main/resources/   ← Config + DB migrations (Flyway)
+│   ├── Dockerfile
+│   └── pom.xml
+│
+├── frontend/                 ← React + Vite UI
+│   ├── src/
+│   │   ├── pages/            ← Login, Menu, Wallet, Orders, Admin pages
+│   │   ├── components/       ← Layout, ProtectedRoute
+│   │   ├── api/              ← Axios API calls
+│   │   └── context/          ← Auth & Cart context
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+│
+└── docker-compose.yml        ← Runs everything with one command
 ```
 
 ---
@@ -145,21 +165,22 @@ docker-compose down
 
 | Problem | Fix |
 |---|---|
-| `Port 5433 already in use` | Change the port in `docker-compose.yml` and `backend/src/main/resources/application.yml` |
-| `Port 8080 already in use` | Kill the process using port 8080 or change `server.port` in `application.yml` |
-| `npm install` fails | Make sure Node.js 18+ is installed: `node --version` |
-| Backend won't start | Make sure Docker/PostgreSQL is running first |
-| `./mvnw: Permission denied` | Run `chmod +x backend/mvnw` then try again |
+| `Port 80 already in use` | Stop any local web server or change port in `docker-compose.yml` |
+| `Port 8080 already in use` | Change the backend port in `docker-compose.yml` |
+| Build fails on backend | Make sure Docker has enough memory (4GB+) in Docker Desktop settings |
+| `./mvnw: Permission denied` | Run `chmod +x backend/mvnw` |
+| Data not saving | Make sure the `canteen_pgdata` volume exists (`docker volume ls`) |
 
 ---
 
 ## 📱 Features
 
 - ✅ Student / Parent / Teacher registration & login
-- ✅ Browse daily menu with filters (Veg/Non-Veg, category)
+- ✅ Browse daily menu with filters (Veg/Non-Veg, category, date)
 - ✅ Add to cart & place orders with delivery slot selection
 - ✅ Parent can link child accounts and order on their behalf
 - ✅ Wallet top-up and balance management
-- ✅ Real-time order tracking (Placed → Preparing → Delivered)
-- ✅ Canteen admin: manage menu catalog, daily stock, order fulfillment
+- ✅ Real-time order tracking (Placed → Preparing → Packed → Delivered)
+- ✅ Canteen admin: manage menu catalog, daily stock, order fulfillment board
 - ✅ Full form validation with error messages
+- ✅ Responsive design — works on mobile and desktop

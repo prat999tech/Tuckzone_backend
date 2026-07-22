@@ -1,23 +1,68 @@
 services:
+
+  # ─── 1. PostgreSQL Database ───────────────────────────────────────
   db:
-    image: postgres:18
-    container_name: canteen-postgres
+    image: postgres:16-alpine
+    container_name: canteen-db
     environment:
       POSTGRES_DB: canteen
       POSTGRES_USER: canteen
       POSTGRES_PASSWORD: canteen
-    ports:
-      # host 5433 -> container 5432, so this never collides with a local Postgres on 5432
-      - "5433:5432"
     volumes:
-      # Postgres 18+ images store data in a major-version subdir, so the mount must be
-      # at /var/lib/postgresql (not /var/lib/postgresql/data as in older images).
-      - canteen_pgdata:/var/lib/postgresql
+      - canteen_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U canteen -d canteen"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - canteen-net
+
+  # ─── 2. Spring Boot Backend ──────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: canteen-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/canteen
+      SPRING_DATASOURCE_USERNAME: canteen
+      SPRING_DATASOURCE_PASSWORD: canteen
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_FLYWAY_ENABLED: "true"
+      JWT_SECRET: schoolbite-super-secret-jwt-key-change-in-production-123456
+      FRONTEND_URL: http://localhost
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - canteen-net
+    restart: on-failure
+
+  # ─── 3. React Frontend (Nginx) ───────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Nginx proxies /api to backend container — so frontend uses relative /api path
+        VITE_API_BASE_URL: /api
+    container_name: canteen-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - canteen-net
+    restart: on-failure
+
+networks:
+  canteen-net:
+    driver: bridge
 
 volumes:
   canteen_pgdata:
