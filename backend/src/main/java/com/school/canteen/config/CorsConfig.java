@@ -7,12 +7,11 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
- * CORS configuration — reads allowed origins from environment variable
- * so it works for both local dev (localhost:5173) and production (Vercel URL).
+ * CORS configuration for allowing the React frontend (both dev and production Vercel URLs)
+ * to call the backend API cleanly.
  */
 @Configuration
 public class CorsConfig {
@@ -24,10 +23,8 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Split comma-separated origins from env var
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        config.setAllowedOrigins(origins);
-
+        // Allows all origins dynamically while still permitting allowCredentials=true
+        config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
