@@ -75,7 +75,7 @@ export default function LoginPage() {
         <div className="login-left-icon">
           <UtensilsCrossed size={40} color="white" />
         </div>
-        <h2>SchoolBite</h2>
+        <h2>TuckZone</h2>
         <p>Fresh, healthy meals delivered straight to your classroom — every school day.</p>
 
         <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '260px' }}>
@@ -102,7 +102,7 @@ export default function LoginPage() {
               <UtensilsCrossed size={28} className="text-amber" />
             </div>
             <h1>Sign In</h1>
-            <p>Enter your credentials to access SchoolBite</p>
+            <p>Enter your credentials to access TuckZone</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit} noValidate>

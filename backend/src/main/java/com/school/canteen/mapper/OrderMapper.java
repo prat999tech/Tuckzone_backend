@@ -16,6 +16,8 @@ public class OrderMapper {
                 order.getId(),
                 formatOrderNumber(order.getOrderNumber()),
                 order.getStatus(),
+                order.getOrderType(),
+                order.getPickupCode(),
                 order.getMenuDate(),
                 order.getSlot().getName(),
                 order.getSlot().getDeliveryTime(),

@@ -12,7 +12,9 @@ import com.school.canteen.entity.Order;
 import com.school.canteen.entity.OrderItem;
 import com.school.canteen.entity.StudentProfile;
 import com.school.canteen.entity.User;
+import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.OrderStatus;
+import com.school.canteen.enums.OrderType;
 import com.school.canteen.enums.PaymentMethod;
 import com.school.canteen.enums.PaymentStatus;
 import com.school.canteen.enums.Role;
@@ -22,23 +24,33 @@ import com.school.canteen.exception.InvalidOrderStateException;
 import com.school.canteen.exception.OutOfStockException;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.mapper.OrderMapper;
+import com.school.canteen.notification.NotificationMessages;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.DeliverySlotRepository;
 import com.school.canteen.repository.OrderRepository;
 import com.school.canteen.repository.ParentChildLinkRepository;
 import com.school.canteen.repository.StudentProfileRepository;
 import com.school.canteen.repository.UserRepository;
+import com.school.canteen.service.NotificationService;
 import com.school.canteen.service.OrderService;
+import com.school.canteen.service.OrderingWindowService;
 import com.school.canteen.service.WalletService;
+import com.school.canteen.util.PageRequests;
 import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +73,13 @@ public class OrderServiceImpl implements OrderService {
     private static final Set<Role> ROLES_THAT_CAN_ORDER =
             Set.of(Role.STUDENT, Role.TEACHER, Role.PARENT);
 
+    /** How many times to look for the winning order before giving up on a duplicate race. */
+    private static final int DUPLICATE_LOOKUP_ATTEMPTS = 5;
+    private static final long DUPLICATE_LOOKUP_BACKOFF_MS = 40L;
+
+    /** SecureRandom so pickup codes cannot be guessed to collect someone else's food. */
+    private static final SecureRandom PICKUP_CODE_RANDOM = new SecureRandom();
+
     private final OrderRepository orderRepository;
     private final DailyMenuItemRepository dailyMenuItemRepository;
     private final DeliverySlotRepository deliverySlotRepository;
@@ -68,7 +87,16 @@ public class OrderServiceImpl implements OrderService {
     private final ParentChildLinkRepository parentChildLinkRepository;
     private final UserRepository userRepository;
     private final WalletService walletService;
+    private final NotificationService notificationService;
+    private final OrderingWindowService orderingWindowService;
     private final OrderMapper orderMapper;
+    private final Clock clock;
+    /**
+     * Self-reference so the transactional placement can be invoked through the Spring
+     * proxy. Calling it as a plain {@code this.method()} would bypass the proxy and run
+     * without a transaction.
+     */
+    private final OrderService self;
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             DailyMenuItemRepository dailyMenuItemRepository,
@@ -77,7 +105,11 @@ public class OrderServiceImpl implements OrderService {
                             ParentChildLinkRepository parentChildLinkRepository,
                             UserRepository userRepository,
                             WalletService walletService,
-                            OrderMapper orderMapper) {
+                            NotificationService notificationService,
+                            OrderingWindowService orderingWindowService,
+                            OrderMapper orderMapper,
+                            Clock clock,
+                            @Lazy OrderService self) {
         this.orderRepository = orderRepository;
         this.dailyMenuItemRepository = dailyMenuItemRepository;
         this.deliverySlotRepository = deliverySlotRepository;
@@ -85,13 +117,71 @@ public class OrderServiceImpl implements OrderService {
         this.parentChildLinkRepository = parentChildLinkRepository;
         this.userRepository = userRepository;
         this.walletService = walletService;
+        this.notificationService = notificationService;
+        this.orderingWindowService = orderingWindowService;
         this.orderMapper = orderMapper;
+        this.clock = clock;
+        this.self = self;
+    }
+
+    /**
+     * Deliberately NOT transactional.
+     *
+     * Two simultaneous submissions with the same idempotency key both pass the "already
+     * placed?" pre-check, so the second one is stopped by the uq_orders_idem constraint.
+     * In PostgreSQL that violation aborts the whole transaction, so the duplicate cannot
+     * be resolved inside it — every follow-up query would fail. Handling it out here lets
+     * the failed transaction roll back cleanly (no half-order, no double debit) and then
+     * return the order that actually won the race.
+     */
+    @Override
+    public OrderResponse placeOrder(UUID userId, PlaceOrderRequest request) {
+        try {
+            return self.placeOrderInTransaction(userId, request);
+        } catch (DataIntegrityViolationException duplicateSubmission) {
+            // The competing submission may not have committed yet at the instant our
+            // insert was rejected, so give it a moment before concluding it is missing.
+            for (int attempt = 0; attempt < DUPLICATE_LOOKUP_ATTEMPTS; attempt++) {
+                OrderResponse winner =
+                        self.findByIdempotencyKey(userId, request.idempotencyKey());
+                if (winner != null) {
+                    return winner;
+                }
+                sleepBriefly();
+            }
+            throw duplicateSubmission;
+        }
+    }
+
+    /**
+     * Loads an already-placed order by its idempotency key.
+     *
+     * Transactional because the response mapping walks lazy associations (slot, items,
+     * each item's menu item). Doing that outside a session throws
+     * LazyInitializationException, since open-in-view is disabled.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse findByIdempotencyKey(UUID userId, String idempotencyKey) {
+        return orderRepository.findByPlacedBy_IdAndIdempotencyKey(userId, idempotencyKey)
+                .map(orderMapper::toResponse)
+                .orElse(null);
+    }
+
+    private static void sleepBriefly() {
+        try {
+            Thread.sleep(DUPLICATE_LOOKUP_BACKOFF_MS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while resolving duplicate order",
+                    interrupted);
+        }
     }
 
     @Override
     @Transactional
-    public OrderResponse placeOrder(UUID userId, PlaceOrderRequest request) {
-        // 1) Idempotency: a resent checkout returns the same order, never a second one.
+    public OrderResponse placeOrderInTransaction(UUID userId, PlaceOrderRequest request) {
+        // 1) Idempotency fast path: a resent checkout returns the same order.
         var existing = orderRepository.findByPlacedBy_IdAndIdempotencyKey(userId, request.idempotencyKey());
         if (existing.isPresent()) {
             return orderMapper.toResponse(existing.get());
@@ -114,8 +204,10 @@ public class OrderServiceImpl implements OrderService {
         Order order = new Order();
         order.setOrderNumber(orderRepository.nextOrderNumber());
         order.setPlacedBy(user);
-        order.setRecipientName(resolveRecipient(user, request, order));
-        order.setDeliveryLocation(request.deliveryLocation());
+        // Order type must be resolved first: a takeaway order has no delivery address, so
+        // the location rules below depend on knowing which kind of order this is.
+        applyOrderType(user, request, order);
+        applyRecipientAndLocation(user, request, order);
         order.setSlot(slot);
         order.setMenuDate(date);
         order.setStatus(OrderStatus.PLACED);
@@ -133,13 +225,25 @@ public class OrderServiceImpl implements OrderService {
                 "Order " + OrderMapper.formatOrderNumber(order.getOrderNumber()));
         order.setPaymentStatus(PaymentStatus.PAID);
 
+        // Queued inside this transaction, so the notification and the order commit
+        // together — a customer can never be told about an order that rolled back.
+        notifyStatus(order, OrderStatus.PLACED);
+        notificationService.notifyUser(user, NotificationEvent.PAYMENT_SUCCESSFUL,
+                "Payment successful",
+                "Paid " + total + " from your wallet for order "
+                        + OrderMapper.formatOrderNumber(order.getOrderNumber()) + ".",
+                Map.of("orderId", order.getId().toString(),
+                        "amount", total.toPlainString()));
+
         return orderMapper.toResponse(order);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> myOrders(UUID userId) {
-        return orderRepository.findByPlacedBy_IdOrderByCreatedAtDesc(userId).stream()
+    public List<OrderResponse> myOrders(UUID userId, Integer page, Integer size) {
+        return orderRepository
+                .findByPlacedBy_IdOrderByCreatedAtDesc(userId, PageRequests.of(page, size))
+                .stream()
                 .map(orderMapper::toResponse)
                 .toList();
     }
@@ -162,6 +266,7 @@ public class OrderServiceImpl implements OrderService {
                     "Only an order that hasn't been accepted yet can be cancelled");
         }
         refundAndRestore(order, OrderStatus.CANCELLED);
+        notifyStatus(order, OrderStatus.CANCELLED);
         return orderMapper.toResponse(order);
     }
 
@@ -175,10 +280,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> adminList(LocalDate date, OrderStatus status) {
+    public List<OrderResponse> adminList(LocalDate date, OrderStatus status,
+                                         Integer page, Integer size) {
+        Pageable pageable = PageRequests.of(page, size);
         List<Order> orders = (status == null)
-                ? orderRepository.findByMenuDateOrderByCreatedAtAsc(date)
-                : orderRepository.findByMenuDateAndStatusOrderByCreatedAtAsc(date, status);
+                ? orderRepository.findByMenuDateOrderByCreatedAtAsc(date, pageable)
+                : orderRepository.findByMenuDateAndStatusOrderByCreatedAtAsc(date, status, pageable);
         return orders.stream().map(orderMapper::toResponse).toList();
     }
 
@@ -194,6 +301,7 @@ public class OrderServiceImpl implements OrderService {
                 throw new InvalidOrderStateException("Only a new or accepted order can be rejected");
             }
             refundAndRestore(order, OrderStatus.REJECTED);
+            notifyStatus(order, OrderStatus.REJECTED);
             return orderMapper.toResponse(order);
         }
 
@@ -209,22 +317,35 @@ public class OrderServiceImpl implements OrderService {
             order.setDeliveryPersonName(request.deliveryPersonName().trim());
         }
         order.setStatus(target);
+        notifyStatus(order, target);
         return orderMapper.toResponse(order);
     }
 
     // --- helpers ---------------------------------------------------------------
 
     private void validateOrderingWindow(LocalDate date, DeliverySlot slot) {
-        if (date.isBefore(LocalDate.now())) {
+        // All comparisons run in the school's timezone via the injected Clock. Using the
+        // JVM default would evaluate cutoffs in UTC on the deploy host, shifting a 09:30
+        // cutoff to 15:00 local and letting orders in long after the kitchen has closed.
+        if (date.isBefore(LocalDate.now(clock))) {
             throw new BadRequestException("Cannot order for a past date");
         }
-        LocalDateTime cutoff = LocalDateTime.of(date, slot.getOrderCutoffTime());
-        if (LocalDateTime.now().isAfter(cutoff)) {
-            throw new BadRequestException("Ordering for the " + slot.getName() + " slot has closed");
-        }
+        // Delegated so advance ordering honours both the slot's cutoff and the canteen's
+        // manual open/closed switch for that date.
+        orderingWindowService.assertAcceptingOrders(date, slot);
     }
 
-    private String resolveRecipient(User user, PlaceOrderRequest request, Order order) {
+    /**
+     * Sets who receives the order and where it goes.
+     *
+     * For a parent the location is derived from the linked child's class and section
+     * rather than trusting the client, because the delivery staff need an actual room to
+     * walk to — a client-supplied placeholder leaves them with nothing to act on.
+     */
+    private void applyRecipientAndLocation(User user, PlaceOrderRequest request, Order order) {
+        String extraDetail = (request.deliveryLocation() == null)
+                ? "" : request.deliveryLocation().trim();
+
         if (user.getRole() == Role.PARENT) {
             if (request.beneficiaryStudentProfileId() == null) {
                 throw new BadRequestException("Select which child this order is for");
@@ -237,13 +358,30 @@ public class OrderServiceImpl implements OrderService {
                         "This child is not linked to your account");
             }
             order.setBeneficiaryStudentProfile(child);
-            return child.getUser().getFullName();
+            order.setRecipientName(child.getUser().getFullName());
+
+            String classroom = "Class " + child.getStudentClass() + "-" + child.getSection()
+                    + " (Roll " + child.getRollNumber() + ")";
+            order.setDeliveryLocation(
+                    extraDetail.isBlank() ? classroom : classroom + " — " + extraDetail);
+            return;
         }
+
         // Student/teacher self-order.
         if (request.beneficiaryStudentProfileId() != null) {
             throw new BadRequestException("Only a parent can order on behalf of a child");
         }
-        return user.getFullName();
+        order.setRecipientName(user.getFullName());
+
+        if (order.getOrderType() == OrderType.TAKEAWAY) {
+            // Collected at the counter, so there is nothing to deliver and nowhere to ask
+            // the customer to name. applyOrderType already set the location.
+            return;
+        }
+        if (extraDetail.isBlank()) {
+            throw new BadRequestException("Delivery location is required");
+        }
+        order.setDeliveryLocation(extraDetail);
     }
 
     private BigDecimal addLinesAndReserveStock(Order order, LocalDate date,
@@ -281,6 +419,78 @@ public class OrderServiceImpl implements OrderService {
             total = total.add(lineTotal);
         }
         return total;
+    }
+
+    /**
+     * Decides delivery vs takeaway.
+     *
+     * Takeaway is restricted to teachers on purpose: students are expected to stay in class
+     * during recess (avoiding the counter crowding this app exists to remove), and a parent
+     * ordering remotely cannot walk up to collect it.
+     */
+    private void applyOrderType(User user, PlaceOrderRequest request, Order order) {
+        OrderType type = (request.orderType() == null) ? OrderType.DELIVERY : request.orderType();
+        if (type == OrderType.TAKEAWAY && user.getRole() != Role.TEACHER) {
+            throw new BadRequestException("Only teachers can place takeaway orders");
+        }
+        order.setOrderType(type);
+        if (type == OrderType.TAKEAWAY) {
+            order.setPickupCode(generatePickupCode());
+            // The counter is the collection point; there is nowhere to deliver to.
+            order.setDeliveryLocation("Counter pickup");
+        }
+    }
+
+    /**
+     * Short, unambiguous collection code.
+     *
+     * Excludes characters that are easily misread aloud or on a printed slip (0/O, 1/I),
+     * because staff key these in by hand at a busy counter.
+     */
+    private String generatePickupCode() {
+        final String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        StringBuilder code = new StringBuilder(6);
+        for (int i = 0; i < 6; i++) {
+            code.append(alphabet.charAt(PICKUP_CODE_RANDOM.nextInt(alphabet.length())));
+        }
+        return code.toString();
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse collectByPickupCode(LocalDate menuDate, String pickupCode) {
+        Order order = orderRepository
+                .findByMenuDateAndPickupCode(menuDate, pickupCode.trim().toUpperCase(Locale.ROOT))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No takeaway order found for that pickup code"));
+
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            // Idempotent: staff re-scanning a slip should not be an error, and it must not
+            // look like a second collection.
+            return orderMapper.toResponse(order);
+        }
+        if (order.getStatus() != OrderStatus.PACKED
+                && order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
+            throw new InvalidOrderStateException(
+                    "This order is not ready for collection yet (" + order.getStatus() + ")");
+        }
+        order.setStatus(OrderStatus.DELIVERED);
+        notifyStatus(order, OrderStatus.DELIVERED);
+        return orderMapper.toResponse(order);
+    }
+
+    /** Sends the order's owner the message matching its new status. */
+    private void notifyStatus(Order order, OrderStatus status) {
+        String orderNumber = OrderMapper.formatOrderNumber(order.getOrderNumber());
+        notificationService.notifyUser(
+                order.getPlacedBy(),
+                NotificationMessages.eventFor(status),
+                NotificationMessages.titleFor(status),
+                NotificationMessages.bodyFor(status, orderNumber, order.getRecipientName(),
+                        order.getDeliveryPersonName()),
+                Map.of("orderId", order.getId().toString(),
+                        "orderNumber", orderNumber,
+                        "status", status.name()));
     }
 
     /** Puts stock back and refunds the wallet (if paid), then moves to a terminal status. */

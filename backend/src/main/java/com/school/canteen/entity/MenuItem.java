@@ -25,6 +25,11 @@ public class MenuItem extends BaseEntity {
     @Column(name = "price", nullable = false, precision = 8, scale = 2)
     private BigDecimal price;
 
+    /** What the item costs the canteen to make. Null means "not recorded yet", which
+     *  reports treat as zero — understating cost rather than inventing one. */
+    @Column(name = "cost_price", precision = 8, scale = 2)
+    private BigDecimal costPrice;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "food_type", nullable = false)
     private FoodType foodType;
@@ -65,6 +70,14 @@ public class MenuItem extends BaseEntity {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public BigDecimal getCostPrice() {
+        return costPrice;
+    }
+
+    public void setCostPrice(BigDecimal costPrice) {
+        this.costPrice = costPrice;
     }
 
     public FoodType getFoodType() {

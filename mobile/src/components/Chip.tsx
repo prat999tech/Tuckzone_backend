@@ -1,0 +1,45 @@
+import React from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors, radius, spacing } from '../theme';
+
+interface ChipProps {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  dotColor?: string;
+}
+
+/** Filter/selection pill (menu food-type filters, category filters, status filters,
+ *  admin tabs). One shape and one active/inactive state used everywhere they appear. */
+export function Chip({ label, active, onPress, dotColor }: ChipProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.chip, active ? styles.chipActive : styles.chipInactive]}
+    >
+      {dotColor ? <Text style={[styles.dot, { color: dotColor }]}>●</Text> : null}
+      <Text style={[styles.label, active ? styles.labelActive : styles.labelInactive]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    marginRight: spacing.sm,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipInactive: { backgroundColor: colors.surface, borderColor: colors.border },
+  label: { fontSize: 13, fontWeight: '600' },
+  labelActive: { color: colors.textOnPrimary },
+  labelInactive: { color: colors.textSecondary },
+  dot: { fontSize: 10 },
+});

@@ -175,7 +175,7 @@ export default function RegisterPage() {
             <UserPlus size={28} className="text-amber" />
           </div>
           <h1>Create Account</h1>
-          <p>Fill in your details to register with SchoolBite</p>
+          <p>Fill in your details to register with TuckZone</p>
         </div>
 
         <div className="role-tabs">

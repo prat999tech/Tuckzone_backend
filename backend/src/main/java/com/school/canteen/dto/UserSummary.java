@@ -16,11 +16,15 @@ public record UserSummary(
         String mobile,
         Role role,
         UserStatus status,
+        boolean emailVerified,
         Instant createdAt,
         String admissionNumber,
         String studentClass,
         String section,
         String rollNumber,
+        String seatNumber,
+        String studentMobile,
+        String parentMobile,
         String employeeId,
         String department) {
 }

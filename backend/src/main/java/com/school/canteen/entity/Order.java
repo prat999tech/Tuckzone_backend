@@ -1,6 +1,7 @@
 package com.school.canteen.entity;
 
 import com.school.canteen.enums.OrderStatus;
+import com.school.canteen.enums.OrderType;
 import com.school.canteen.enums.PaymentMethod;
 import com.school.canteen.enums.PaymentStatus;
 import jakarta.persistence.CascadeType;
@@ -72,6 +73,14 @@ public class Order extends BaseEntity {
 
     @Column(name = "idempotency_key")
     private String idempotencyKey;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_type", nullable = false)
+    private OrderType orderType = OrderType.DELIVERY;
+
+    /** Short code a takeaway customer shows at the counter. Null for delivery orders. */
+    @Column(name = "pickup_code", length = 12)
+    private String pickupCode;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
@@ -176,6 +185,22 @@ public class Order extends BaseEntity {
 
     public void setDeliveryPersonName(String deliveryPersonName) {
         this.deliveryPersonName = deliveryPersonName;
+    }
+
+    public OrderType getOrderType() {
+        return orderType;
+    }
+
+    public void setOrderType(OrderType orderType) {
+        this.orderType = orderType;
+    }
+
+    public String getPickupCode() {
+        return pickupCode;
+    }
+
+    public void setPickupCode(String pickupCode) {
+        this.pickupCode = pickupCode;
     }
 
     public String getIdempotencyKey() {

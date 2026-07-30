@@ -13,6 +13,8 @@ public record MenuItemRequest(
         @NotBlank @Size(max = 120) String name,
         @Size(max = 500) String description,
         @NotNull @DecimalMin(value = "0.0") @Digits(integer = 6, fraction = 2) BigDecimal price,
+        /** Cost to make one unit; drives profit reporting. Optional. */
+        @DecimalMin(value = "0.0") @Digits(integer = 6, fraction = 2) BigDecimal costPrice,
         @NotNull FoodType foodType,
         @NotNull MenuCategory category,
         @Size(max = 500) String imageUrl,

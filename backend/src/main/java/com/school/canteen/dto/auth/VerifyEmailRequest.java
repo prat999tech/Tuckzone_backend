@@ -1,0 +1,11 @@
+package com.school.canteen.dto.auth;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+/** Confirms the address supplied at registration using the code emailed to it. */
+public record VerifyEmailRequest(
+        @NotBlank @Email @Size(max = 180) String email,
+        @NotBlank String code) {
+}

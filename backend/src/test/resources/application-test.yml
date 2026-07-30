@@ -1,0 +1,44 @@
+# Test profile. The datasource is supplied by Testcontainers via @ServiceConnection,
+# so nothing here points at a real database.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  timezone: Asia/Kolkata
+  minimum-app-version: 1.0.0
+  otp:
+    delivery: log        # returns the code in the response so tests can complete OTP flows
+    length: 6
+    ttl-minutes: 5
+    max-attempts: 5
+  notification:
+    email-from-address: test@tuckzone.local
+    email-from-name: TuckZone Test
+    push-provider: log   # no Firebase project needed in tests
+    email-provider: log  # no mail server needed in tests
+    batch-size: 500
+    max-attempts: 5
+    retry-backoff-seconds: 30
+  payment:
+    provider: mock
+    currency: INR
+    key-id: test_key_id
+    key-secret: test_key_secret
+    allow-mock-topup: true
+    max-topup-amount: 10000.00
+  admin:
+    signup-code: TEST-ADMIN-CODE
+  security:
+    rate-limit:
+      # Raised well above production limits: these tests fire many requests in quick
+      # succession, and throttling them would fail the test rather than the code.
+      login-attempts-per-window: 1000
+      otp-requests-per-window: 1000
+      otp-verify-attempts-per-window: 1000
+      window-minutes: 15

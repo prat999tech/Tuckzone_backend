@@ -1,186 +1,101 @@
-# 🍽️ SchoolBite — School Canteen Management System
+# 🍽️ TuckZone — School Canteen Pre-Order System
 
-A full-stack web application for managing a school canteen. Students, parents, and teachers can order food online and get it delivered to their classroom. Canteen admins manage the menu, stock, and order fulfillment.
-
----
-
-## 📋 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Frontend** | React 18 + Vite + Nginx |
-| **Backend** | Spring Boot 3 + Java 17 |
-| **Database** | PostgreSQL |
-| **Auth** | JWT (Access + Refresh tokens) |
-| **Deployment** | Docker + Docker Compose |
+Students, parents and teachers pre-order meals from the school canteen and get them
+delivered to their classroom (or collect them at the counter). The canteen runs the whole
+operation — menu, stock, orders, and finances — from an admin app.
 
 ---
 
-## 🐳 Run with Docker (Easiest — Recommended)
-
-> **Only requirement: [Docker Desktop](https://www.docker.com/products/docker-desktop) installed**
-
-### Step 1 — Clone the project
+## Quick start
 
 ```bash
-git clone https://github.com/prat999tech/management_system_canteen_vendor.git
-cd management_system_canteen_vendor
+chmod +x setup.sh && ./setup.sh
 ```
 
-### Step 2 — Build and Start everything
+That checks your tools, creates the config files, starts the database and installs
+dependencies. Then follow the two commands it prints at the end.
 
-```bash
-docker-compose up --build
-```
+Full details, test logins and troubleshooting: **[RUNNING_LOCALLY.md](RUNNING_LOCALLY.md)**
 
-> ⏳ First run takes 3–5 minutes (downloads Java, Node, builds the app).  
-> Subsequent runs are fast (cached layers).
-
-### Step 3 — Open in Browser
-
-```
-http://localhost
-```
-
-That's it! 🎉
-
-### Stop everything
-
-```bash
-docker-compose down
-```
-
-### Stop and delete all data (fresh start)
-
-```bash
-docker-compose down -v
-```
+To turn on real push notifications: **[PUSH_SETUP.md](PUSH_SETUP.md)**
 
 ---
 
-## 👤 Default Admin Accounts (Auto-Created on First Start)
+## What you need installed
 
-| Role | Email | Password |
+| Tool | Version | Where |
 |---|---|---|
-| **Canteen Admin** | canteenadmin@school.local | Admin@12345 |
-| **School Admin** | schooladmin@school.local | Admin@12345 |
+| Docker Desktop | any recent | https://docker.com/products/docker-desktop |
+| Java JDK | 21 or newer | https://adoptium.net |
+| Node.js | 18 or newer | https://nodejs.org |
+| **Expo Go** (on your phone) | **SDK 54 build** | See note below |
 
-> Or click the **"Login as Canteen Admin"** button on the login page directly.
+Windows users: run `setup.sh` from **WSL** or **Git Bash**.
 
----
-
-## 🏗️ Docker Architecture
-
-```
-http://localhost (port 80)
-        │
-        ▼
-┌─────────────────────┐
-│  Nginx (Frontend)   │  ← Serves React app + proxies /api/* calls
-└─────────┬───────────┘
-          │  proxy /api/*
-          ▼
-┌─────────────────────┐
-│  Spring Boot (8080) │  ← Backend API
-└─────────┬───────────┘
-          │  JDBC
-          ▼
-┌─────────────────────┐
-│  PostgreSQL (5432)  │  ← Database (data persists in Docker volume)
-└─────────────────────┘
-```
+> **Expo Go version matters.** Expo Go supports exactly one SDK per release, and this
+> project targets **SDK 54**. If you see *"Project is incompatible with this version of
+> Expo Go"*, install the matching build directly:
+> <https://github.com/expo/expo-go-releases/releases/download/Expo-Go-54.0.8/Expo-Go-54.0.8.apk>
+> (uninstall any existing Expo Go first, then allow "install unknown apps" for your browser).
 
 ---
 
-## ⚙️ Run Without Docker (Manual Setup)
-
-If you prefer running without Docker:
-
-### Prerequisites
-
-| Tool | Version | Download |
-|---|---|---|
-| **Java JDK** | 17+ | https://adoptium.net |
-| **Node.js** | 18+ | https://nodejs.org |
-| **PostgreSQL** | 15+ | https://www.postgresql.org/download |
-
-### 1. Setup Database
-
-Create a PostgreSQL database:
-```sql
-CREATE DATABASE canteen;
-CREATE USER canteen WITH PASSWORD 'canteen';
-GRANT ALL PRIVILEGES ON DATABASE canteen TO canteen;
-```
-
-### 2. Start Backend
-
-```bash
-cd backend
-./mvnw spring-boot:run
-# Windows: mvnw.cmd spring-boot:run
-```
-
-Wait for: `Started CanteenApplication in X seconds`  
-Backend → **http://localhost:8080**
-
-### 3. Start Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend → **http://localhost:5173**
-
----
-
-## 🗂️ Project Structure
+## Project layout
 
 ```
 school-canteen/
-├── backend/                  ← Spring Boot API
-│   ├── src/main/java/        ← Java source code
-│   ├── src/main/resources/   ← Config + DB migrations (Flyway)
-│   ├── Dockerfile
-│   └── pom.xml
-│
-├── frontend/                 ← React + Vite UI
-│   ├── src/
-│   │   ├── pages/            ← Login, Menu, Wallet, Orders, Admin pages
-│   │   ├── components/       ← Layout, ProtectedRoute
-│   │   ├── api/              ← Axios API calls
-│   │   └── context/          ← Auth & Cart context
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   └── package.json
-│
-└── docker-compose.yml        ← Runs everything with one command
+├── backend/     Spring Boot 4 API (Java 21, PostgreSQL, Flyway)
+├── mobile/      React Native app (Expo + TypeScript) — the app people actually use
+├── frontend/    Older React web app — superseded by mobile/, kept for reference only
+├── docs/        openapi.json — the generated API contract (44 endpoints)
+└── setup.sh     One-shot first-time setup
 ```
 
----
-
-## ❓ Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| `Port 80 already in use` | Stop any local web server or change port in `docker-compose.yml` |
-| `Port 8080 already in use` | Change the backend port in `docker-compose.yml` |
-| Build fails on backend | Make sure Docker has enough memory (4GB+) in Docker Desktop settings |
-| `./mvnw: Permission denied` | Run `chmod +x backend/mvnw` |
-| Data not saving | Make sure the `canteen_pgdata` volume exists (`docker volume ls`) |
+> `frontend/` predates the mobile app and is **no longer maintained** — parts of it no
+> longer match the current API. Ignore it; `mobile/` is the real client.
 
 ---
 
-## 📱 Features
+## Tech
 
-- ✅ Student / Parent / Teacher registration & login
-- ✅ Browse daily menu with filters (Veg/Non-Veg, category, date)
-- ✅ Add to cart & place orders with delivery slot selection
-- ✅ Parent can link child accounts and order on their behalf
-- ✅ Wallet top-up and balance management
-- ✅ Real-time order tracking (Placed → Preparing → Packed → Delivered)
-- ✅ Canteen admin: manage menu catalog, daily stock, order fulfillment board
-- ✅ Full form validation with error messages
-- ✅ Responsive design — works on mobile and desktop
+| Layer | Choice | Why |
+|---|---|---|
+| API | Spring Boot 4, Java 21 | — |
+| Database | PostgreSQL + Flyway | Money and stock need real transactions and row locks |
+| Auth | JWT access + refresh, revocable server-side | Logout/password change actually kill a session |
+| OTP | 6-digit codes **by email** | No SMS gateway, no India DLT registration, no per-message cost |
+| Email | **Plain SMTP** (JavaMail) | Any provider works — Gmail, Zoho, SES, self-hosted. No vendor lock-in |
+| Push | Firebase Cloud Messaging | Free, and the only way to get real-time order updates on a phone |
+| Mobile | React Native (Expo) + TypeScript | — |
+
+---
+
+## Features
+
+**Students / Parents / Teachers**
+- Register and sign in with a password **or** an emailed one-time code
+- Browse the daily menu, filter by veg/non-veg and category, order for a future date
+- Prepaid wallet — top up once, orders debit instantly; cancellations refund immediately
+- Parents link their children (admission number + registered mobile) and order for them
+- Teachers can choose **takeaway** and collect with a pickup code
+- Live order tracking: placed → accepted → preparing → packed → on the way → delivered
+
+**Canteen admin**
+- Dashboard: today's orders, revenue, cost of goods, expenses, **net profit**, low stock
+- Kitchen board: accept/reject, advance through each stage, assign a delivery person
+- Menu catalog + per-day stock scheduling
+- **Advance ordering control**: stop/reopen ordering per slot, see aggregated demand so you
+  know what to cook and when to add stock
+- Sales reports, expense tracking, account enable/disable
+
+---
+
+## Notes for whoever runs this
+
+- Out of the box, **OTP codes, emails and push all print to the backend terminal** instead
+  of being sent for real. That makes the whole app usable with zero external accounts. See
+  RUNNING_LOCALLY.md to switch on real email.
+- **Payments are mocked.** Wallet top-ups succeed without real money, which is deliberate
+  until a payment gateway is integrated (one config flag turns it off).
+- Real push notifications need a Firebase project and a development build — Expo Go cannot
+  receive them. Everything else works in Expo Go.

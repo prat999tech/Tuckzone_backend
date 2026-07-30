@@ -20,6 +20,7 @@ public class MenuItemMapper {
         item.setName(request.name());
         item.setDescription(request.description());
         item.setPrice(request.price());
+        item.setCostPrice(request.costPrice());
         item.setFoodType(request.foodType());
         item.setCategory(request.category());
         item.setImageUrl(request.imageUrl());
@@ -32,6 +33,7 @@ public class MenuItemMapper {
                 item.getName(),
                 item.getDescription(),
                 item.getPrice(),
+                item.getCostPrice(),
                 item.getFoodType(),
                 item.getCategory(),
                 item.getImageUrl(),

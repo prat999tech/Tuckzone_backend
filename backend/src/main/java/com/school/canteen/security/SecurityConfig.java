@@ -41,7 +41,10 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/health/**", "/api/auth/**").permitAll()
+                        // Public: launch-screen config plus the generated API docs used to build the
+                        // mobile client. Neither exposes any user data.
+                        .requestMatchers("/api/health/**", "/api/auth/**", "/api/config/**",
+                                "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

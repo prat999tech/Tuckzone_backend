@@ -4,6 +4,7 @@ import com.school.canteen.dto.menu.DailyMenuItemResponse;
 import com.school.canteen.enums.FoodType;
 import com.school.canteen.enums.MenuCategory;
 import com.school.canteen.service.DailyMenuService;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MenuController {
 
     private final DailyMenuService dailyMenuService;
+    private final Clock clock;
 
-    public MenuController(DailyMenuService dailyMenuService) {
+    public MenuController(DailyMenuService dailyMenuService, Clock clock) {
         this.dailyMenuService = dailyMenuService;
+        this.clock = clock;
     }
 
     @GetMapping
@@ -34,7 +37,9 @@ public class MenuController {
             @RequestParam(required = false) FoodType foodType,
             @RequestParam(required = false) MenuCategory category,
             @RequestParam(required = false) String q) {
-        LocalDate menuDate = (date != null) ? date : LocalDate.now();
+        // "Today" in the school's timezone. With the JVM default (UTC on the deploy host)
+        // the menu would roll over to the next day at 5:30 AM local time.
+        LocalDate menuDate = (date != null) ? date : LocalDate.now(clock);
         return dailyMenuService.getMenu(menuDate, foodType, category, q);
     }
 }

@@ -58,8 +58,8 @@ public class AppUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        // A disabled/pending/rejected account is treated as not-enabled, so even a
-        // still-valid token stops working the moment an admin changes their status.
-        return user.getStatus() == UserStatus.APPROVED;
+        // Re-checked on every request, so blocking an account takes effect immediately
+        // rather than whenever the current access token happens to expire.
+        return user.getStatus() == UserStatus.ACTIVE;
     }
 }

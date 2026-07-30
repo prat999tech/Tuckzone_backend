@@ -38,6 +38,10 @@ public class User extends BaseEntity {
     @Column(name = "status", nullable = false)
     private UserStatus status;
 
+    /** True once the user has entered the code emailed to them at registration. */
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
     public String getFullName() {
         return fullName;
     }
@@ -76,6 +80,14 @@ public class User extends BaseEntity {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 
     public UserStatus getStatus() {

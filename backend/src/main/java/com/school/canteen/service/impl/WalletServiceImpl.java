@@ -7,10 +7,10 @@ import com.school.canteen.dto.wallet.TopupRequest;
 import com.school.canteen.dto.wallet.VerifyTopupRequest;
 import com.school.canteen.dto.wallet.WalletResponse;
 import com.school.canteen.dto.wallet.WalletTransactionResponse;
-import com.school.canteen.entity.User;
 import com.school.canteen.entity.Wallet;
 import com.school.canteen.entity.WalletTopup;
 import com.school.canteen.entity.WalletTransaction;
+import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.TopupStatus;
 import com.school.canteen.enums.TransactionType;
 import com.school.canteen.exception.ApiException;
@@ -24,15 +24,17 @@ import com.school.canteen.repository.UserRepository;
 import com.school.canteen.repository.WalletRepository;
 import com.school.canteen.repository.WalletTopupRepository;
 import com.school.canteen.repository.WalletTransactionRepository;
+import com.school.canteen.service.NotificationService;
 import com.school.canteen.service.WalletService;
+import com.school.canteen.util.PageRequests;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +48,7 @@ public class WalletServiceImpl implements WalletService {
     private final UserRepository userRepository;
     private final PaymentGateway paymentGateway;
     private final PaymentProperties paymentProperties;
+    private final NotificationService notificationService;
     private final WalletMapper walletMapper;
 
     public WalletServiceImpl(WalletRepository walletRepository,
@@ -54,6 +57,7 @@ public class WalletServiceImpl implements WalletService {
                              UserRepository userRepository,
                              PaymentGateway paymentGateway,
                              PaymentProperties paymentProperties,
+                             NotificationService notificationService,
                              WalletMapper walletMapper) {
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
@@ -61,6 +65,7 @@ public class WalletServiceImpl implements WalletService {
         this.userRepository = userRepository;
         this.paymentGateway = paymentGateway;
         this.paymentProperties = paymentProperties;
+        this.notificationService = notificationService;
         this.walletMapper = walletMapper;
     }
 
@@ -72,9 +77,10 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public List<WalletTransactionResponse> getTransactions(UUID userId) {
+    public List<WalletTransactionResponse> getTransactions(UUID userId, Integer page, Integer size) {
         Wallet wallet = getOrCreateWallet(userId);
-        return walletTransactionRepository.findByWallet_IdOrderByCreatedAtDesc(wallet.getId())
+        return walletTransactionRepository
+                .findByWallet_IdOrderByCreatedAtDesc(wallet.getId(), PageRequests.of(page, size))
                 .stream()
                 .map(walletMapper::toTransactionResponse)
                 .toList();
@@ -83,6 +89,10 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public TopupInitResponse initiateTopup(UUID userId, TopupRequest request) {
+        if (request.amount().compareTo(paymentProperties.maxTopupAmount()) > 0) {
+            throw new BadRequestException(
+                    "Maximum top-up amount is " + paymentProperties.maxTopupAmount());
+        }
         Wallet wallet = getOrCreateWallet(userId);
         long amountPaise = request.amount().movePointRight(2).longValueExact();
         GatewayOrder order = paymentGateway.createOrder(amountPaise, "topup_" + wallet.getId());
@@ -132,14 +142,27 @@ public class WalletServiceImpl implements WalletService {
         applyLocked(topup.getWallet().getId(), TransactionType.CREDIT, topup.getAmount(),
                 "TOPUP", topup.getId().toString(), "Wallet top-up");
 
+        notificationService.notifyUser(topup.getWallet().getUser(),
+                NotificationEvent.WALLET_TOPPED_UP,
+                "Wallet topped up",
+                topup.getAmount() + " was added to your wallet. New balance: "
+                        + topup.getWallet().getBalance() + ".",
+                Map.of("amount", topup.getAmount().toPlainString(),
+                        "balance", topup.getWallet().getBalance().toPlainString()));
+
         return walletMapper.toWalletResponse(topup.getWallet());
     }
 
     @Override
     @Transactional
     public WalletResponse mockCompleteTopup(UUID userId, MockTopupCompleteRequest request) {
-        if (!"mock".equalsIgnoreCase(paymentProperties.provider())) {
-            throw new BadRequestException("Mock top-up completion is available only in mock mode");
+        // Gated on an explicit switch rather than on the provider name. Previously this
+        // keyed off provider=="mock", which the production profile inherited by accident —
+        // meaning any logged-in user could credit their own wallet for free on the live
+        // deployment. Kept enabled deliberately until a real gateway is integrated.
+        if (!paymentProperties.allowMockTopup()) {
+            throw new BadRequestException(
+                    "Mock top-up is disabled; complete the payment through the gateway");
         }
 
         String paymentId = "pay_" + UUID.randomUUID().toString().replace("-", "");
@@ -223,17 +246,17 @@ public class WalletServiceImpl implements WalletService {
     }
 
     private Wallet createWallet(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
-        Wallet wallet = new Wallet();
-        wallet.setUser(user);
-        wallet.setBalance(BigDecimal.ZERO);
-        try {
-            return walletRepository.saveAndFlush(wallet);
-        } catch (DataIntegrityViolationException race) {
-            // Two first-time requests raced; the unique(user_id) constraint stopped the dup.
-            return walletRepository.findByUser_Id(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found: " + userId);
         }
+        // ON CONFLICT DO NOTHING lets PostgreSQL absorb a concurrent creation silently.
+        // The previous approach (insert, catch DataIntegrityViolationException, re-select)
+        // could never work: in PostgreSQL a constraint violation aborts the whole
+        // transaction, so the recovery query failed with "current transaction is aborted".
+        // That is visible in the production logs whenever a new user's app fired
+        // GET /wallet and GET /wallet/transactions in parallel.
+        walletRepository.insertIfAbsent(UUID.randomUUID(), userId);
+        return walletRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
     }
 }

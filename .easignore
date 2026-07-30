@@ -1,0 +1,60 @@
+# Controls what EAS Build uploads. MUST live at the git repository root — eas-cli looks for
+# it at `git rev-parse --show-toplevel`, not next to app.json. A copy inside mobile/ is
+# silently ignored.
+#
+# IMPORTANT: when this file exists, eas-cli does NOT read any .gitignore (root, backend/,
+# mobile/, frontend/). Every rule below has to be repeated here or the file gets uploaded.
+# The upload is the whole repo (`tar` runs at the git root), so backend/ is in scope too.
+#
+# The one deliberate omission is mobile/google-services.json: it must stay out of git but
+# must reach the builder, or the APK ships with no Firebase config and push silently never
+# works. Uploading it is safe — it is client configuration embedded in every APK you ship,
+# not a secret. The real secret is backend/firebase-service-account.json, excluded below.
+
+# ── Not needed for an Android build; excluded so backend secrets can never ride along ──
+# Leading slash anchors to the repo root, so this cannot accidentally match a directory
+# named "backend" nested somewhere inside mobile/src.
+/backend
+/frontend
+
+# ── Secrets (mirrors the .gitignore rules that no longer apply) ──
+.env
+.env.*
+!.env.example
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+*serviceAccount*.json
+GoogleService-Info.plist
+
+# Signing material must never leave your machine
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# ── Dependencies and build output — regenerated on the build server ──
+# Bare name, no trailing slash: a "node_modules/" pattern only matches when the path is
+# known to be a directory, which is not how every check evaluates it.
+node_modules
+/mobile/.expo
+/mobile/dist
+/mobile/web-build
+/mobile/ios
+/mobile/android
+/mobile/.kotlin
+/mobile/expo-env.d.ts
+
+# ── Editor / OS noise ──
+.idea
+.vscode
+*.iml
+.DS_Store
+*.log
+*.local
+*.tsbuildinfo
+*.orig.*
+
+# NOTE: mobile/google-services.json is deliberately NOT listed — it must be uploaded.

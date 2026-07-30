@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "TuckZone",
+    "slug": "schoolbite",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.schoolbite.canteen"
+    },
+    "android": {
+      "package": "com.schoolbite.canteen",
+      "adaptiveIcon": {
+        "backgroundColor": "#FEF3C7",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#F59E0B"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "db0761a6-c78b-4833-9c1f-c7d1b012439f"
+      }
+    }
+  }
+}

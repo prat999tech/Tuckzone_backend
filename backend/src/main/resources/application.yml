@@ -3,9 +3,10 @@ spring:
     name: canteen
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/canteen
-    username: canteen
-    password: canteen
+    # Local dev DB (docker-compose.dev.yml). Deployments override via env vars.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/canteen}
+    username: ${SPRING_DATASOURCE_USERNAME:canteen}
+    password: ${SPRING_DATASOURCE_PASSWORD:canteen}
 
   jpa:
     # validate = Hibernate checks its entity mappings against the schema Flyway created,
@@ -19,42 +20,131 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        # Batch lazy-loading so an N-item list costs one extra query, not N.
+        default_batch_fetch_size: 50
 
   flyway:
     enabled: true
     locations: classpath:db/migration
 
+  jackson:
+    # Serialize timestamps in the app's civil timezone so clients see school-local times.
+    time-zone: ${APP_TIMEZONE:Asia/Kolkata}
+
+  # SMTP connection. Standard Spring Boot properties, so ANY provider works unchanged:
+  #   Gmail  -> smtp.gmail.com:587  (username = full address, password = a Google
+  #             "App Password", NOT your account password — requires 2FA enabled)
+  #   Zoho   -> smtp.zoho.in:587
+  #   SES    -> email-smtp.<region>.amazonaws.com:587
+  # Only used when app.notification.email-provider=smtp.
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 # Application-specific config
 app:
+  # Every "today" / "is it past the cutoff" decision uses this zone, never the server's
+  # default. Deploy hosts run in UTC, and the school does not.
+  timezone: ${APP_TIMEZONE:Asia/Kolkata}
+
+  # Oldest Android build the API still supports. Raise it to force an update.
+  minimum-app-version: ${APP_MIN_VERSION:1.0.0}
+
   cors:
     allowed-origins: ${FRONTEND_URL:http://localhost:5173,http://localhost:3000}
+
   security:
     jwt:
       secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789-abcdefghijklmnop}
       access-token-ttl-minutes: 30
-      refresh-token-ttl-days: 7
-  # Admin accounts cannot self-register (no public admin role), so they are seeded on
-  # startup if missing. Change these in a real deployment via env vars.
+      # 60 days: a mobile app should not sign users out every week. The session is
+      # revocable server-side (logout, password change, account disabled), so a long
+      # lifetime is safe in a way a plain stateless token would not be.
+      refresh-token-ttl-days: ${JWT_REFRESH_DAYS:60}
+    # Simple in-memory throttling (single instance). Protects credential and OTP endpoints.
+    rate-limit:
+      login-attempts-per-window: 10
+      otp-requests-per-window: 5
+      otp-verify-attempts-per-window: 10
+      window-minutes: 15
+
+  # One-time passcodes for registration, OTP sign-in and password reset — delivered by
+  # email. delivery=log writes the code to the application log and returns it in the API
+  # response so the flow is demonstrable without a mail server; delivery=email sends for
+  # real via the SMTP settings under spring.mail.* above.
+  otp:
+    delivery: ${APP_OTP_DELIVERY:log}
+    length: 6
+    ttl-minutes: 5
+    max-attempts: 5
+
+  # Notification delivery.
+  # push-provider=log writes pushes to the application log so the whole outbox pipeline is
+  # exercisable without a Firebase project. Set it to "firebase" and supply credentials to
+  # deliver real pushes to the mobile app.
+  notification:
+    push-provider: ${APP_PUSH_PROVIDER:log}
+    batch-size: 500          # also the max messages sent to FCM in one call
+    max-attempts: 5
+    retry-backoff-seconds: 30
+    sweep-interval-ms: 2000
+    firebase-credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
+    # email-provider=smtp sends for real using the spring.mail.* settings above.
+    # Plain SMTP on purpose: any provider (Gmail, Zoho, your own domain, SES) works with
+    # the same code — there is no vendor SDK to swap out.
+    email-provider: ${APP_EMAIL_PROVIDER:log}
+    email-from-address: ${EMAIL_FROM_ADDRESS:noreply@tuckzone.local}
+    email-from-name: ${EMAIL_FROM_NAME:TuckZone Canteen}
+
+  # Canteen admins cannot self-register freely: registering with role CANTEEN_ADMIN
+  # requires this invite code. Without it anyone could take over the canteen.
+  admin:
+    signup-code: ${ADMIN_SIGNUP_CODE:CANTEEN-SETUP-2026}
+
+  # Bootstrap admin account. Off by default: admins now register like everyone else,
+  # supplying the invite code above. Kept as an escape hatch for a fresh environment.
   seed:
-    enabled: true
-    school-admin:
-      full-name: School Administrator
-      email: ${SCHOOL_ADMIN_EMAIL:schooladmin@school.local}
-      mobile: "9000000001"
-      password: ${SCHOOL_ADMIN_PASSWORD:Admin@12345}
+    enabled: ${APP_SEED_ENABLED:false}
     canteen-admin:
       full-name: Canteen Administrator
       email: ${CANTEEN_ADMIN_EMAIL:canteenadmin@school.local}
       mobile: "9000000002"
       password: ${CANTEEN_ADMIN_PASSWORD:Admin@12345}
-  # Payment gateway. provider=mock uses an in-process gateway that mirrors Razorpay's
-  # signature scheme, so the flow is fully testable without real keys. Set provider and
-  # real keys to switch to live Razorpay later.
+
   payment:
-    provider: mock
+    provider: ${APP_PAYMENT_PROVIDER:mock}
     currency: INR
     key-id: ${RAZORPAY_KEY_ID:mock_key_id}
     key-secret: ${RAZORPAY_KEY_SECRET:mock_key_secret}
+    # DELIBERATE SWITCH — not an accident of config inheritance.
+    # true  = /api/wallet/topup/mock-complete credits the wallet without real money.
+    #         Required while there is no real payment gateway yet.
+    # false = endpoint returns 404-style rejection. Flip this (APP_ALLOW_MOCK_TOPUP=false)
+    #         the day the real gateway goes live; nothing else needs to change.
+    allow-mock-topup: ${APP_ALLOW_MOCK_TOPUP:true}
+    # Hard ceiling on a single top-up, so mock mode cannot mint absurd balances.
+    max-topup-amount: 10000.00
+
+# Generated API contract for building the Android client.
+# Browse it at /swagger-ui.html ; raw spec at /v3/api-docs
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha

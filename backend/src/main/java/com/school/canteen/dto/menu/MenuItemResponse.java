@@ -10,6 +10,7 @@ public record MenuItemResponse(
         String name,
         String description,
         BigDecimal price,
+        BigDecimal costPrice,
         FoodType foodType,
         MenuCategory category,
         String imageUrl,

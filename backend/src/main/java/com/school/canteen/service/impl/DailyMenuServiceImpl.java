@@ -64,7 +64,11 @@ public class DailyMenuServiceImpl implements DailyMenuService {
     @Override
     @Transactional
     public DailyMenuItemResponse update(UUID id, DailyMenuUpdateRequest request) {
-        DailyMenuItem entry = findOrThrow(id);
+        // Locked read (SELECT ... FOR UPDATE): this method recomputes remaining stock from
+        // a read, so without the lock an order placed between the read and the write would
+        // be erased from the stock count and the canteen would oversell.
+        DailyMenuItem entry = dailyMenuItemRepository.lockById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Daily menu entry not found: " + id));
 
         // Preserve what's already been consumed when the admin changes the day's total.
         int consumed = entry.getTotalQuantity() - entry.getRemainingQuantity();
@@ -82,6 +86,14 @@ public class DailyMenuServiceImpl implements DailyMenuService {
     @Transactional
     public void remove(UUID id) {
         DailyMenuItem entry = findOrThrow(id);
+        // Deleting an entry that live orders depend on breaks stock accounting: a later
+        // cancellation would try to restore stock to a row that no longer exists and would
+        // silently lose it. Pull the item from sale instead of deleting it.
+        if (dailyMenuItemRepository.hasActiveOrders(entry.getMenuDate(), entry.getMenuItem().getId())) {
+            throw new BadRequestException(
+                    "This item already has orders for " + entry.getMenuDate()
+                            + "; mark it unavailable instead of removing it");
+        }
         dailyMenuItemRepository.delete(entry);
     }
 

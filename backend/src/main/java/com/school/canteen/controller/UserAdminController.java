@@ -1,7 +1,7 @@
 package com.school.canteen.controller;
 
 import com.school.canteen.dto.UserSummary;
-import com.school.canteen.enums.UserStatus;
+import com.school.canteen.enums.Role;
 import com.school.canteen.service.UserAdminService;
 import java.util.List;
 import java.util.UUID;
@@ -14,13 +14,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * School-administrator console for the approval gate. The class-level @PreAuthorize means
- * every endpoint here requires the SCHOOL_ADMIN role — enforced by Spring Security before
- * the method body runs.
+ * Account administration for the canteen operator. There is no approval queue any more —
+ * only the ability to block or restore an account.
  */
 @RestController
 @RequestMapping("/api/admin/users")
-@PreAuthorize("hasRole('SCHOOL_ADMIN')")
+@PreAuthorize("hasRole('CANTEEN_ADMIN')")
 public class UserAdminController {
 
     private final UserAdminService userAdminService;
@@ -30,17 +29,19 @@ public class UserAdminController {
     }
 
     @GetMapping
-    public List<UserSummary> list(@RequestParam(defaultValue = "PENDING") UserStatus status) {
-        return userAdminService.listByStatus(status);
+    public List<UserSummary> list(@RequestParam(required = false) Role role,
+                                  @RequestParam(required = false) Integer page,
+                                  @RequestParam(required = false) Integer size) {
+        return userAdminService.listUsers(role, page, size);
     }
 
-    @PostMapping("/{id}/approve")
-    public UserSummary approve(@PathVariable UUID id) {
-        return userAdminService.approve(id);
+    @PostMapping("/{id}/disable")
+    public UserSummary disable(@PathVariable UUID id) {
+        return userAdminService.disable(id);
     }
 
-    @PostMapping("/{id}/reject")
-    public UserSummary reject(@PathVariable UUID id) {
-        return userAdminService.reject(id);
+    @PostMapping("/{id}/enable")
+    public UserSummary enable(@PathVariable UUID id) {
+        return userAdminService.enable(id);
     }
 }

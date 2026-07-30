@@ -31,6 +31,10 @@ public class StudentProfile extends BaseEntity {
     @Column(name = "roll_number", nullable = false)
     private String rollNumber;
 
+    /** Classroom seat, used by delivery staff to find the student quickly. */
+    @Column(name = "seat_number")
+    private String seatNumber;
+
     /** The number the student records for their parent; a parent link must match it. */
     @Column(name = "parent_mobile", nullable = false)
     private String parentMobile;
@@ -76,6 +80,14 @@ public class StudentProfile extends BaseEntity {
 
     public void setRollNumber(String rollNumber) {
         this.rollNumber = rollNumber;
+    }
+
+    public String getSeatNumber() {
+        return seatNumber;
+    }
+
+    public void setSeatNumber(String seatNumber) {
+        this.seatNumber = seatNumber;
     }
 
     public String getParentMobile() {

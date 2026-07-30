@@ -14,7 +14,7 @@ public interface WalletService {
 
     WalletResponse getWallet(UUID userId);
 
-    List<WalletTransactionResponse> getTransactions(UUID userId);
+    List<WalletTransactionResponse> getTransactions(UUID userId, Integer page, Integer size);
 
     TopupInitResponse initiateTopup(UUID userId, TopupRequest request);
 

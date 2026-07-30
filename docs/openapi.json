@@ -1,0 +1,3193 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "TuckZone Canteen API",
+        "description": "Backend for the school canteen pre-order app.\n\nAuthentication: obtain tokens from /api/auth/login or\n/api/auth/otp/login, then send `Authorization: Bearer <accessToken>`.\nWhen a call returns 401, exchange the refresh token at\n/api/auth/refresh rather than forcing the user to sign in again.\n\nOrdering is idempotent: generate one idempotencyKey when the\ncheckout screen opens and reuse it for every retry of that\nsame order, otherwise a double tap creates two orders.",
+        "version": "v1"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "Generated server url"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/api/me": {
+            "get": {
+                "tags": [
+                    "me-controller"
+                ],
+                "operationId": "me",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "me-controller"
+                ],
+                "operationId": "updateProfile",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProfileUpdateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/orders/{id}/status": {
+            "put": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "adminTransition",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrderStatusUpdateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/menu-items/{id}": {
+            "get": {
+                "tags": [
+                    "menu-item-admin-controller"
+                ],
+                "operationId": "get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MenuItemResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "menu-item-admin-controller"
+                ],
+                "operationId": "update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MenuItemRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MenuItemResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "menu-item-admin-controller"
+                ],
+                "operationId": "deactivate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/admin/daily-menu/{id}": {
+            "put": {
+                "tags": [
+                    "daily-menu-admin-controller"
+                ],
+                "operationId": "update_1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DailyMenuUpdateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DailyMenuItemResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "daily-menu-admin-controller"
+                ],
+                "operationId": "remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/wallet/topup": {
+            "post": {
+                "tags": [
+                    "wallet-controller"
+                ],
+                "operationId": "initiateTopup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TopupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TopupInitResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/wallet/topup/verify": {
+            "post": {
+                "tags": [
+                    "wallet-controller"
+                ],
+                "operationId": "verifyTopup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerifyTopupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WalletResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/wallet/topup/mock-complete": {
+            "post": {
+                "tags": [
+                    "wallet-controller"
+                ],
+                "operationId": "mockCompleteTopup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MockTopupCompleteRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WalletResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/parent/children": {
+            "get": {
+                "tags": [
+                    "parent-child-controller"
+                ],
+                "operationId": "children",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ChildResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "parent-child-controller"
+                ],
+                "operationId": "link",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinkChildRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChildResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/orders": {
+            "get": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "myOrders",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/OrderResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "placeOrder",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PlaceOrderRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/devices": {
+            "post": {
+                "tags": [
+                    "notification-controller"
+                ],
+                "operationId": "registerDevice",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceTokenRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "notification-controller"
+                ],
+                "operationId": "unregisterDevice",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/auth/register/teacher": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "registerTeacher",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TeacherRegisterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/register/student": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "registerStudent",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StudentRegisterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/register/parent": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "registerParent",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ParentRegisterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/register/admin": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "registerAdmin",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AdminRegisterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/refresh": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "refresh",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RefreshRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/password/reset": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "resetPassword",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PasswordResetRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/auth/otp/request": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "requestOtp",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OtpRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OtpIssuedResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/otp/login": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "loginWithOtp",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OtpLoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "logout",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogoutRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "auth-controller"
+                ],
+                "operationId": "login",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/users/{id}/enable": {
+            "post": {
+                "tags": [
+                    "user-admin-controller"
+                ],
+                "operationId": "enable",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/users/{id}/disable": {
+            "post": {
+                "tags": [
+                    "user-admin-controller"
+                ],
+                "operationId": "disable",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSummary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/orders/collect": {
+            "post": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "collect",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "pickupCode",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/ordering/open": {
+            "post": {
+                "tags": [
+                    "ordering-window-controller"
+                ],
+                "operationId": "open",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrderingWindowRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderingWindowResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/ordering/close": {
+            "post": {
+                "tags": [
+                    "ordering-window-controller"
+                ],
+                "operationId": "close",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrderingWindowRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderingWindowResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/menu-items": {
+            "get": {
+                "tags": [
+                    "menu-item-admin-controller"
+                ],
+                "operationId": "list",
+                "parameters": [
+                    {
+                        "name": "includeInactive",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MenuItemResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "menu-item-admin-controller"
+                ],
+                "operationId": "create",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MenuItemRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MenuItemResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/expenses": {
+            "get": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "listExpenses",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ExpenseResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "addExpense",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExpenseRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExpenseResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/daily-menu": {
+            "get": {
+                "tags": [
+                    "daily-menu-admin-controller"
+                ],
+                "operationId": "listForDate",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DailyMenuItemResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "daily-menu-admin-controller"
+                ],
+                "operationId": "addItem",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DailyMenuItemRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DailyMenuItemResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/wallet": {
+            "get": {
+                "tags": [
+                    "wallet-controller"
+                ],
+                "operationId": "wallet",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WalletResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/wallet/transactions": {
+            "get": {
+                "tags": [
+                    "wallet-controller"
+                ],
+                "operationId": "transactions",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/WalletTransactionResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/orders/{id}": {
+            "get": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "getMyOrder",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "cancelOrder",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/ordering-status": {
+            "get": {
+                "tags": [
+                    "ordering-window-controller"
+                ],
+                "operationId": "status",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/OrderingWindowResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/notifications": {
+            "get": {
+                "tags": [
+                    "notification-controller"
+                ],
+                "operationId": "feed",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/NotificationResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu": {
+            "get": {
+                "tags": [
+                    "menu-controller"
+                ],
+                "operationId": "menu",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "foodType",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "VEG",
+                                "NON_VEG"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "SNACKS",
+                                "MEALS",
+                                "DRINKS",
+                                "COMBOS"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DailyMenuItemResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/health": {
+            "get": {
+                "tags": [
+                    "health-controller"
+                ],
+                "operationId": "health",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/delivery-slots": {
+            "get": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "listSlots",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DeliverySlotResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/config": {
+            "get": {
+                "tags": [
+                    "config-controller"
+                ],
+                "summary": "Server capabilities for the mobile app; call once at launch",
+                "operationId": "config",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppConfigResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/admin/users": {
+            "get": {
+                "tags": [
+                    "user-admin-controller"
+                ],
+                "operationId": "list_1",
+                "parameters": [
+                    {
+                        "name": "role",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "STUDENT",
+                                "PARENT",
+                                "TEACHER",
+                                "CANTEEN_ADMIN"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserSummary"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/reports/sales": {
+            "get": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "sales",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SalesReportResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/orders": {
+            "get": {
+                "tags": [
+                    "order-controller"
+                ],
+                "operationId": "adminListOrders",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PLACED",
+                                "ACCEPTED",
+                                "PREPARING",
+                                "PACKED",
+                                "OUT_FOR_DELIVERY",
+                                "DELIVERED",
+                                "REJECTED",
+                                "CANCELLED"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/OrderResponse"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/demand": {
+            "get": {
+                "tags": [
+                    "ordering-window-controller"
+                ],
+                "operationId": "demand",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DemandRow"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/dashboard": {
+            "get": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "dashboard",
+                "parameters": [
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DashboardResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/parent/children/{linkId}": {
+            "delete": {
+                "tags": [
+                    "parent-child-controller"
+                ],
+                "operationId": "unlink",
+                "parameters": [
+                    {
+                        "name": "linkId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/admin/expenses/{id}": {
+            "delete": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "deleteExpense",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ProfileUpdateRequest": {
+                "type": "object",
+                "properties": {
+                    "fullName": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "studentClass": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    },
+                    "section": {
+                        "type": "string",
+                        "maxLength": 10,
+                        "minLength": 0
+                    },
+                    "rollNumber": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    },
+                    "seatNumber": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    },
+                    "studentMobile": {
+                        "type": "string",
+                        "pattern": "^$|^[6-9]\\d{9}$"
+                    },
+                    "department": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "fullName"
+                ]
+            },
+            "UserSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "mobile": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "STUDENT",
+                            "PARENT",
+                            "TEACHER",
+                            "CANTEEN_ADMIN"
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "ACTIVE",
+                            "DISABLED"
+                        ]
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "admissionNumber": {
+                        "type": "string"
+                    },
+                    "studentClass": {
+                        "type": "string"
+                    },
+                    "section": {
+                        "type": "string"
+                    },
+                    "rollNumber": {
+                        "type": "string"
+                    },
+                    "seatNumber": {
+                        "type": "string"
+                    },
+                    "studentMobile": {
+                        "type": "string"
+                    },
+                    "parentMobile": {
+                        "type": "string"
+                    },
+                    "employeeId": {
+                        "type": "string"
+                    },
+                    "department": {
+                        "type": "string"
+                    }
+                }
+            },
+            "OrderStatusUpdateRequest": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "PLACED",
+                            "ACCEPTED",
+                            "PREPARING",
+                            "PACKED",
+                            "OUT_FOR_DELIVERY",
+                            "DELIVERED",
+                            "REJECTED",
+                            "CANCELLED"
+                        ]
+                    },
+                    "deliveryPersonName": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "status"
+                ]
+            },
+            "OrderItemResponse": {
+                "type": "object",
+                "properties": {
+                    "menuItemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "itemName": {
+                        "type": "string"
+                    },
+                    "unitPrice": {
+                        "type": "number"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "lineTotal": {
+                        "type": "number"
+                    }
+                }
+            },
+            "OrderResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "orderNumber": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "PLACED",
+                            "ACCEPTED",
+                            "PREPARING",
+                            "PACKED",
+                            "OUT_FOR_DELIVERY",
+                            "DELIVERED",
+                            "REJECTED",
+                            "CANCELLED"
+                        ]
+                    },
+                    "orderType": {
+                        "type": "string",
+                        "enum": [
+                            "DELIVERY",
+                            "TAKEAWAY"
+                        ]
+                    },
+                    "pickupCode": {
+                        "type": "string"
+                    },
+                    "menuDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "slotName": {
+                        "type": "string"
+                    },
+                    "deliveryTime": {
+                        "type": "string"
+                    },
+                    "recipientName": {
+                        "type": "string"
+                    },
+                    "deliveryLocation": {
+                        "type": "string"
+                    },
+                    "deliveryPersonName": {
+                        "type": "string"
+                    },
+                    "paymentMethod": {
+                        "type": "string",
+                        "enum": [
+                            "WALLET",
+                            "DIRECT"
+                        ]
+                    },
+                    "paymentStatus": {
+                        "type": "string",
+                        "enum": [
+                            "PENDING",
+                            "PAID",
+                            "REFUNDED"
+                        ]
+                    },
+                    "totalAmount": {
+                        "type": "number"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderItemResponse"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "MenuItemRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 500,
+                        "minLength": 0
+                    },
+                    "price": {
+                        "type": "number",
+                        "minimum": 0.0
+                    },
+                    "costPrice": {
+                        "type": "number",
+                        "minimum": 0.0
+                    },
+                    "foodType": {
+                        "type": "string",
+                        "enum": [
+                            "VEG",
+                            "NON_VEG"
+                        ]
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "SNACKS",
+                            "MEALS",
+                            "DRINKS",
+                            "COMBOS"
+                        ]
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "maxLength": 500,
+                        "minLength": 0
+                    },
+                    "allergens": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "category",
+                    "foodType",
+                    "name",
+                    "price"
+                ]
+            },
+            "MenuItemResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "price": {
+                        "type": "number"
+                    },
+                    "costPrice": {
+                        "type": "number"
+                    },
+                    "foodType": {
+                        "type": "string",
+                        "enum": [
+                            "VEG",
+                            "NON_VEG"
+                        ]
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "SNACKS",
+                            "MEALS",
+                            "DRINKS",
+                            "COMBOS"
+                        ]
+                    },
+                    "imageUrl": {
+                        "type": "string"
+                    },
+                    "allergens": {
+                        "type": "string"
+                    },
+                    "active": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "DailyMenuUpdateRequest": {
+                "type": "object",
+                "properties": {
+                    "totalQuantity": {
+                        "type": "integer",
+                        "format": "int32",
+                        "minimum": 0
+                    },
+                    "available": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "available",
+                    "totalQuantity"
+                ]
+            },
+            "DailyMenuItemResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "menuDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "menuItem": {
+                        "$ref": "#/components/schemas/MenuItemResponse"
+                    },
+                    "totalQuantity": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "remainingQuantity": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "available": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "TopupRequest": {
+                "type": "object",
+                "properties": {
+                    "amount": {
+                        "type": "number",
+                        "minimum": 1.0
+                    }
+                },
+                "required": [
+                    "amount"
+                ]
+            },
+            "TopupInitResponse": {
+                "type": "object",
+                "properties": {
+                    "topupId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "gatewayOrderId": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": "number"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "gatewayKeyId": {
+                        "type": "string"
+                    }
+                }
+            },
+            "VerifyTopupRequest": {
+                "type": "object",
+                "properties": {
+                    "gatewayOrderId": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "gatewayPaymentId": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "signature": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "gatewayOrderId",
+                    "gatewayPaymentId",
+                    "signature"
+                ]
+            },
+            "WalletResponse": {
+                "type": "object",
+                "properties": {
+                    "userId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "balance": {
+                        "type": "number"
+                    },
+                    "currency": {
+                        "type": "string"
+                    }
+                }
+            },
+            "MockTopupCompleteRequest": {
+                "type": "object",
+                "properties": {
+                    "gatewayOrderId": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "gatewayOrderId"
+                ]
+            },
+            "LinkChildRequest": {
+                "type": "object",
+                "properties": {
+                    "admissionNumber": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "parentMobile": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "admissionNumber",
+                    "parentMobile"
+                ]
+            },
+            "ChildResponse": {
+                "type": "object",
+                "properties": {
+                    "linkId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "studentProfileId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "studentUserId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "admissionNumber": {
+                        "type": "string"
+                    },
+                    "studentClass": {
+                        "type": "string"
+                    },
+                    "section": {
+                        "type": "string"
+                    },
+                    "rollNumber": {
+                        "type": "string"
+                    }
+                }
+            },
+            "OrderLineRequest": {
+                "type": "object",
+                "properties": {
+                    "menuItemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "format": "int32",
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "menuItemId",
+                    "quantity"
+                ]
+            },
+            "PlaceOrderRequest": {
+                "type": "object",
+                "properties": {
+                    "slotId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "orderType": {
+                        "type": "string",
+                        "enum": [
+                            "DELIVERY",
+                            "TAKEAWAY"
+                        ]
+                    },
+                    "menuDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "beneficiaryStudentProfileId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "deliveryLocation": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "minLength": 0
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderLineRequest"
+                        },
+                        "minItems": 1
+                    },
+                    "idempotencyKey": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "idempotencyKey",
+                    "items",
+                    "menuDate",
+                    "slotId"
+                ]
+            },
+            "DeviceTokenRequest": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "minLength": 0
+                    },
+                    "platform": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "platform",
+                    "token"
+                ]
+            },
+            "TeacherRegisterRequest": {
+                "type": "object",
+                "properties": {
+                    "fullName": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 180,
+                        "minLength": 0
+                    },
+                    "mobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "password": {
+                        "type": "string",
+                        "maxLength": 72,
+                        "minLength": 8
+                    },
+                    "employeeId": {
+                        "type": "string",
+                        "maxLength": 40,
+                        "minLength": 0
+                    },
+                    "department": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "department",
+                    "email",
+                    "employeeId",
+                    "fullName",
+                    "mobile",
+                    "password"
+                ]
+            },
+            "StudentRegisterRequest": {
+                "type": "object",
+                "properties": {
+                    "fullName": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 180,
+                        "minLength": 0
+                    },
+                    "mobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "password": {
+                        "type": "string",
+                        "maxLength": 72,
+                        "minLength": 8
+                    },
+                    "admissionNumber": {
+                        "type": "string",
+                        "maxLength": 40,
+                        "minLength": 0
+                    },
+                    "studentClass": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    },
+                    "section": {
+                        "type": "string",
+                        "maxLength": 10,
+                        "minLength": 0
+                    },
+                    "rollNumber": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    },
+                    "seatNumber": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    },
+                    "parentMobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "studentMobile": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "admissionNumber",
+                    "email",
+                    "fullName",
+                    "mobile",
+                    "parentMobile",
+                    "password",
+                    "rollNumber",
+                    "section",
+                    "studentClass"
+                ]
+            },
+            "ParentRegisterRequest": {
+                "type": "object",
+                "properties": {
+                    "fullName": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 180,
+                        "minLength": 0
+                    },
+                    "mobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "password": {
+                        "type": "string",
+                        "maxLength": 72,
+                        "minLength": 8
+                    }
+                },
+                "required": [
+                    "email",
+                    "fullName",
+                    "mobile",
+                    "password"
+                ]
+            },
+            "AdminRegisterRequest": {
+                "type": "object",
+                "properties": {
+                    "fullName": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 180,
+                        "minLength": 0
+                    },
+                    "mobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "password": {
+                        "type": "string",
+                        "maxLength": 72,
+                        "minLength": 8
+                    },
+                    "signupCode": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "email",
+                    "fullName",
+                    "mobile",
+                    "password",
+                    "signupCode"
+                ]
+            },
+            "RefreshRequest": {
+                "type": "object",
+                "properties": {
+                    "refreshToken": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "refreshToken"
+                ]
+            },
+            "AuthResponse": {
+                "type": "object",
+                "properties": {
+                    "tokenType": {
+                        "type": "string"
+                    },
+                    "accessToken": {
+                        "type": "string"
+                    },
+                    "refreshToken": {
+                        "type": "string"
+                    },
+                    "expiresInSeconds": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/UserSummary"
+                    }
+                }
+            },
+            "PasswordResetRequest": {
+                "type": "object",
+                "properties": {
+                    "mobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "code": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "newPassword": {
+                        "type": "string",
+                        "maxLength": 72,
+                        "minLength": 8
+                    }
+                },
+                "required": [
+                    "code",
+                    "mobile",
+                    "newPassword"
+                ]
+            },
+            "OtpRequest": {
+                "type": "object",
+                "properties": {
+                    "mobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "purpose": {
+                        "type": "string",
+                        "enum": [
+                            "LOGIN",
+                            "PASSWORD_RESET"
+                        ]
+                    }
+                },
+                "required": [
+                    "mobile",
+                    "purpose"
+                ]
+            },
+            "OtpIssuedResponse": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "expiresInMinutes": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "devCode": {
+                        "type": "string"
+                    }
+                }
+            },
+            "OtpLoginRequest": {
+                "type": "object",
+                "properties": {
+                    "mobile": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[6-9]\\d{9}$"
+                    },
+                    "code": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "code",
+                    "mobile"
+                ]
+            },
+            "LogoutRequest": {
+                "type": "object",
+                "properties": {
+                    "refreshToken": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "refreshToken"
+                ]
+            },
+            "LoginRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "minLength": 1
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "email",
+                    "password"
+                ]
+            },
+            "OrderingWindowRequest": {
+                "type": "object",
+                "properties": {
+                    "menuDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "slotId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "overrideCutoffTime": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "menuDate",
+                    "slotId"
+                ]
+            },
+            "OrderingWindowResponse": {
+                "type": "object",
+                "properties": {
+                    "menuDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "slotId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "slotName": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "OPEN",
+                            "CLOSED"
+                        ]
+                    },
+                    "effectiveCutoffTime": {
+                        "type": "string"
+                    },
+                    "acceptingOrders": {
+                        "type": "boolean"
+                    },
+                    "reason": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ExpenseRequest": {
+                "type": "object",
+                "properties": {
+                    "expenseDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "INGREDIENTS",
+                            "STAFF_WAGES",
+                            "GAS_FUEL",
+                            "RENT",
+                            "UTILITIES",
+                            "PACKAGING",
+                            "EQUIPMENT",
+                            "OTHER"
+                        ]
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    },
+                    "amount": {
+                        "type": "number",
+                        "minimum": 0.01
+                    }
+                },
+                "required": [
+                    "amount",
+                    "category",
+                    "expenseDate"
+                ]
+            },
+            "ExpenseResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "expenseDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "INGREDIENTS",
+                            "STAFF_WAGES",
+                            "GAS_FUEL",
+                            "RENT",
+                            "UTILITIES",
+                            "PACKAGING",
+                            "EQUIPMENT",
+                            "OTHER"
+                        ]
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": "number"
+                    }
+                }
+            },
+            "DailyMenuItemRequest": {
+                "type": "object",
+                "properties": {
+                    "menuDate": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "menuItemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "totalQuantity": {
+                        "type": "integer",
+                        "format": "int32",
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "menuDate",
+                    "menuItemId",
+                    "totalQuantity"
+                ]
+            },
+            "WalletTransactionResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "CREDIT",
+                            "DEBIT"
+                        ]
+                    },
+                    "amount": {
+                        "type": "number"
+                    },
+                    "balanceAfter": {
+                        "type": "number"
+                    },
+                    "referenceType": {
+                        "type": "string"
+                    },
+                    "referenceId": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "NotificationResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "event": {
+                        "type": "string",
+                        "enum": [
+                            "ORDER_PLACED",
+                            "PAYMENT_SUCCESSFUL",
+                            "ORDER_ACCEPTED",
+                            "ORDER_PREPARING",
+                            "ORDER_PACKED",
+                            "ORDER_OUT_FOR_DELIVERY",
+                            "ORDER_DELIVERED",
+                            "ORDER_CANCELLED",
+                            "ORDER_REJECTED",
+                            "REFUND_ISSUED",
+                            "WALLET_TOPPED_UP",
+                            "PASSWORD_CHANGED",
+                            "ORDERING_OPENED",
+                            "ORDERING_CLOSED"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "payload": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "DeliverySlotResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "orderCutoffTime": {
+                        "type": "string"
+                    },
+                    "deliveryTime": {
+                        "type": "string"
+                    }
+                }
+            },
+            "AppConfigResponse": {
+                "type": "object",
+                "properties": {
+                    "currency": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "otpLength": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "otpTtlMinutes": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "otpDevCodeReturned": {
+                        "type": "boolean"
+                    },
+                    "mockPaymentsEnabled": {
+                        "type": "boolean"
+                    },
+                    "maxTopupAmount": {
+                        "type": "number"
+                    },
+                    "passwordMinLength": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "quickTopupAmounts": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    "minimumAppVersion": {
+                        "type": "string"
+                    }
+                }
+            },
+            "DailySalesRow": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "orders": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "revenue": {
+                        "type": "number"
+                    }
+                }
+            },
+            "PeakHourRow": {
+                "type": "object",
+                "properties": {
+                    "hour": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "orders": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "SalesReportResponse": {
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "to": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "revenue": {
+                        "type": "number"
+                    },
+                    "costOfGoods": {
+                        "type": "number"
+                    },
+                    "grossProfit": {
+                        "type": "number"
+                    },
+                    "expenses": {
+                        "type": "number"
+                    },
+                    "netProfit": {
+                        "type": "number"
+                    },
+                    "orderCount": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "daily": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DailySalesRow"
+                        }
+                    },
+                    "topItems": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TopItemRow"
+                        }
+                    },
+                    "peakHours": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PeakHourRow"
+                        }
+                    }
+                }
+            },
+            "TopItemRow": {
+                "type": "object",
+                "properties": {
+                    "itemName": {
+                        "type": "string"
+                    },
+                    "quantitySold": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "revenue": {
+                        "type": "number"
+                    }
+                }
+            },
+            "DemandRow": {
+                "type": "object",
+                "properties": {
+                    "menuItemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "itemName": {
+                        "type": "string"
+                    },
+                    "orderedQuantity": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalQuantity": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "remainingQuantity": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "shortfall": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "DashboardResponse": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "totalOrders": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pendingOrders": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "completedOrders": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "rejectedOrders": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "cancelledOrders": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "revenue": {
+                        "type": "number"
+                    },
+                    "costOfGoods": {
+                        "type": "number"
+                    },
+                    "grossProfit": {
+                        "type": "number"
+                    },
+                    "expenses": {
+                        "type": "number"
+                    },
+                    "netProfit": {
+                        "type": "number"
+                    },
+                    "totalCustomers": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "topItems": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TopItemRow"
+                        }
+                    },
+                    "lowStock": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LowStockRow"
+                        }
+                    }
+                }
+            },
+            "LowStockRow": {
+                "type": "object",
+                "properties": {
+                    "itemName": {
+                        "type": "string"
+                    },
+                    "remainingQuantity": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalQuantity": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

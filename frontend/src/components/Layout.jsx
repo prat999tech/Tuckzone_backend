@@ -99,7 +99,7 @@ const Layout = () => {
       <div className="mobile-header">
         <div className="logo">
           <UtensilsCrossed size={22} />
-          <span>SchoolBite</span>
+          <span>TuckZone</span>
         </div>
         <button className="mobile-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -114,7 +114,7 @@ const Layout = () => {
       {/* Main Content */}
       <main className="main-content">
         <header className="top-header">
-          <div className="header-title">SchoolBite Canteen</div>
+          <div className="header-title">TuckZone Canteen</div>
           <div className="user-profile">
             <div className="user-info">
               <span className="user-name">{user?.fullName}</span>

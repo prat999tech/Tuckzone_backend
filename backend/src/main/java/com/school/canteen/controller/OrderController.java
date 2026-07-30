@@ -46,8 +46,10 @@ public class OrderController {
     }
 
     @GetMapping("/orders")
-    public List<OrderResponse> myOrders(@AuthenticationPrincipal AppUserDetails principal) {
-        return orderService.myOrders(principal.getUser().getId());
+    public List<OrderResponse> myOrders(@AuthenticationPrincipal AppUserDetails principal,
+                                        @RequestParam(required = false) Integer page,
+                                        @RequestParam(required = false) Integer size) {
+        return orderService.myOrders(principal.getUser().getId(), page, size);
     }
 
     @GetMapping("/orders/{id}")
@@ -73,8 +75,19 @@ public class OrderController {
     @PreAuthorize("hasRole('CANTEEN_ADMIN')")
     public List<OrderResponse> adminListOrders(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(required = false) OrderStatus status) {
-        return orderService.adminList(date, status);
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return orderService.adminList(date, status, page, size);
+    }
+
+    /** Counter hand-over: staff type the code from the teacher's receipt. */
+    @PostMapping("/admin/orders/collect")
+    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
+    public OrderResponse collect(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam String pickupCode) {
+        return orderService.collectByPickupCode(date, pickupCode);
     }
 
     @PutMapping("/admin/orders/{id}/status")

@@ -82,4 +82,9 @@ public class JwtService {
     public long accessTtlSeconds() {
         return accessTtl.toSeconds();
     }
+
+    /** Lifetime of a refresh token, used to set the stored session's expiry. */
+    public Duration refreshTtl() {
+        return refreshTtl;
+    }
 }

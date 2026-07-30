@@ -14,7 +14,19 @@ public interface OrderService {
     // --- customer ---
     OrderResponse placeOrder(UUID userId, PlaceOrderRequest request);
 
-    List<OrderResponse> myOrders(UUID userId);
+    /**
+     * The transactional half of {@link #placeOrder}. Exposed on the interface only so it
+     * can be called through the Spring proxy; callers should always use placeOrder.
+     */
+    OrderResponse placeOrderInTransaction(UUID userId, PlaceOrderRequest request);
+
+    /**
+     * Returns the order already stored under this idempotency key, or null. Used to
+     * resolve a duplicate submission; transactional so lazy associations can be mapped.
+     */
+    OrderResponse findByIdempotencyKey(UUID userId, String idempotencyKey);
+
+    List<OrderResponse> myOrders(UUID userId, Integer page, Integer size);
 
     OrderResponse getMyOrder(UUID userId, UUID orderId);
 
@@ -23,7 +35,10 @@ public interface OrderService {
     List<DeliverySlotResponse> listSlots();
 
     // --- canteen admin ---
-    List<OrderResponse> adminList(LocalDate date, OrderStatus status);
+    List<OrderResponse> adminList(LocalDate date, OrderStatus status, Integer page, Integer size);
 
     OrderResponse adminTransition(UUID orderId, OrderStatusUpdateRequest request);
+
+    /** Hands over a takeaway order at the counter against the customer's pickup code. */
+    OrderResponse collectByPickupCode(LocalDate menuDate, String pickupCode);
 }

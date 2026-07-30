@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -39,8 +40,10 @@ public class WalletController {
 
     @GetMapping("/transactions")
     public List<WalletTransactionResponse> transactions(
-            @AuthenticationPrincipal AppUserDetails principal) {
-        return walletService.getTransactions(currentUserId(principal));
+            @AuthenticationPrincipal AppUserDetails principal,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return walletService.getTransactions(currentUserId(principal), page, size);
     }
 
     @PostMapping("/topup")

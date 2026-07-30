@@ -8,6 +8,10 @@ import java.util.List;
  * immutable data carrier — no behaviour, just fields.
  *
  * @param details field-level messages (e.g. validation errors); empty for simple errors.
+ *                Clients display these, so never put machine-readable markers here.
+ * @param code    optional stable identifier for errors a client must branch on rather than
+ *                merely show (e.g. EMAIL_NOT_VERIFIED). Null for ordinary errors. Kept
+ *                separate from {@code details} precisely because that field is user-facing.
  */
 public record ApiError(
         Instant timestamp,
@@ -15,5 +19,6 @@ public record ApiError(
         String error,
         String message,
         String path,
-        List<String> details) {
+        List<String> details,
+        String code) {
 }

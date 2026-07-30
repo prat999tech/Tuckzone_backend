@@ -1,0 +1,23 @@
+# Local development database only (backend runs on the host via ./mvnw spring-boot:run).
+# Kept separate from docker-compose.yml so the full-stack compose file stays untouched.
+# Host port 5434 avoids colliding with other local Postgres instances.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: canteen-dev-db
+    environment:
+      POSTGRES_DB: canteen
+      POSTGRES_USER: canteen
+      POSTGRES_PASSWORD: canteen
+    ports:
+      - "5434:5432"
+    volumes:
+      - canteen_dev_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U canteen -d canteen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  canteen_dev_pgdata:

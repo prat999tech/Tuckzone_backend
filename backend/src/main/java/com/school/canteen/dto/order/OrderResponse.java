@@ -1,6 +1,7 @@
 package com.school.canteen.dto.order;
 
 import com.school.canteen.enums.OrderStatus;
+import com.school.canteen.enums.OrderType;
 import com.school.canteen.enums.PaymentMethod;
 import com.school.canteen.enums.PaymentStatus;
 import java.math.BigDecimal;
@@ -14,6 +15,8 @@ public record OrderResponse(
         UUID id,
         String orderNumber,
         OrderStatus status,
+        OrderType orderType,
+        String pickupCode,
         LocalDate menuDate,
         String slotName,
         LocalTime deliveryTime,

@@ -11,7 +11,17 @@ frontend/dist/
 # OS
 .DS_Store
 
-# Local env overrides
+# Local env overrides — real credentials live here, never commit them
+.env
+.env.*
+!.env.example
+
+# Firebase / service-account private keys — NEVER commit
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+google-services.json
+GoogleService-Info.plist
+*serviceAccount*.json
 *.local
 .env.local
 
