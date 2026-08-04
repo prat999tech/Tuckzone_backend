@@ -12,6 +12,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
 import './LoginPage.css';
 
@@ -134,21 +135,19 @@ export default function LoginPage() {
 
             <div className="form-group">
               <label htmlFor="login-password">Password</label>
-              <div className="input-with-icon">
-                <Lock className="input-icon" size={18} />
-                <input
-                  id="login-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (errors.password) setErrors({ ...errors, password: null });
-                  }}
-                  className={errors.password ? 'input-error' : ''}
-                  autoComplete="current-password"
-                />
-              </div>
+              <PasswordInput
+                id="login-password"
+                icon={Lock}
+                iconSize={18}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors({ ...errors, password: null });
+                }}
+                className={errors.password ? 'input-error' : ''}
+                autoComplete="current-password"
+              />
               {errors.password && (
                 <span className="field-error-text">
                   <AlertCircle size={13} /> {errors.password}

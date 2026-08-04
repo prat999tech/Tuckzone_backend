@@ -8,6 +8,7 @@ import {
   listSubAdmins,
   updateSubAdmin,
 } from '../../api/admin';
+import PasswordInput from '../../components/PasswordInput';
 import toast from 'react-hot-toast';
 import './SubAdminsPage.css';
 
@@ -231,8 +232,7 @@ export default function SubAdminsPage() {
 
               <div className="form-group">
                 <label>{editingId ? 'New Password (leave blank to keep current)' : 'Password'}</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={formData.password}
                   onChange={(e) => {
                     setFormData({ ...formData, password: e.target.value });
