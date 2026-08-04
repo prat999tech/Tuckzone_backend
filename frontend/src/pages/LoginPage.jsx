@@ -46,6 +46,8 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${res.user.fullName?.split(' ')[0]}!`);
       if (res.user.role === 'CANTEEN_ADMIN') {
         navigate('/admin/orders');
+      } else if (res.user.role === 'SUB_ADMIN') {
+        navigate('/subadmin/orders');
       } else if (res.user.role === 'SCHOOL_ADMIN') {
         navigate('/admin/users');
       } else {

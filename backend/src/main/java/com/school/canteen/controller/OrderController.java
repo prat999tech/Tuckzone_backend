@@ -1,5 +1,6 @@
 package com.school.canteen.controller;
 
+import com.school.canteen.dto.order.AdminOrderResponse;
 import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderResponse;
 import com.school.canteen.dto.order.OrderStatusUpdateRequest;
@@ -71,17 +72,23 @@ public class OrderController {
 
     // ─── Canteen admin endpoints ────────────────────────────────────────
 
+    /** Shared by Canteen Admin and Sub Admin — the response is field-restricted at the DTO
+     *  level ({@link AdminOrderResponse}), not by role, so there is nothing extra to hide
+     *  here for either caller. */
     @GetMapping("/admin/orders")
-    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
-    public List<OrderResponse> adminListOrders(
+    @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
+    public List<AdminOrderResponse> adminListOrders(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        return orderService.adminList(date, status, page, size);
+        return orderService.adminList(date, status, search, sort, page, size);
     }
 
-    /** Counter hand-over: staff type the code from the teacher's receipt. */
+    /** Counter hand-over: staff type the code from the teacher's receipt. Canteen-Admin-only
+     *  — not part of the Sub Admin feature set. */
     @PostMapping("/admin/orders/collect")
     @PreAuthorize("hasRole('CANTEEN_ADMIN')")
     public OrderResponse collect(
@@ -91,9 +98,9 @@ public class OrderController {
     }
 
     @PutMapping("/admin/orders/{id}/status")
-    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
-    public OrderResponse adminTransition(@PathVariable UUID id,
-                                         @Valid @RequestBody OrderStatusUpdateRequest request) {
+    @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
+    public AdminOrderResponse adminTransition(@PathVariable UUID id,
+                                              @Valid @RequestBody OrderStatusUpdateRequest request) {
         return orderService.adminTransition(id, request);
     }
 }

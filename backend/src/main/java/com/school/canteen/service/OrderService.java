@@ -1,5 +1,6 @@
 package com.school.canteen.service;
 
+import com.school.canteen.dto.order.AdminOrderResponse;
 import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderResponse;
 import com.school.canteen.dto.order.OrderStatusUpdateRequest;
@@ -34,10 +35,15 @@ public interface OrderService {
 
     List<DeliverySlotResponse> listSlots();
 
-    // --- canteen admin ---
-    List<OrderResponse> adminList(LocalDate date, OrderStatus status, Integer page, Integer size);
+    // --- canteen admin / sub admin ---
+    List<AdminOrderResponse> adminList(LocalDate date, OrderStatus status, String search, String sort,
+                                       Integer page, Integer size);
 
-    OrderResponse adminTransition(UUID orderId, OrderStatusUpdateRequest request);
+    /** Unpaged (capped generously) variant of {@link #adminList} for file export, so an
+     *  export can never be silently truncated at the normal page-size cap. */
+    List<AdminOrderResponse> adminListForExport(LocalDate date, OrderStatus status, String search);
+
+    AdminOrderResponse adminTransition(UUID orderId, OrderStatusUpdateRequest request);
 
     /** Hands over a takeaway order at the counter against the customer's pickup code. */
     OrderResponse collectByPickupCode(LocalDate menuDate, String pickupCode);

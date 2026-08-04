@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  UtensilsCrossed, 
-  ShoppingBag, 
-  Wallet, 
-  Users, 
-  UserCheck, 
-  ChefHat, 
-  Calendar, 
+import {
+  UtensilsCrossed,
+  ShoppingBag,
+  Wallet,
+  Users,
+  UserCheck,
+  ChefHat,
+  Calendar,
   ClipboardList,
+  FileDown,
+  ShieldPlus,
   LogOut,
   Menu,
   X
@@ -48,6 +50,13 @@ const Layout = () => {
           { to: '/admin/menu-items', icon: ChefHat,        label: 'Menu Items' },
           { to: '/admin/daily-menu', icon: Calendar,        label: 'Daily Menu' },
           { to: '/admin/orders',     icon: ClipboardList,   label: 'Orders Board' },
+          { to: '/admin/sub-admins', icon: ShieldPlus,      label: 'Sub Admins' },
+        ];
+      case 'SUB_ADMIN':
+        return [
+          { to: '/subadmin/orders', icon: ClipboardList, label: 'Incoming Orders' },
+          { to: '/subadmin/menu',   icon: ChefHat,        label: 'Menu Management' },
+          { to: '/subadmin/export', icon: FileDown,       label: 'Export Orders' },
         ];
       default:
         return [];

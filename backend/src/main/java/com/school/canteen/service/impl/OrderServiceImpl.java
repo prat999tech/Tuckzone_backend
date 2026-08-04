@@ -1,5 +1,6 @@
 package com.school.canteen.service.impl;
 
+import com.school.canteen.dto.order.AdminOrderResponse;
 import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderLineRequest;
 import com.school.canteen.dto.order.OrderResponse;
@@ -41,6 +42,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +52,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -61,6 +64,10 @@ public class OrderServiceImpl implements OrderService {
     /** Allowed forward moves the canteen admin can make. REJECTED is handled separately
      *  (it refunds), and CANCELLED is a customer action. */
     private static final Map<OrderStatus, Set<OrderStatus>> ADMIN_FORWARD = new EnumMap<>(OrderStatus.class);
+
+    /** Export must never silently truncate a day's orders the way the normal 200-row page
+     *  cap would; this is a generous ceiling, not a real-world expectation. */
+    private static final int EXPORT_MAX_ROWS = 5000;
 
     static {
         ADMIN_FORWARD.put(OrderStatus.PLACED, Set.of(OrderStatus.ACCEPTED));
@@ -280,18 +287,57 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> adminList(LocalDate date, OrderStatus status,
-                                         Integer page, Integer size) {
+    public List<AdminOrderResponse> adminList(LocalDate date, OrderStatus status, String search,
+                                              String sort, Integer page, Integer size) {
         Pageable pageable = PageRequests.of(page, size);
         List<Order> orders = (status == null)
                 ? orderRepository.findByMenuDateOrderByCreatedAtAsc(date, pageable)
                 : orderRepository.findByMenuDateAndStatusOrderByCreatedAtAsc(date, status, pageable);
-        return orders.stream().map(orderMapper::toResponse).toList();
+        return toAdminResponses(orders, search, sort);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminOrderResponse> adminListForExport(LocalDate date, OrderStatus status, String search) {
+        Pageable unbounded = PageRequest.of(0, EXPORT_MAX_ROWS);
+        List<Order> orders = (status == null)
+                ? orderRepository.findByMenuDateOrderByCreatedAtAsc(date, unbounded)
+                : orderRepository.findByMenuDateAndStatusOrderByCreatedAtAsc(date, status, unbounded);
+        return toAdminResponses(orders, search, null);
+    }
+
+    /** Search/sort are applied in memory: a day's admin order list is a small, bounded
+     *  dataset — the same assumption every other admin list query in this class already
+     *  makes — so this avoids a combinatorial explosion of derived repository queries. */
+    private List<AdminOrderResponse> toAdminResponses(List<Order> orders, String search, String sort) {
+        List<AdminOrderResponse> responses = orders.stream().map(orderMapper::toAdminResponse).toList();
+
+        if (search != null && !search.isBlank()) {
+            String needle = search.trim().toLowerCase(Locale.ROOT);
+            responses = responses.stream()
+                    .filter(r -> r.orderNumber().toLowerCase(Locale.ROOT).contains(needle)
+                            || r.recipientName().toLowerCase(Locale.ROOT).contains(needle)
+                            || (r.studentName() != null
+                                    && r.studentName().toLowerCase(Locale.ROOT).contains(needle)))
+                    .toList();
+        }
+
+        Comparator<AdminOrderResponse> comparator = (sort == null) ? null : switch (sort) {
+            case "amount_asc" -> Comparator.comparing(AdminOrderResponse::totalAmount);
+            case "amount_desc" -> Comparator.comparing(AdminOrderResponse::totalAmount).reversed();
+            case "oldest" -> Comparator.comparing(AdminOrderResponse::createdAt);
+            case "newest" -> Comparator.comparing(AdminOrderResponse::createdAt).reversed();
+            default -> null;
+        };
+        if (comparator != null) {
+            responses = responses.stream().sorted(comparator).toList();
+        }
+        return responses;
     }
 
     @Override
     @Transactional
-    public OrderResponse adminTransition(UUID orderId, OrderStatusUpdateRequest request) {
+    public AdminOrderResponse adminTransition(UUID orderId, OrderStatusUpdateRequest request) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         OrderStatus target = request.status();
@@ -302,7 +348,7 @@ public class OrderServiceImpl implements OrderService {
             }
             refundAndRestore(order, OrderStatus.REJECTED);
             notifyStatus(order, OrderStatus.REJECTED);
-            return orderMapper.toResponse(order);
+            return orderMapper.toAdminResponse(order);
         }
 
         Set<OrderStatus> allowed = ADMIN_FORWARD.getOrDefault(order.getStatus(), Set.of());
@@ -318,7 +364,7 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setStatus(target);
         notifyStatus(order, target);
-        return orderMapper.toResponse(order);
+        return orderMapper.toAdminResponse(order);
     }
 
     // --- helpers ---------------------------------------------------------------
