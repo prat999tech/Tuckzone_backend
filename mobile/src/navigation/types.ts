@@ -38,4 +38,16 @@ export type AdminStackParamList = {
   OrderingWindows: undefined;
   TakeawayCollect: undefined;
   Notifications: undefined;
+  SubAdmins: undefined;
+};
+
+export type SubAdminTabParamList = {
+  OrdersBoard: undefined;
+  MenuManagement: undefined;
+  ExportOrders: undefined;
+  Account: undefined;
+};
+
+export type SubAdminStackParamList = {
+  SubAdminTabs: undefined;
 };

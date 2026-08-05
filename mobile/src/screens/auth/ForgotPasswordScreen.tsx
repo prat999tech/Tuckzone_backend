@@ -5,6 +5,7 @@ import { Mail, Lock } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Input } from '../../components/Input';
+import { PasswordInput } from '../../components/PasswordInput';
 import { Button } from '../../components/Button';
 import { authApi } from '../../api/auth';
 import { configApi } from '../../api/config';
@@ -112,12 +113,11 @@ export function ForgotPasswordScreen({ navigation }: Props) {
               maxLength={otpLength}
               error={errors.code}
             />
-            <Input
+            <PasswordInput
               label="New password"
               required
               value={newPassword}
               onChangeText={setNewPassword}
-              secureTextEntry
               error={errors.newPassword}
               leftIcon={<Lock size={18} color={colors.textTertiary} />}
             />

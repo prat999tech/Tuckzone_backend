@@ -9,6 +9,7 @@ interface AuthContextValue {
   user: UserSummary | null;
   loading: boolean;
   isAdmin: boolean;
+  isSubAdmin: boolean;
   login: (email: string, password: string) => Promise<UserSummary>;
   loginWithOtp: (mobile: string, code: string) => Promise<UserSummary>;
   logout: () => Promise<void>;
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       loading,
       isAdmin: user?.role === 'CANTEEN_ADMIN',
+      isSubAdmin: user?.role === 'SUB_ADMIN',
       login,
       loginWithOtp,
       logout,

@@ -5,6 +5,7 @@ import { User, Mail, Phone, Lock, Hash, BookOpen, KeyRound, Layers, Users } from
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Input } from '../../components/Input';
+import { PasswordInput } from '../../components/PasswordInput';
 import { Button } from '../../components/Button';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { authApi } from '../../api/auth';
@@ -181,12 +182,11 @@ export function RegisterScreen({ navigation }: Props) {
           error={errors.mobile}
           leftIcon={<Phone size={18} color={colors.textTertiary} />}
         />
-        <Input
+        <PasswordInput
           label="Password"
           required
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
           error={errors.password}
           leftIcon={<Lock size={18} color={colors.textTertiary} />}
         />

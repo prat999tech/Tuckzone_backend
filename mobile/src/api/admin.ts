@@ -5,8 +5,7 @@ import type {
   DemandRow,
   ExpenseCategory,
   ExpenseResponse,
-  FoodType,
-  MenuCategory,
+  MenuType,
   MenuItemResponse,
   OrderResponse,
   OrderStatus,
@@ -22,8 +21,8 @@ export interface MenuItemRequest {
   description?: string;
   price: number;
   costPrice?: number;
-  foodType: FoodType;
-  category: MenuCategory;
+  menuType: MenuType;
+  available: boolean;
   imageUrl?: string;
   allergens?: string;
 }
@@ -47,11 +46,25 @@ export interface ExpenseRequest {
   amount: number;
 }
 
+export interface SubAdminCreateRequest {
+  fullName: string;
+  email: string;
+  mobile: string;
+  password: string;
+}
+
+export interface SubAdminUpdateRequest {
+  fullName: string;
+  email: string;
+  mobile: string;
+  newPassword?: string;
+}
+
 export const adminApi = {
   // Menu catalog
-  listMenuItems: (includeInactive = false) =>
+  listMenuItems: (includeInactive = false, menuType?: MenuType) =>
     apiClient
-      .get<MenuItemResponse[]>('/admin/menu-items', { params: { includeInactive } })
+      .get<MenuItemResponse[]>('/admin/menu-items', { params: { includeInactive, menuType } })
       .then((r) => r.data),
   createMenuItem: (data: MenuItemRequest) =>
     apiClient.post<MenuItemResponse>('/admin/menu-items', data).then((r) => r.data),
@@ -109,6 +122,27 @@ export const adminApi = {
     apiClient.get<UserSummary[]>('/admin/users', { params: { role, page, size } }).then((r) => r.data),
   disableUser: (id: string) => apiClient.post<UserSummary>(`/admin/users/${id}/disable`).then((r) => r.data),
   enableUser: (id: string) => apiClient.post<UserSummary>(`/admin/users/${id}/enable`).then((r) => r.data),
+
+  // Order export (Canteen Admin + Sub Admin)
+  exportOrdersExcel: (date: string, status?: OrderStatus, search?: string) =>
+    apiClient
+      .get<ArrayBuffer>('/admin/orders/export/excel', { params: { date, status, search }, responseType: 'arraybuffer' })
+      .then((r) => r.data),
+  exportOrdersPdf: (date: string, status?: OrderStatus, search?: string) =>
+    apiClient
+      .get<ArrayBuffer>('/admin/orders/export/pdf', { params: { date, status, search }, responseType: 'arraybuffer' })
+      .then((r) => r.data),
+
+  // Sub Admin account management (Canteen Admin only)
+  listSubAdmins: () => apiClient.get<UserSummary[]>('/admin/sub-admins').then((r) => r.data),
+  createSubAdmin: (data: SubAdminCreateRequest) =>
+    apiClient.post<UserSummary>('/admin/sub-admins', data).then((r) => r.data),
+  updateSubAdmin: (id: string, data: SubAdminUpdateRequest) =>
+    apiClient.put<UserSummary>(`/admin/sub-admins/${id}`, data).then((r) => r.data),
+  activateSubAdmin: (id: string) => apiClient.post<UserSummary>(`/admin/sub-admins/${id}/activate`).then((r) => r.data),
+  deactivateSubAdmin: (id: string) =>
+    apiClient.post<UserSummary>(`/admin/sub-admins/${id}/deactivate`).then((r) => r.data),
+  deleteSubAdmin: (id: string) => apiClient.delete<void>(`/admin/sub-admins/${id}`).then((r) => r.data),
 };
 
 export type { OrderingStatus };
