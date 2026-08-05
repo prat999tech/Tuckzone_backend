@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Plus, AlertCircle } from 'lucide-react';
-import { addDailyMenu, getDailyMenu, getMenuItems, updateDailyMenu } from '../../api/admin';
+import { Calendar, Plus, Edit2, AlertCircle, X } from 'lucide-react';
+import {
+  addDailyMenu,
+  createMenuItem,
+  getDailyMenu,
+  getMenuItems,
+  updateDailyMenu,
+  updateMenuItem,
+} from '../../api/admin';
 import toast from 'react-hot-toast';
 import './DailyMenuPage.css';
+
+const EMPTY_FORM = { name: '', description: '', price: '', imageUrl: '', allergens: '' };
 
 export default function DailyMenuPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -13,9 +22,16 @@ export default function DailyMenuPage() {
   const [newQuantity, setNewQuantity] = useState(50);
   const [errors, setErrors] = useState({});
 
+  // Catalog add/edit modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState({});
+
   useEffect(() => {
     fetchDailyMenu();
     fetchCatalog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
   const fetchDailyMenu = async () => {
@@ -32,8 +48,8 @@ export default function DailyMenuPage() {
 
   const fetchCatalog = async () => {
     try {
-      const data = await getMenuItems(false);
-      setCatalog(data.filter((item) => item.active));
+      const data = await getMenuItems(true, 'DAILY');
+      setCatalog(data);
     } catch (err) {
       toast.error('Failed to load menu catalog');
     }
@@ -92,14 +108,99 @@ export default function DailyMenuPage() {
 
   const getUnusedCatalog = () => {
     const usedIds = dailyItems.map((item) => item.menuItem.id);
-    return catalog.filter((item) => !usedIds.includes(item.id));
+    return catalog.filter((item) => item.active && !usedIds.includes(item.id));
+  };
+
+  // ─── Catalog add/edit ───
+  const validateForm = () => {
+    const errs = {};
+    if (!formData.name.trim()) errs.name = 'Item name is required';
+    const priceNum = parseFloat(formData.price);
+    if (!formData.price || isNaN(priceNum) || priceNum <= 0) {
+      errs.price = 'Enter a valid price greater than ₹0';
+    }
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      toast.error('Please fix errors highlighted in red');
+      return;
+    }
+    try {
+      const payload = {
+        ...formData,
+        price: Number(formData.price).toFixed(2),
+        menuType: 'DAILY',
+        available: true,
+      };
+      if (editingId) {
+        await updateMenuItem(editingId, payload);
+        toast.success('Item updated');
+      } else {
+        await createMenuItem(payload);
+        toast.success('Item added to the daily catalog');
+      }
+      setIsModalOpen(false);
+      setFormErrors({});
+      fetchCatalog();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Action failed');
+    }
+  };
+
+  const openModal = (item = null) => {
+    setFormErrors({});
+    if (item) {
+      setEditingId(item.id);
+      setFormData({
+        name: item.name,
+        description: item.description || '',
+        price: item.price,
+        imageUrl: item.imageUrl || '',
+        allergens: item.allergens || '',
+      });
+    } else {
+      setEditingId(null);
+      setFormData(EMPTY_FORM);
+    }
+    setIsModalOpen(true);
   };
 
   return (
     <div className="admin-container">
       <div className="page-header">
-        <h1>Daily Menu Setup</h1>
-        <p>Publish each school day&apos;s menu and control stock before orders open.</p>
+        <h1>Daily Menu Management</h1>
+        <p>Manage the rotating catalog and publish each school day&apos;s menu with stock.</p>
+      </div>
+
+      <div className="page-header flex-between catalog-header">
+        <h2 className="section-title">Daily Item Catalog</h2>
+        <button className="btn-primary" onClick={() => openModal()}>
+          <Plus size={18} /> Add Daily Item
+        </button>
+      </div>
+
+      {catalog.length === 0 ? (
+        <div className="empty-state">No daily catalog items yet. Add one to schedule it below.</div>
+      ) : (
+        <div className="catalog-chip-list">
+          {catalog.map((item) => (
+            <div key={item.id} className={`catalog-chip ${!item.active ? 'inactive' : ''}`}>
+              <span>{item.name}</span>
+              <span className="price">₹{item.price}</span>
+              <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
+                <Edit2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="page-header">
+        <h2 className="section-title">Today&apos;s Schedule</h2>
       </div>
 
       <div className="daily-menu-controls">
@@ -108,7 +209,6 @@ export default function DailyMenuPage() {
           <input
             type="date"
             value={date}
-            min="2026-07-21"
             onChange={(e) => setDate(e.target.value)}
             className="date-input"
           />
@@ -173,7 +273,6 @@ export default function DailyMenuPage() {
             <div className="daily-item-row" key={item.id}>
               <div className="item-info">
                 <h3>{item.menuItem.name}</h3>
-                <span className="badge badge-amber">{item.menuItem.category}</span>
                 <span className="price">₹{item.menuItem.price}</span>
               </div>
 
@@ -203,6 +302,87 @@ export default function DailyMenuPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingId ? 'Edit Daily Item' : 'Add New Daily Item'}</h2>
+              <button className="close-btn" onClick={() => setIsModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleFormSubmit} noValidate>
+              <div className="form-group">
+                <label>Item Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: null });
+                  }}
+                  className={formErrors.name ? 'input-error' : ''}
+                />
+                {formErrors.name && (
+                  <span className="field-error-text">
+                    <AlertCircle size={14} /> {formErrors.name}
+                  </span>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Price (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => {
+                      setFormData({ ...formData, price: e.target.value });
+                      if (formErrors.price) setFormErrors({ ...formErrors, price: null });
+                    }}
+                    className={formErrors.price ? 'input-error' : ''}
+                  />
+                  {formErrors.price && (
+                    <span className="field-error-text">
+                      <AlertCircle size={14} /> {formErrors.price}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Image URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary">
+                  {editingId ? 'Save Changes' : 'Create Item'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

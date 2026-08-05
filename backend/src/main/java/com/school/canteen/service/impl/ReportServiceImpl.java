@@ -10,6 +10,7 @@ import com.school.canteen.dto.report.PeakHourRow;
 import com.school.canteen.dto.report.SalesReportResponse;
 import com.school.canteen.dto.report.TopItemRow;
 import com.school.canteen.entity.Expense;
+import com.school.canteen.enums.MenuType;
 import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.ResourceNotFoundException;
@@ -74,6 +75,8 @@ public class ReportServiceImpl implements ReportService {
                         entry.getRemainingQuantity(), entry.getTotalQuantity()))
                 .toList();
 
+        List<TopItemRow> allItems = allTopItems(date, date);
+
         return new DashboardResponse(
                 date,
                 orderRepository.countByMenuDate(date),
@@ -87,7 +90,9 @@ public class ReportServiceImpl implements ReportService {
                 expenses,
                 grossProfit.subtract(expenses),
                 userRepository.count(),
-                topItems(date, date, 5),
+                limit(allItems, 5),
+                limit(byType(allItems, MenuType.DAILY), 5),
+                limit(byType(allItems, MenuType.FIXED), 5),
                 lowStock);
     }
 
@@ -121,9 +126,14 @@ public class ReportServiceImpl implements ReportService {
                         ((Number) row[1]).longValue()))
                 .toList();
 
+        List<TopItemRow> allItems = allTopItems(from, to);
+
         return new SalesReportResponse(from, to, revenue, cogs, grossProfit, expenses,
                 grossProfit.subtract(expenses), orderCount, daily,
-                topItems(from, to, 10), peakHours);
+                limit(allItems, 10),
+                limit(byType(allItems, MenuType.DAILY), 10),
+                limit(byType(allItems, MenuType.FIXED), 10),
+                peakHours);
     }
 
     @Override
@@ -154,14 +164,24 @@ public class ReportServiceImpl implements ReportService {
         expenseRepository.delete(expense);
     }
 
-    private List<TopItemRow> topItems(LocalDate from, LocalDate to, int limit) {
+    /** Every item sold in the period, already ordered by quantity descending (from the
+     *  query); callers slice/filter this in memory rather than re-querying per view. */
+    private List<TopItemRow> allTopItems(LocalDate from, LocalDate to) {
         return orderRepository.topItemsBetween(from, to).stream()
-                .limit(limit)
                 .map(row -> new TopItemRow(
                         (String) row[0],
-                        ((Number) row[1]).longValue(),
-                        (BigDecimal) row[2]))
+                        (MenuType) row[1],
+                        ((Number) row[2]).longValue(),
+                        (BigDecimal) row[3]))
                 .toList();
+    }
+
+    private List<TopItemRow> byType(List<TopItemRow> items, MenuType menuType) {
+        return items.stream().filter(item -> item.menuType() == menuType).toList();
+    }
+
+    private List<TopItemRow> limit(List<TopItemRow> items, int limit) {
+        return items.stream().limit(limit).toList();
     }
 
     private ExpenseResponse toResponse(Expense expense) {

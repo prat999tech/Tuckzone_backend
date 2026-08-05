@@ -20,8 +20,8 @@ export const createMenuItem = async (data) => {
   return response.data;
 };
 
-export const getMenuItems = async (includeInactive) => {
-  const response = await client.get('/admin/menu-items', { params: { includeInactive } });
+export const getMenuItems = async (includeInactive, menuType) => {
+  const response = await client.get('/admin/menu-items', { params: { includeInactive, menuType } });
   return response.data;
 };
 

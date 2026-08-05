@@ -1,7 +1,6 @@
 package com.school.canteen.entity;
 
-import com.school.canteen.enums.FoodType;
-import com.school.canteen.enums.MenuCategory;
+import com.school.canteen.enums.MenuType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -31,12 +30,8 @@ public class MenuItem extends BaseEntity {
     private BigDecimal costPrice;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "food_type", nullable = false)
-    private FoodType foodType;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category", nullable = false)
-    private MenuCategory category;
+    @Column(name = "menu_type", nullable = false)
+    private MenuType menuType;
 
     @Column(name = "image_url")
     private String imageUrl;
@@ -47,6 +42,13 @@ public class MenuItem extends BaseEntity {
     /** Soft-delete flag. Retired items stay in the DB (past orders reference them). */
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    /** Temporary out-of-stock toggle, distinct from {@link #active}: an unavailable item
+     *  stays in the catalog and can be re-enabled, unlike a retired (inactive) one. Governs
+     *  ordering directly for FIXED items; DAILY items are additionally gated per-date by
+     *  {@link com.school.canteen.entity.DailyMenuItem#isAvailable()}. */
+    @Column(name = "available", nullable = false)
+    private boolean available = true;
 
     public String getName() {
         return name;
@@ -80,20 +82,12 @@ public class MenuItem extends BaseEntity {
         this.costPrice = costPrice;
     }
 
-    public FoodType getFoodType() {
-        return foodType;
+    public MenuType getMenuType() {
+        return menuType;
     }
 
-    public void setFoodType(FoodType foodType) {
-        this.foodType = foodType;
-    }
-
-    public MenuCategory getCategory() {
-        return category;
-    }
-
-    public void setCategory(MenuCategory category) {
-        this.category = category;
+    public void setMenuType(MenuType menuType) {
+        this.menuType = menuType;
     }
 
     public String getImageUrl() {
@@ -118,5 +112,13 @@ public class MenuItem extends BaseEntity {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public void setAvailable(boolean available) {
+        this.available = available;
     }
 }

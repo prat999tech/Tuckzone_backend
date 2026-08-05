@@ -1,24 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Power, X, AlertCircle } from 'lucide-react';
 import { createMenuItem, deleteMenuItem, getMenuItems, updateMenuItem } from '../../api/admin';
 import toast from 'react-hot-toast';
-import './MenuItemsPage.css';
+import './FixedMenuPage.css';
 
-export default function MenuItemsPage() {
+const EMPTY_FORM = { name: '', description: '', price: '', available: true, imageUrl: '', allergens: '' };
+
+export default function FixedMenuPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    foodType: 'VEG',
-    category: 'SNACKS',
-    imageUrl: '',
-    allergens: '',
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   useEffect(() => {
     fetchItems();
@@ -26,10 +20,10 @@ export default function MenuItemsPage() {
 
   const fetchItems = async () => {
     try {
-      const data = await getMenuItems(true);
+      const data = await getMenuItems(true, 'FIXED');
       setItems(data);
     } catch (err) {
-      toast.error('Failed to load menu items');
+      toast.error('Failed to load fixed menu items');
     } finally {
       setLoading(false);
     }
@@ -61,6 +55,7 @@ export default function MenuItemsPage() {
       const payload = {
         ...formData,
         price: Number(formData.price).toFixed(2),
+        menuType: 'FIXED',
       };
 
       if (editingId) {
@@ -90,6 +85,24 @@ export default function MenuItemsPage() {
     }
   };
 
+  const handleToggleAvailable = async (item) => {
+    try {
+      await updateMenuItem(item.id, {
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        menuType: 'FIXED',
+        available: !item.available,
+        imageUrl: item.imageUrl,
+        allergens: item.allergens,
+      });
+      toast.success(item.available ? 'Marked out of stock' : 'Marked available');
+      fetchItems();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Update failed');
+    }
+  };
+
   const openModal = (item = null) => {
     setErrors({});
     if (item) {
@@ -98,22 +111,13 @@ export default function MenuItemsPage() {
         name: item.name,
         description: item.description || '',
         price: item.price,
-        foodType: item.foodType,
-        category: item.category,
+        available: item.available,
         imageUrl: item.imageUrl || '',
         allergens: item.allergens || '',
       });
     } else {
       setEditingId(null);
-      setFormData({
-        name: '',
-        description: '',
-        price: '',
-        foodType: 'VEG',
-        category: 'SNACKS',
-        imageUrl: '',
-        allergens: '',
-      });
+      setFormData(EMPTY_FORM);
     }
     setIsModalOpen(true);
   };
@@ -122,8 +126,8 @@ export default function MenuItemsPage() {
     <div className="admin-container">
       <div className="page-header flex-between">
         <div>
-          <h1>Menu Catalog</h1>
-          <p>Manage all canteen food items</p>
+          <h1>Fixed Menu Management</h1>
+          <p>Permanent items like drinks, chips and snacks — always available until you change them.</p>
         </div>
         <button className="btn-primary" onClick={() => openModal()}>
           <Plus size={18} /> Add New Item
@@ -132,6 +136,8 @@ export default function MenuItemsPage() {
 
       {loading ? (
         <div className="loading-state">Loading items...</div>
+      ) : items.length === 0 ? (
+        <div className="empty-state">No fixed menu items yet. Add one to get started.</div>
       ) : (
         <div className="items-grid">
           {items.map((item) => (
@@ -142,19 +148,29 @@ export default function MenuItemsPage() {
                 ) : (
                   <div className="img-fallback">{item.name.charAt(0)}</div>
                 )}
-                <div className={`food-type-badge ${item.foodType.toLowerCase()}`}>
-                  <div className="dot"></div>
-                </div>
+                {item.active && (
+                  <span className={`stock-badge ${item.available ? 'available' : 'out'}`}>
+                    {item.available ? 'Available' : 'Out of Stock'}
+                  </span>
+                )}
               </div>
               <div className="card-content">
                 <div className="card-header">
                   <h3>{item.name}</h3>
-                  <span className="badge badge-amber">{item.category}</span>
                 </div>
                 <p className="desc">{item.description}</p>
                 <div className="card-footer">
                   <span className="price">₹{item.price}</span>
                   <div className="actions">
+                    {item.active && (
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleToggleAvailable(item)}
+                        title={item.available ? 'Mark Out of Stock' : 'Mark Available'}
+                      >
+                        <Power size={16} />
+                      </button>
+                    )}
                     <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
                       <Edit2 size={16} />
                     </button>
@@ -175,7 +191,7 @@ export default function MenuItemsPage() {
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingId ? 'Edit Menu Item' : 'Add New Menu Item'}</h2>
+              <h2>{editingId ? 'Edit Fixed Menu Item' : 'Add New Fixed Menu Item'}</h2>
               <button className="close-btn" onClick={() => setIsModalOpen(false)}>
                 <X size={20} />
               </button>
@@ -229,32 +245,6 @@ export default function MenuItemsPage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Food Type</label>
-                  <select
-                    value={formData.foodType}
-                    onChange={(e) => setFormData({ ...formData, foodType: e.target.value })}
-                  >
-                    <option value="VEG">Vegetarian (VEG)</option>
-                    <option value="NON_VEG">Non-Vegetarian (NON_VEG)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  >
-                    <option value="MEALS">MEALS</option>
-                    <option value="SNACKS">SNACKS</option>
-                    <option value="DRINKS">DRINKS</option>
-                    <option value="COMBOS">COMBOS</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
                   <label>Image URL</label>
                   <input
                     type="url"
@@ -263,6 +253,17 @@ export default function MenuItemsPage() {
                     onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label>Availability</label>
+                <button
+                  type="button"
+                  className={`btn-toggle ${formData.available ? 'active' : ''}`}
+                  onClick={() => setFormData({ ...formData, available: !formData.available })}
+                >
+                  {formData.available ? 'Available' : 'Out of Stock'}
+                </button>
               </div>
 
               <div className="modal-actions">

@@ -2,6 +2,7 @@ package com.school.canteen.controller;
 
 import com.school.canteen.dto.menu.MenuItemRequest;
 import com.school.canteen.dto.menu.MenuItemResponse;
+import com.school.canteen.enums.MenuType;
 import com.school.canteen.service.MenuItemService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -45,8 +46,9 @@ public class MenuItemAdminController {
     @GetMapping
     @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
     public List<MenuItemResponse> list(
-            @RequestParam(defaultValue = "false") boolean includeInactive) {
-        return menuItemService.list(includeInactive);
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            @RequestParam(required = false) MenuType menuType) {
+        return menuItemService.list(includeInactive, menuType);
     }
 
     @GetMapping("/{id}")

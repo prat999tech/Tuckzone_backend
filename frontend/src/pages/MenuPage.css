@@ -42,46 +42,49 @@
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
 }
 
-/* ─── Filters ─── */
-.menu-filters {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+/* ─── Search ─── */
+.menu-search {
+  position: relative;
+  max-width: 360px;
   margin-bottom: 1.75rem;
 }
 
-.filter-group {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+.menu-search-icon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400);
 }
 
-.filter-chip {
-  padding: 0.4rem 1rem;
+.menu-search input {
+  width: 100%;
+  padding: 0.6rem 0.875rem 0.6rem 2.5rem;
   border: 1.5px solid var(--gray-200);
-  border-radius: 999px;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
   background: var(--white);
-  color: var(--gray-600);
-  font-family: var(--font);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
 }
 
-.filter-chip:hover {
+.menu-search input:focus {
+  outline: none;
   border-color: var(--primary);
-  color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
 }
 
-.filter-chip.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
+/* ─── Menu Sections ─── */
+.menu-section {
+  margin-bottom: 2.5rem;
 }
 
-.filter-chip.veg.active  { background: var(--success); border-color: var(--success); }
-.filter-chip.non-veg.active { background: #dc2626; border-color: #dc2626; }
+.menu-section-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--gray-100);
+}
 
 /* ─── Menu Grid ─── */
 .menu-grid {
@@ -150,32 +153,6 @@
   color: var(--gray-400);
   background: linear-gradient(135deg, var(--gray-100), var(--gray-200));
 }
-
-.food-type-badge {
-  position: absolute;
-  bottom: 0.5rem;
-  right: 0.5rem;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  border: 2px solid white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-}
-
-.food-type-badge.veg     { border-color: var(--success); }
-.food-type-badge.non_veg { border-color: #dc2626; }
-
-.food-type-badge .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.food-type-badge.veg .dot     { background: var(--success); }
-.food-type-badge.non_veg .dot { background: #dc2626; }
 
 .food-info {
   padding: 1rem;

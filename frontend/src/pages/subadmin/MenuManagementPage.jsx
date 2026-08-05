@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, X, AlertCircle, Calendar } from 'lucide-react';
+import { Plus, Edit2, Power, X, AlertCircle, Calendar } from 'lucide-react';
 import {
   addDailyMenu,
   createMenuItem,
@@ -11,28 +11,23 @@ import {
 import toast from 'react-hot-toast';
 import './MenuManagementPage.css';
 
-const EMPTY_FORM = {
-  name: '',
-  description: '',
-  price: '',
-  foodType: 'VEG',
-  category: 'SNACKS',
-  imageUrl: '',
-  allergens: '',
-};
+const EMPTY_FORM = { name: '', description: '', price: '', imageUrl: '', allergens: '' };
 
 export default function MenuManagementPage() {
-  const [tab, setTab] = useState('CATALOG');
+  const [tab, setTab] = useState('DAILY');
 
-  // Catalog state
-  const [items, setItems] = useState([]);
-  const [loadingItems, setLoadingItems] = useState(true);
+  // Catalogs (fetched once, one list per menu type)
+  const [dailyCatalog, setDailyCatalog] = useState([]);
+  const [fixedCatalog, setFixedCatalog] = useState([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(true);
+
+  // Add/edit modal (shared, scoped by menuType matching the active tab)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState(EMPTY_FORM);
 
-  // Availability state
+  // Daily scheduling
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [dailyItems, setDailyItems] = useState([]);
   const [loadingDaily, setLoadingDaily] = useState(false);
@@ -41,24 +36,29 @@ export default function MenuManagementPage() {
   const [dailyErrors, setDailyErrors] = useState({});
 
   useEffect(() => {
-    fetchItems();
+    fetchCatalogs();
   }, []);
 
   useEffect(() => {
-    if (tab === 'AVAILABILITY') {
+    if (tab === 'DAILY') {
       fetchDailyMenu();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, date]);
 
-  const fetchItems = async () => {
+  const fetchCatalogs = async () => {
+    setLoadingCatalog(true);
     try {
-      const data = await getMenuItems(true);
-      setItems(data);
+      const [daily, fixed] = await Promise.all([
+        getMenuItems(true, 'DAILY'),
+        getMenuItems(true, 'FIXED'),
+      ]);
+      setDailyCatalog(daily);
+      setFixedCatalog(fixed);
     } catch (err) {
       toast.error('Failed to load menu items');
     } finally {
-      setLoadingItems(false);
+      setLoadingCatalog(false);
     }
   };
 
@@ -93,7 +93,12 @@ export default function MenuManagementPage() {
       return;
     }
     try {
-      const payload = { ...formData, price: Number(formData.price).toFixed(2) };
+      const payload = {
+        ...formData,
+        price: Number(formData.price).toFixed(2),
+        menuType: tab,
+        available: editingId ? formData.available : true,
+      };
       if (editingId) {
         await updateMenuItem(editingId, payload);
         toast.success('Item updated');
@@ -103,9 +108,27 @@ export default function MenuManagementPage() {
       }
       setIsModalOpen(false);
       setErrors({});
-      fetchItems();
+      fetchCatalogs();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Action failed');
+    }
+  };
+
+  const handleToggleAvailable = async (item) => {
+    try {
+      await updateMenuItem(item.id, {
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        menuType: 'FIXED',
+        available: !item.available,
+        imageUrl: item.imageUrl,
+        allergens: item.allergens,
+      });
+      toast.success(item.available ? 'Marked out of stock' : 'Marked available');
+      fetchCatalogs();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Update failed');
     }
   };
 
@@ -117,8 +140,7 @@ export default function MenuManagementPage() {
         name: item.name,
         description: item.description || '',
         price: item.price,
-        foodType: item.foodType,
-        category: item.category,
+        available: item.available,
         imageUrl: item.imageUrl || '',
         allergens: item.allergens || '',
       });
@@ -129,7 +151,7 @@ export default function MenuManagementPage() {
     setIsModalOpen(true);
   };
 
-  // ─── Availability: toggle available/out-of-stock + quantity ───
+  // ─── Daily scheduling ───
   const validateDaily = () => {
     const errs = {};
     if (!selectedCatalogItem) errs.item = 'Select an item from the catalog';
@@ -172,72 +194,54 @@ export default function MenuManagementPage() {
 
   const getUnusedCatalog = () => {
     const usedIds = dailyItems.map((item) => item.menuItem.id);
-    return items.filter((item) => item.active && !usedIds.includes(item.id));
+    return dailyCatalog.filter((item) => item.active && !usedIds.includes(item.id));
   };
 
   return (
     <div className="admin-container">
       <div className="page-header">
         <h1>Menu Management</h1>
-        <p>Add and edit items, update prices and toggle today&apos;s availability.</p>
+        <p>Add and edit items, update prices and manage availability.</p>
       </div>
 
       <div className="status-tabs">
-        <button className={`tab-btn ${tab === 'CATALOG' ? 'active' : ''}`} onClick={() => setTab('CATALOG')}>
-          Catalog
+        <button className={`tab-btn ${tab === 'DAILY' ? 'active' : ''}`} onClick={() => setTab('DAILY')}>
+          Daily Menu
         </button>
-        <button className={`tab-btn ${tab === 'AVAILABILITY' ? 'active' : ''}`} onClick={() => setTab('AVAILABILITY')}>
-          Today&apos;s Availability
+        <button className={`tab-btn ${tab === 'FIXED' ? 'active' : ''}`} onClick={() => setTab('FIXED')}>
+          Fixed Menu
         </button>
       </div>
 
-      {tab === 'CATALOG' && (
+      {tab === 'DAILY' && (
         <>
           <div className="page-header flex-between catalog-header">
-            <p className="text-muted">{items.length} items in the catalog</p>
+            <p className="text-muted">{dailyCatalog.length} items in the daily catalog</p>
             <button className="btn-primary" onClick={() => openModal()}>
-              <Plus size={18} /> Add New Item
+              <Plus size={18} /> Add Daily Item
             </button>
           </div>
 
-          {loadingItems ? (
+          {loadingCatalog ? (
             <div className="loading-state">Loading items...</div>
           ) : (
-            <div className="items-grid">
-              {items.map((item) => (
-                <div className={`catalog-card ${!item.active ? 'inactive' : ''}`} key={item.id}>
-                  <div className="card-image">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} />
-                    ) : (
-                      <div className="img-fallback">{item.name.charAt(0)}</div>
-                    )}
-                    <div className={`food-type-badge ${item.foodType.toLowerCase()}`}>
-                      <div className="dot"></div>
-                    </div>
-                  </div>
-                  <div className="card-content">
-                    <div className="card-header">
-                      <h3>{item.name}</h3>
-                      <span className="badge badge-amber">{item.category}</span>
-                    </div>
-                    <p className="desc">{item.description}</p>
-                    <div className="card-footer">
-                      <span className="price">₹{item.price}</span>
-                      <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
-                        <Edit2 size={16} />
-                      </button>
-                    </div>
-                  </div>
+            <div className="catalog-chip-list">
+              {dailyCatalog.map((item) => (
+                <div key={item.id} className={`catalog-chip ${!item.active ? 'inactive' : ''}`}>
+                  <span>{item.name}</span>
+                  <span className="price">₹{item.price}</span>
+                  <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
+                    <Edit2 size={14} />
+                  </button>
                 </div>
               ))}
             </div>
           )}
-        </>
-      )}
 
-      {tab === 'AVAILABILITY' && (
-        <>
+          <div className="page-header">
+            <h2 className="section-title">Today&apos;s Schedule</h2>
+          </div>
+
           <div className="daily-menu-controls">
             <div className="date-picker-wrapper">
               <Calendar size={20} className="text-amber" />
@@ -299,7 +303,6 @@ export default function MenuManagementPage() {
                 <div className="daily-item-row" key={item.id}>
                   <div className="item-info">
                     <h3>{item.menuItem.name}</h3>
-                    <span className="badge badge-amber">{item.menuItem.category}</span>
                     <span className="price">₹{item.menuItem.price}</span>
                   </div>
 
@@ -331,11 +334,64 @@ export default function MenuManagementPage() {
         </>
       )}
 
+      {tab === 'FIXED' && (
+        <>
+          <div className="page-header flex-between catalog-header">
+            <p className="text-muted">{fixedCatalog.length} items in the fixed catalog</p>
+            <button className="btn-primary" onClick={() => openModal()}>
+              <Plus size={18} /> Add Fixed Item
+            </button>
+          </div>
+
+          {loadingCatalog ? (
+            <div className="loading-state">Loading items...</div>
+          ) : (
+            <div className="items-grid">
+              {fixedCatalog.map((item) => (
+                <div className={`catalog-card ${!item.active ? 'inactive' : ''}`} key={item.id}>
+                  <div className="card-image">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name} />
+                    ) : (
+                      <div className="img-fallback">{item.name.charAt(0)}</div>
+                    )}
+                    <span className={`stock-badge ${item.available ? 'available' : 'out'}`}>
+                      {item.available ? 'Available' : 'Out of Stock'}
+                    </span>
+                  </div>
+                  <div className="card-content">
+                    <div className="card-header">
+                      <h3>{item.name}</h3>
+                    </div>
+                    <p className="desc">{item.description}</p>
+                    <div className="card-footer">
+                      <span className="price">₹{item.price}</span>
+                      <div className="actions">
+                        <button
+                          className="btn-icon"
+                          onClick={() => handleToggleAvailable(item)}
+                          title={item.available ? 'Mark Out of Stock' : 'Mark Available'}
+                        >
+                          <Power size={16} />
+                        </button>
+                        <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
+                          <Edit2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingId ? 'Edit Menu Item' : 'Add New Menu Item'}</h2>
+              <h2>{editingId ? 'Edit Menu Item' : `Add New ${tab === 'DAILY' ? 'Daily' : 'Fixed'} Item`}</h2>
               <button className="close-btn" onClick={() => setIsModalOpen(false)}>
                 <X size={20} />
               </button>
@@ -381,26 +437,6 @@ export default function MenuManagementPage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Food Type</label>
-                  <select value={formData.foodType} onChange={(e) => setFormData({ ...formData, foodType: e.target.value })}>
-                    <option value="VEG">Vegetarian (VEG)</option>
-                    <option value="NON_VEG">Non-Vegetarian (NON_VEG)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Category</label>
-                  <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
-                    <option value="MEALS">MEALS</option>
-                    <option value="SNACKS">SNACKS</option>
-                    <option value="DRINKS">DRINKS</option>
-                    <option value="COMBOS">COMBOS</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
                   <label>Image URL</label>
                   <input
                     type="url"
@@ -410,6 +446,19 @@ export default function MenuManagementPage() {
                   />
                 </div>
               </div>
+
+              {tab === 'FIXED' && editingId && (
+                <div className="form-group">
+                  <label>Availability</label>
+                  <button
+                    type="button"
+                    className={`btn-toggle ${formData.available ? 'active' : ''}`}
+                    onClick={() => setFormData({ ...formData, available: !formData.available })}
+                  >
+                    {formData.available ? 'Available' : 'Out of Stock'}
+                  </button>
+                </div>
+              )}
 
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>

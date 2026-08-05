@@ -13,6 +13,7 @@ import com.school.canteen.entity.Order;
 import com.school.canteen.entity.OrderItem;
 import com.school.canteen.entity.StudentProfile;
 import com.school.canteen.entity.User;
+import com.school.canteen.enums.MenuType;
 import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.enums.OrderType;
@@ -28,6 +29,7 @@ import com.school.canteen.mapper.OrderMapper;
 import com.school.canteen.notification.NotificationMessages;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.DeliverySlotRepository;
+import com.school.canteen.repository.MenuItemRepository;
 import com.school.canteen.repository.OrderRepository;
 import com.school.canteen.repository.ParentChildLinkRepository;
 import com.school.canteen.repository.StudentProfileRepository;
@@ -89,6 +91,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final DailyMenuItemRepository dailyMenuItemRepository;
+    private final MenuItemRepository menuItemRepository;
     private final DeliverySlotRepository deliverySlotRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final ParentChildLinkRepository parentChildLinkRepository;
@@ -107,6 +110,7 @@ public class OrderServiceImpl implements OrderService {
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             DailyMenuItemRepository dailyMenuItemRepository,
+                            MenuItemRepository menuItemRepository,
                             DeliverySlotRepository deliverySlotRepository,
                             StudentProfileRepository studentProfileRepository,
                             ParentChildLinkRepository parentChildLinkRepository,
@@ -119,6 +123,7 @@ public class OrderServiceImpl implements OrderService {
                             @Lazy OrderService self) {
         this.orderRepository = orderRepository;
         this.dailyMenuItemRepository = dailyMenuItemRepository;
+        this.menuItemRepository = menuItemRepository;
         this.deliverySlotRepository = deliverySlotRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.parentChildLinkRepository = parentChildLinkRepository;
@@ -439,18 +444,31 @@ public class OrderServiceImpl implements OrderService {
             if (!seen.add(line.menuItemId())) {
                 throw new BadRequestException("Duplicate item in order; combine into one line");
             }
-            DailyMenuItem entry = dailyMenuItemRepository
-                    .findByMenuDateAndMenuItem_Id(date, line.menuItemId())
-                    .filter(e -> e.isAvailable() && e.getMenuItem().isActive())
+
+            MenuItem menuItem = menuItemRepository.findById(line.menuItemId())
+                    .filter(MenuItem::isActive)
                     .orElseThrow(() -> new BadRequestException("Item is not on the menu for " + date));
 
-            // Atomic reservation: only succeeds if enough stock is still available.
-            int updated = dailyMenuItemRepository.tryDecrement(date, line.menuItemId(), line.quantity());
-            if (updated == 0) {
-                throw new OutOfStockException(entry.getMenuItem().getName());
+            if (menuItem.getMenuType() == MenuType.FIXED) {
+                // Always orderable once active and in stock — no per-date scheduling, so
+                // there is nothing to reserve or decrement.
+                if (!menuItem.isAvailable()) {
+                    throw new OutOfStockException(menuItem.getName());
+                }
+            } else {
+                // DAILY: unchanged from before — the item must be scheduled on this exact
+                // date, and stock is reserved atomically against that day's row.
+                dailyMenuItemRepository
+                        .findByMenuDateAndMenuItem_Id(date, line.menuItemId())
+                        .filter(DailyMenuItem::isAvailable)
+                        .orElseThrow(() -> new BadRequestException("Item is not on the menu for " + date));
+
+                int updated = dailyMenuItemRepository.tryDecrement(date, line.menuItemId(), line.quantity());
+                if (updated == 0) {
+                    throw new OutOfStockException(menuItem.getName());
+                }
             }
 
-            MenuItem menuItem = entry.getMenuItem();
             BigDecimal unitPrice = menuItem.getPrice();
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(line.quantity()));
 

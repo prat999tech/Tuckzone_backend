@@ -5,8 +5,7 @@ import com.school.canteen.dto.menu.DailyMenuItemResponse;
 import com.school.canteen.dto.menu.DailyMenuUpdateRequest;
 import com.school.canteen.entity.DailyMenuItem;
 import com.school.canteen.entity.MenuItem;
-import com.school.canteen.enums.FoodType;
-import com.school.canteen.enums.MenuCategory;
+import com.school.canteen.enums.MenuType;
 import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.DuplicateResourceException;
 import com.school.canteen.exception.ResourceNotFoundException;
@@ -44,6 +43,11 @@ public class DailyMenuServiceImpl implements DailyMenuService {
                         "Menu item not found: " + request.menuItemId()));
         if (!menuItem.isActive()) {
             throw new BadRequestException("Cannot add a retired (inactive) item to the menu");
+        }
+        if (menuItem.getMenuType() != MenuType.DAILY) {
+            throw new BadRequestException(
+                    "Only Daily Menu items can be scheduled onto a date; "
+                            + menuItem.getName() + " is a Fixed Menu item");
         }
         if (dailyMenuItemRepository.existsByMenuDateAndMenuItem_Id(
                 request.menuDate(), request.menuItemId())) {
@@ -107,16 +111,13 @@ public class DailyMenuServiceImpl implements DailyMenuService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DailyMenuItemResponse> getMenu(LocalDate date, FoodType foodType,
-                                               MenuCategory category, String query) {
+    public List<DailyMenuItemResponse> getMenu(LocalDate date, String query) {
         String normalizedQuery = (query == null || query.isBlank())
                 ? null
                 : query.trim().toLowerCase(Locale.ROOT);
 
         return dailyMenuItemRepository
                 .findByMenuDateAndAvailableTrueAndMenuItem_ActiveTrue(date).stream()
-                .filter(entry -> foodType == null || entry.getMenuItem().getFoodType() == foodType)
-                .filter(entry -> category == null || entry.getMenuItem().getCategory() == category)
                 .filter(entry -> normalizedQuery == null
                         || entry.getMenuItem().getName().toLowerCase(Locale.ROOT)
                                 .contains(normalizedQuery))

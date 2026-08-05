@@ -13,7 +13,7 @@ import OrdersPage from './pages/OrdersPage';
 import WalletPage from './pages/WalletPage';
 import ChildrenPage from './pages/ChildrenPage';
 import UserApprovalPage from './pages/admin/UserApprovalPage';
-import MenuItemsPage from './pages/admin/MenuItemsPage';
+import FixedMenuPage from './pages/admin/FixedMenuPage';
 import DailyMenuPage from './pages/admin/DailyMenuPage';
 import OrdersBoardPage from './pages/admin/OrdersBoardPage';
 import SubAdminsPage from './pages/admin/SubAdminsPage';
@@ -70,7 +70,7 @@ function App() {
 
                 {/* Canteen Admin Only */}
                 <Route element={<ProtectedRoute allowedRoles={['CANTEEN_ADMIN']} />}>
-                  <Route path="/admin/menu-items" element={<MenuItemsPage />} />
+                  <Route path="/admin/fixed-menu" element={<FixedMenuPage />} />
                   <Route path="/admin/daily-menu" element={<DailyMenuPage />} />
                   <Route path="/admin/orders" element={<OrdersBoardPage />} />
                   <Route path="/admin/sub-admins" element={<SubAdminsPage />} />

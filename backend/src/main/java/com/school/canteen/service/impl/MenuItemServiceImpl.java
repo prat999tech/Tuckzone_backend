@@ -3,11 +3,13 @@ package com.school.canteen.service.impl;
 import com.school.canteen.dto.menu.MenuItemRequest;
 import com.school.canteen.dto.menu.MenuItemResponse;
 import com.school.canteen.entity.MenuItem;
+import com.school.canteen.enums.MenuType;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.mapper.MenuItemMapper;
 import com.school.canteen.repository.MenuItemRepository;
 import com.school.canteen.service.MenuItemService;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,11 +56,32 @@ public class MenuItemServiceImpl implements MenuItemService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MenuItemResponse> list(boolean includeInactive) {
-        List<MenuItem> items = includeInactive
-                ? menuItemRepository.findAll()
-                : menuItemRepository.findByActiveTrue();
+    public List<MenuItemResponse> list(boolean includeInactive, MenuType menuType) {
+        List<MenuItem> items;
+        if (menuType != null) {
+            items = includeInactive
+                    ? menuItemRepository.findAll().stream()
+                            .filter(item -> item.getMenuType() == menuType)
+                            .toList()
+                    : menuItemRepository.findByMenuTypeAndActiveTrue(menuType);
+        } else {
+            items = includeInactive ? menuItemRepository.findAll() : menuItemRepository.findByActiveTrue();
+        }
         return items.stream().map(menuItemMapper::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MenuItemResponse> listFixedMenu(String query) {
+        String normalizedQuery = (query == null || query.isBlank())
+                ? null
+                : query.trim().toLowerCase(Locale.ROOT);
+
+        return menuItemRepository.findByMenuTypeAndActiveTrueAndAvailableTrue(MenuType.FIXED).stream()
+                .filter(item -> normalizedQuery == null
+                        || item.getName().toLowerCase(Locale.ROOT).contains(normalizedQuery))
+                .map(menuItemMapper::toResponse)
+                .toList();
     }
 
     private MenuItem findOrThrow(UUID id) {

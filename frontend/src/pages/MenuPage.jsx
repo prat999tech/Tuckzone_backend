@@ -1,23 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { getTodayMenu, getDeliverySlots } from '../api/menu';
+import { getTodayMenu, getFixedMenu, getDeliverySlots } from '../api/menu';
 import { getChildren } from '../api/parent';
 import { placeOrder } from '../api/orders';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingCart, Plus, Minus, AlertCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, AlertCircle, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './MenuPage.css';
 
 export default function MenuPage() {
   const { user } = useAuth();
-  const [menuItems, setMenuItems] = useState([]);
+  const [dailyMenu, setDailyMenu] = useState([]);
+  const [fixedMenu, setFixedMenu] = useState([]);
   const [slots, setSlots] = useState([]);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [foodType, setFoodType] = useState('ALL');
-  const [category, setCategory] = useState('ALL');
+  const [search, setSearch] = useState('');
 
   // Cart & Order Form State
   const [cart, setCart] = useState([]);
@@ -29,16 +28,19 @@ export default function MenuPage() {
 
   useEffect(() => {
     fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [menuData, slotData] = await Promise.all([
+      const [dailyData, fixedData, slotData] = await Promise.all([
         getTodayMenu({ date: selectedDate }),
+        getFixedMenu(),
         getDeliverySlots(),
       ]);
-      setMenuItems(menuData);
+      setDailyMenu(dailyData);
+      setFixedMenu(fixedData);
       setSlots(slotData);
 
       if (user?.role === 'PARENT') {
@@ -130,17 +132,97 @@ export default function MenuPage() {
     }
   };
 
-  const filteredMenu = menuItems.filter((item) => {
-    const typeMatch = foodType === 'ALL' || item.menuItem.foodType === foodType;
-    const catMatch = category === 'ALL' || item.menuItem.category === category;
-    return typeMatch && catMatch;
-  });
+  const matchesSearch = (name) =>
+    !search.trim() || name.toLowerCase().includes(search.trim().toLowerCase());
+
+  const filteredDaily = dailyMenu.filter((dayItem) => matchesSearch(dayItem.menuItem.name));
+  const filteredFixed = fixedMenu.filter((item) => matchesSearch(item.name));
+
+  const renderDailyCard = (dayItem) => {
+    const { menuItem, remainingQuantity, available } = dayItem;
+    const isSoldOut = !available || remainingQuantity <= 0;
+    const qtyInCart = getQuantityInCart(menuItem.id);
+
+    return (
+      <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={dayItem.id}>
+        {isSoldOut && <div className="sold-out-badge">Sold Out</div>}
+        <div className="food-img-placeholder">
+          {menuItem.imageUrl ? (
+            <img src={menuItem.imageUrl} alt={menuItem.name} />
+          ) : (
+            <div className="img-fallback">{menuItem.name.charAt(0)}</div>
+          )}
+        </div>
+        <div className="food-info">
+          <h3>{menuItem.name}</h3>
+          <p className="desc">{menuItem.description}</p>
+          <div className="food-meta">
+            <span className="price">₹{menuItem.price}</span>
+            <span className="stock">{remainingQuantity} left</span>
+          </div>
+
+          <div className="food-actions">
+            {qtyInCart > 0 ? (
+              <div className="qty-controls">
+                <button onClick={() => removeFromCart(menuItem.id)}><Minus size={16} /></button>
+                <span>{qtyInCart}</span>
+                <button onClick={() => addToCart(menuItem)} disabled={isSoldOut || qtyInCart >= remainingQuantity}><Plus size={16} /></button>
+              </div>
+            ) : (
+              <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
+                Add to Cart
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFixedCard = (menuItem) => {
+    const isSoldOut = !menuItem.available;
+    const qtyInCart = getQuantityInCart(menuItem.id);
+
+    return (
+      <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={menuItem.id}>
+        {isSoldOut && <div className="sold-out-badge">Out of Stock</div>}
+        <div className="food-img-placeholder">
+          {menuItem.imageUrl ? (
+            <img src={menuItem.imageUrl} alt={menuItem.name} />
+          ) : (
+            <div className="img-fallback">{menuItem.name.charAt(0)}</div>
+          )}
+        </div>
+        <div className="food-info">
+          <h3>{menuItem.name}</h3>
+          <p className="desc">{menuItem.description}</p>
+          <div className="food-meta">
+            <span className="price">₹{menuItem.price}</span>
+          </div>
+
+          <div className="food-actions">
+            {qtyInCart > 0 ? (
+              <div className="qty-controls">
+                <button onClick={() => removeFromCart(menuItem.id)}><Minus size={16} /></button>
+                <span>{qtyInCart}</span>
+                <button onClick={() => addToCart(menuItem)} disabled={isSoldOut}><Plus size={16} /></button>
+              </div>
+            ) : (
+              <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
+                Add to Cart
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="menu-container">
       <div className="menu-header">
         <div>
-          <h1>Today&apos;s Menu</h1>
+          <h1>Menu</h1>
           <p>Order fresh meals delivered right to your classroom</p>
         </div>
 
@@ -153,94 +235,43 @@ export default function MenuPage() {
         </div>
       </div>
 
-      <div className="menu-filters">
-        <div className="filter-group">
-          <button
-            className={`filter-chip ${foodType === 'ALL' ? 'active' : ''}`}
-            onClick={() => setFoodType('ALL')}
-          >
-            All Food
-          </button>
-          <button
-            className={`filter-chip veg ${foodType === 'VEG' ? 'active' : ''}`}
-            onClick={() => setFoodType('VEG')}
-          >
-            Veg Only
-          </button>
-          <button
-            className={`filter-chip non-veg ${foodType === 'NON_VEG' ? 'active' : ''}`}
-            onClick={() => setFoodType('NON_VEG')}
-          >
-            Non-Veg
-          </button>
-        </div>
-
-        <div className="filter-group">
-          {['ALL', 'MEALS', 'SNACKS', 'DRINKS', 'COMBOS'].map((cat) => (
-            <button
-              key={cat}
-              className={`filter-chip ${category === cat ? 'active' : ''}`}
-              onClick={() => setCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      <div className="menu-search">
+        <Search size={18} className="menu-search-icon" />
+        <input
+          type="text"
+          placeholder="Search menu items..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      {loading ? (
-        <div className="loading-state">Loading menu...</div>
-      ) : filteredMenu.length === 0 ? (
-        <div className="empty-state">
-          No menu is published for {selectedDate}. Ask the canteen admin to schedule that day&apos;s items.
-        </div>
-      ) : (
-        <div className="menu-grid">
-          {filteredMenu.map((dayItem) => {
-            const { menuItem, remainingQuantity, available } = dayItem;
-            const isSoldOut = !available || remainingQuantity <= 0;
-            const qtyInCart = getQuantityInCart(menuItem.id);
+      <section className="menu-section">
+        <h2 className="menu-section-title">Today&apos;s Menu</h2>
+        {loading ? (
+          <div className="loading-state">Loading menu...</div>
+        ) : filteredDaily.length === 0 ? (
+          <div className="empty-state">
+            No daily menu is published for {selectedDate}. Ask the canteen admin to schedule that day&apos;s items.
+          </div>
+        ) : (
+          <div className="menu-grid">
+            {filteredDaily.map(renderDailyCard)}
+          </div>
+        )}
+      </section>
 
-            return (
-              <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={dayItem.id}>
-                {isSoldOut && <div className="sold-out-badge">Sold Out</div>}
-                <div className="food-img-placeholder">
-                  {menuItem.imageUrl ? (
-                    <img src={menuItem.imageUrl} alt={menuItem.name} />
-                  ) : (
-                    <div className="img-fallback">{menuItem.name.charAt(0)}</div>
-                  )}
-                  <div className={`food-type-badge ${menuItem.foodType.toLowerCase()}`}>
-                    <div className="dot"></div>
-                  </div>
-                </div>
-                <div className="food-info">
-                  <h3>{menuItem.name}</h3>
-                  <p className="desc">{menuItem.description}</p>
-                  <div className="food-meta">
-                    <span className="price">₹{menuItem.price}</span>
-                    <span className="stock">{remainingQuantity} left</span>
-                  </div>
-
-                  <div className="food-actions">
-                    {qtyInCart > 0 ? (
-                      <div className="qty-controls">
-                        <button onClick={() => removeFromCart(menuItem.id)}><Minus size={16} /></button>
-                        <span>{qtyInCart}</span>
-                        <button onClick={() => addToCart(menuItem)} disabled={isSoldOut || qtyInCart >= remainingQuantity}><Plus size={16} /></button>
-                      </div>
-                    ) : (
-                      <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
-                        Add to Cart
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <section className="menu-section">
+        <h2 className="menu-section-title">Fixed Menu</h2>
+        {loading ? (
+          <div className="loading-state">Loading menu...</div>
+        ) : filteredFixed.length === 0 ? (
+          <div className="empty-state">No fixed menu items available right now.</div>
+        ) : (
+          <div className="menu-grid">
+            {filteredFixed.map(renderFixedCard)}
+          </div>
+        )}
+      </section>
 
       {cart.length > 0 && (
         <div className="floating-cart-bar" onClick={() => setIsCartOpen(true)}>
