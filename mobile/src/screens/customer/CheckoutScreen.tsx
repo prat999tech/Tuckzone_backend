@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertTriangle, ShoppingCart, Trash2 } from 'lucide-react-native';
+import { AlertTriangle, CheckCircle2, Info, ShoppingCart, Trash2, Truck } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
@@ -19,7 +19,7 @@ import { apiErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency, formatDate } from '../../utils/format';
-import { colors, spacing, typography } from '../../theme';
+import { colors, radius, shadowFloating, spacing, typography } from '../../theme';
 import type { DeliverySlotResponse, ChildResponse, OrderingWindowResponse, OrderType } from '../../api/types';
 import type { CustomerStackParamList } from '../../navigation/types';
 
@@ -98,7 +98,7 @@ export function CheckoutScreen({ navigation }: Props) {
 
     setPlacing(true);
     try {
-      await ordersApi.place({
+      const order = await ordersApi.place({
         orderType: isTeacher ? orderType : 'DELIVERY',
         menuDate,
         beneficiaryStudentProfileId: isParent ? selectedChildId : undefined,
@@ -107,8 +107,9 @@ export function CheckoutScreen({ navigation }: Props) {
         idempotencyKey: idempotencyKeyRef.current,
       });
       clearCart();
-      Toast.show({ type: 'success', text1: 'Order placed!', text2: 'Track it from the Orders tab' });
-      navigation.navigate('CustomerTabs', { screen: 'Orders' } as never);
+      // Straight to the confirmation screen rather than the Orders list: the shopper needs
+      // the order number and pickup instructions immediately, not a list to hunt through.
+      navigation.replace('OrderConfirmation', { orderId: order.id });
     } catch (error) {
       Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to place order') });
     } finally {
@@ -134,7 +135,7 @@ export function CheckoutScreen({ navigation }: Props) {
     return (
       <ScreenContainer>
         <EmptyState
-          icon={<ShoppingCart color={colors.primaryDark} size={30} />}
+          icon={<ShoppingCart color={colors.primary} size={30} />}
           title="Your cart is empty"
           message="Add something from the menu and it will show up here."
         />
@@ -144,166 +145,249 @@ export function CheckoutScreen({ navigation }: Props) {
   }
 
   return (
-    <ScreenContainer>
-      <View style={styles.summaryHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={typography.h2}>Order Summary</Text>
-          {menuDate ? <Text style={styles.forDate}>For {formatDate(menuDate)}</Text> : null}
+    <ScreenContainer scroll={false} contentStyle={{ padding: 0 }}>
+      <ScrollView style={styles.fill} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.titleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={typography.h1}>Checkout</Text>
+            {menuDate ? <Text style={styles.forDate}>For {formatDate(menuDate)}</Text> : null}
+          </View>
+          <Pressable onPress={confirmClearCart} hitSlop={8}>
+            <Text style={styles.clearCart}>Empty cart</Text>
+          </Pressable>
         </View>
-        <Pressable onPress={confirmClearCart} hitSlop={8}>
-          <Text style={styles.clearCart}>Empty cart</Text>
-        </Pressable>
-      </View>
 
-      <Card style={styles.itemsCard}>
-        {lines.map((line, index) => (
-          <View key={line.dayItem.id}>
-            {index > 0 ? <View style={styles.divider} /> : null}
-            <View style={styles.itemRow}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={1}>
-                  {line.dayItem.menuItem.name}
+        {/* ── Order Summary ─────────────────────────────────────────────── */}
+        <Card style={styles.card}>
+          <Text style={typography.h2}>Order Summary</Text>
+
+          {lines.map((line) => (
+            <View key={line.dayItem.id} style={styles.lineBlock}>
+              <View style={styles.itemRow}>
+                {line.dayItem.menuItem.imageUrl ? (
+                  <Image source={{ uri: line.dayItem.menuItem.imageUrl }} style={styles.thumb} />
+                ) : (
+                  <View style={[styles.thumb, styles.thumbFallback]}>
+                    <Text style={styles.thumbLetter}>{line.dayItem.menuItem.name.charAt(0)}</Text>
+                  </View>
+                )}
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName} numberOfLines={2}>
+                    {line.dayItem.menuItem.name}
+                  </Text>
+                  <Text style={styles.itemQty}>Qty: {line.quantity}</Text>
+                </View>
+                <Text style={styles.itemPrice}>
+                  {formatCurrency(line.dayItem.menuItem.price * line.quantity)}
                 </Text>
-                <Text style={styles.itemUnit}>{formatCurrency(line.dayItem.menuItem.price)} each</Text>
               </View>
-              <Text style={styles.itemPrice}>
-                {formatCurrency(line.dayItem.menuItem.price * line.quantity)}
+
+              <View style={styles.itemControls}>
+                <QuantityStepper
+                  compact
+                  quantity={line.quantity}
+                  onIncrement={() => addToCart(line.dayItem)}
+                  onDecrement={() => removeFromCart(line.dayItem.id)}
+                  incrementDisabled={line.quantity >= line.dayItem.remainingQuantity}
+                />
+                <Pressable
+                  onPress={() => confirmRemoveLine(line.dayItem.id, line.dayItem.menuItem.name)}
+                  hitSlop={8}
+                  style={styles.removeButton}
+                >
+                  <Trash2 size={15} color={colors.danger} />
+                  <Text style={styles.removeText}>Remove</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.divider} />
+          <View style={styles.totalRow}>
+            <Text style={styles.subtotalLabel}>Subtotal</Text>
+            <Text style={styles.subtotalValue}>{formatCurrency(total)}</Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+          </View>
+        </Card>
+
+        {/* ── Delivery Information ──────────────────────────────────────── */}
+        <Card style={[styles.card, styles.sectionGap]}>
+          <View style={styles.cardHeading}>
+            <Truck size={22} color={colors.primary} />
+            <Text style={typography.h2}>Delivery Information</Text>
+          </View>
+
+          <View style={styles.infoBox}>
+            <Info size={20} color={colors.textSecondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.infoTitle}>Delivery: Recess Time</Text>
+              <Text style={styles.infoBody}>
+                Your order will be prepared and ready for pickup or delivery during the
+                standard recess period.
               </Text>
             </View>
-            <View style={styles.itemControls}>
-              <QuantityStepper
-                compact
-                quantity={line.quantity}
-                onIncrement={() => addToCart(line.dayItem)}
-                onDecrement={() => removeFromCart(line.dayItem.id)}
-                incrementDisabled={line.quantity >= line.dayItem.remainingQuantity}
-              />
-              <Pressable
-                onPress={() => confirmRemoveLine(line.dayItem.id, line.dayItem.menuItem.name)}
-                hitSlop={8}
-                style={styles.removeButton}
-              >
-                <Trash2 size={15} color={colors.danger} />
-                <Text style={styles.removeText}>Remove</Text>
-              </Pressable>
+          </View>
+
+          {errors.slot ? <Text style={styles.errorText}>{errors.slot}</Text> : null}
+
+          {closedForOrdering && (
+            <View style={styles.warningBox}>
+              <AlertTriangle size={18} color={colors.warning} />
+              <Text style={styles.warningText}>
+                Ordering for {selectedSlot?.name ?? 'Recess Time'} on {formatDate(menuDate)} is
+                currently closed{orderingStatus?.reason ? ` (${orderingStatus.reason})` : ''}.
+              </Text>
             </View>
-          </View>
-        ))}
-        <View style={styles.divider} />
-        <View style={styles.itemRow}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
-        </View>
-      </Card>
+          )}
 
-      <Text style={[typography.h2, styles.sectionTitle]}>Recess Time</Text>
-      <Text style={styles.recessNote}>Your order will be ready for Recess Time — no time selection needed.</Text>
-      {errors.slot ? <Text style={styles.errorText}>{errors.slot}</Text> : null}
-
-      {closedForOrdering && (
-        <Card style={styles.warningCard}>
-          <AlertTriangle size={18} color={colors.warning} />
-          <Text style={styles.warningText}>
-            Ordering for {selectedSlot?.name} on {menuDate} is currently closed
-            {orderingStatus?.reason ? ` (${orderingStatus.reason})` : ''}.
-          </Text>
-        </Card>
-      )}
-
-      {isTeacher && (
-        <>
-          <Text style={[typography.h2, styles.sectionTitle]}>How will you get it?</Text>
-          <SegmentedControl
-            options={[
-              { value: 'DELIVERY', label: 'Delivery' },
-              { value: 'TAKEAWAY', label: 'Takeaway' },
-            ]}
-            value={orderType}
-            onChange={setOrderType}
-          />
-        </>
-      )}
-
-      {isParent ? (
-        <>
-          <Text style={[typography.h2, styles.sectionTitle]}>Order For</Text>
-          <View style={styles.slotRow}>
-            {children.map((child) => (
-              <Chip
-                key={child.linkId}
-                label={`${child.fullName} (${child.studentClass}-${child.section})`}
-                active={selectedChildId === child.studentProfileId}
-                onPress={() => setSelectedChildId(child.studentProfileId)}
+          {isTeacher && (
+            <View>
+              <Text style={styles.fieldLabel}>How will you get it?</Text>
+              <SegmentedControl
+                options={[
+                  { value: 'DELIVERY', label: 'Delivery' },
+                  { value: 'TAKEAWAY', label: 'Takeaway' },
+                ]}
+                value={orderType}
+                onChange={setOrderType}
               />
-            ))}
-          </View>
-          {errors.child ? <Text style={styles.errorText}>{errors.child}</Text> : null}
-        </>
-      ) : orderType === 'DELIVERY' ? (
-        <View style={styles.sectionTitle}>
-          <Input
-            label="Delivery Location"
-            required
-            placeholder={isTeacher ? 'e.g. Staff Room / Science Dept' : 'e.g. Class 10-A'}
-            value={deliveryLocation}
-            onChangeText={setDeliveryLocation}
-            error={errors.location}
-          />
-        </View>
-      ) : (
-        <Card style={[styles.warningCard, { marginTop: spacing.lg, backgroundColor: colors.primarySurface }]}>
-          <Text style={styles.pickupText}>
-            Show your pickup code at the canteen counter once your order is packed.
-          </Text>
-        </Card>
-      )}
+            </View>
+          )}
 
-      <Button
-        label={`Pay ${formatCurrency(total)} & Place Order`}
-        onPress={handlePlaceOrder}
-        loading={placing}
-        disabled={closedForOrdering}
-        style={styles.placeButton}
-      />
+          {isParent ? (
+            <View>
+              <Text style={styles.fieldLabel}>Order For</Text>
+              <View style={styles.childRow}>
+                {children.map((child) => (
+                  <Chip
+                    key={child.linkId}
+                    label={`${child.fullName} (${child.studentClass}-${child.section})`}
+                    active={selectedChildId === child.studentProfileId}
+                    onPress={() => setSelectedChildId(child.studentProfileId)}
+                  />
+                ))}
+              </View>
+              {errors.child ? <Text style={styles.errorText}>{errors.child}</Text> : null}
+            </View>
+          ) : orderType === 'DELIVERY' ? (
+            <Input
+              label="Student Name / Class"
+              required
+              placeholder={isTeacher ? 'e.g. Staff Room / Science Dept' : 'e.g. John Doe – Class 4A'}
+              value={deliveryLocation}
+              onChangeText={setDeliveryLocation}
+              error={errors.location}
+            />
+          ) : (
+            <View style={styles.infoBox}>
+              <Info size={20} color={colors.textSecondary} />
+              <Text style={[styles.infoBody, { flex: 1 }]}>
+                Show your pickup code at the canteen counter once your order is packed.
+              </Text>
+            </View>
+          )}
+        </Card>
+      </ScrollView>
+
+      {/* ── Fixed pay bar ─────────────────────────────────────────────── */}
+      <View style={styles.footer}>
+        <View>
+          <Text style={styles.footerLabel}>Total to pay</Text>
+          <Text style={styles.footerTotal}>{formatCurrency(total)}</Text>
+        </View>
+        <Button
+          label="Confirm Order"
+          size="lg"
+          fullWidth={false}
+          onPress={handlePlaceOrder}
+          loading={placing}
+          disabled={closedForOrdering}
+          icon={<CheckCircle2 size={18} color={colors.textOnPrimary} />}
+          style={styles.confirmButton}
+        />
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  summaryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  fill: { flex: 1 },
+  scroll: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.lg },
   forDate: { ...typography.bodySmall, marginTop: 2 },
-  clearCart: { ...typography.bodySmall, color: colors.danger, fontWeight: '700' },
-  itemsCard: { marginTop: spacing.md },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs },
-  itemInfo: { flex: 1, paddingRight: spacing.md },
-  itemName: { ...typography.body },
-  itemUnit: { ...typography.caption, marginTop: 1 },
-  itemControls: {
+  clearCart: { ...typography.label, color: colors.danger },
+
+  card: { gap: spacing.lg },
+  sectionGap: { marginTop: spacing.xxxl }, // section-margin
+  cardHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+
+  lineBlock: { gap: spacing.sm },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  thumb: { width: 64, height: 64, borderRadius: radius.lg, backgroundColor: colors.surfaceContainer },
+  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  thumbLetter: { ...typography.h2, color: colors.primary },
+  itemInfo: { flex: 1 },
+  itemName: { ...typography.bodyMedium },
+  itemQty: { ...typography.bodySmall, marginTop: 2 },
+  itemPrice: { ...typography.h3, color: colors.primary },
+
+  itemControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  removeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  removeText: { ...typography.caption, color: colors.danger },
+
+  divider: { height: 1, backgroundColor: colors.borderLight },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  subtotalLabel: { ...typography.body, color: colors.textSecondary },
+  subtotalValue: { ...typography.body },
+  totalLabel: { ...typography.h2 },
+  totalValue: { ...typography.h2, color: colors.primary },
+
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    backgroundColor: colors.surfaceLow,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+  },
+  infoTitle: { ...typography.label },
+  infoBody: { ...typography.bodySmall, marginTop: 2 },
+
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.warningLight,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    padding: spacing.lg,
+  },
+  warningText: { ...typography.bodySmall, color: colors.textPrimary, flex: 1 },
+
+  fieldLabel: { ...typography.label, marginBottom: spacing.sm },
+  childRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  errorText: { ...typography.caption, color: colors.danger },
+
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
-    marginBottom: spacing.xs,
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    ...shadowFloating,
   },
-  removeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  removeText: { ...typography.caption, color: colors.danger, fontWeight: '700' },
-  itemPrice: { ...typography.bodyMedium },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.sm },
-  totalLabel: { ...typography.h3 },
-  totalValue: { ...typography.h3, color: colors.primaryDark },
-  sectionTitle: { marginTop: spacing.xl, marginBottom: spacing.sm },
-  slotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  recessNote: { ...typography.bodySmall },
-  errorText: { ...typography.caption, color: colors.danger, marginTop: spacing.xs, fontWeight: '600' },
-  warningCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    backgroundColor: colors.warningLight,
-    borderColor: colors.warning,
-  },
-  warningText: { ...typography.bodySmall, color: colors.textPrimary, flex: 1 },
-  pickupText: { ...typography.body },
-  placeButton: { marginTop: spacing.xxl },
+  footerLabel: { ...typography.bodySmall },
+  footerTotal: { ...typography.h2, color: colors.primary },
+  confirmButton: { flexGrow: 1, maxWidth: 220 },
 });

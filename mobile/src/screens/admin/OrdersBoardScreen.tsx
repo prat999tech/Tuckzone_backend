@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { RefreshCw } from 'lucide-react-native';
+import { RefreshCw, Clock } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
-import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
 import { Input } from '../../components/Input';
@@ -14,7 +13,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
 import { adminApi } from '../../api/admin';
 import { apiErrorMessage } from '../../api/client';
-import { colors, spacing, typography } from '../../theme';
+import { colors, radius, statusColor, spacing, typography } from '../../theme';
 import type { OrderResponse, OrderStatus } from '../../api/types';
 
 function todayIso(): string {
@@ -157,28 +156,51 @@ export function OrdersBoardScreen() {
       ) : (
         <ScrollView style={styles.fill} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {filteredOrders.map((order) => (
-            <Card key={order.id} style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <Text style={typography.h3}>{order.orderNumber}</Text>
-                <Badge label={order.status} />
+            <Card key={order.id} padded={false} style={styles.orderCard}>
+              {/* Header strip — order number, status and who it is for */}
+              <View style={styles.orderHeaderStrip}>
+                <View style={styles.orderHeaderTop}>
+                  <Text style={styles.orderNumber}>ORDER #{order.orderNumber}</Text>
+                  <View style={[styles.statusChip, { backgroundColor: statusColor(order.status).bg }]}>
+                    <Text style={[styles.statusChipText, { color: statusColor(order.status).fg }]}>
+                      {order.status.replace(/_/g, ' ')}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.studentName} numberOfLines={2}>
+                  {order.recipientName}
+                </Text>
               </View>
-              <Text style={styles.slotBadge}>{order.slotName}</Text>
-              <Text style={styles.recipient}>
-                To: <Text style={styles.recipientName}>{order.recipientName}</Text>
-              </Text>
-              <Text style={styles.location}>
-                {order.orderType === 'TAKEAWAY' ? `Takeaway · Code ${order.pickupCode}` : order.deliveryLocation}
-              </Text>
 
-              <View style={styles.itemsList}>
-                {order.items.map((item) => (
-                  <Text key={item.menuItemId} style={styles.itemLine}>
-                    <Text style={styles.itemQty}>{item.quantity}x</Text> {item.itemName}
+              <View style={styles.orderBody}>
+                <View style={styles.slotRow}>
+                  <Clock size={18} color={colors.primary} />
+                  <Text style={styles.slotText}>
+                    {order.slotName}
+                    {order.deliveryTime ? `: ${order.deliveryTime}` : ''}
                   </Text>
-                ))}
-              </View>
+                </View>
+                <Text style={styles.location}>
+                  {order.orderType === 'TAKEAWAY' ? `Takeaway · Code ${order.pickupCode}` : order.deliveryLocation}
+                </Text>
 
-              <View style={styles.actionsWrap}>{renderActions(order)}</View>
+                {order.items.map((item, index) => (
+                  <View
+                    key={`${item.menuItemId}-${index}`}
+                    style={[styles.itemRow, index > 0 && styles.itemRowDivided]}
+                  >
+                    <View style={styles.itemIcon}>
+                      <Text style={styles.itemIconLetter}>{item.itemName.charAt(0)}</Text>
+                    </View>
+                    <Text style={styles.itemName} numberOfLines={1}>
+                      {item.itemName}
+                    </Text>
+                    <Text style={styles.itemQtyBadge}>x{item.quantity}</Text>
+                  </View>
+                ))}
+
+                <View style={styles.actionsWrap}>{renderActions(order)}</View>
+              </View>
             </Card>
           ))}
         </ScrollView>
@@ -202,16 +224,32 @@ const styles = StyleSheet.create({
   filterRow: { marginTop: spacing.md, flexGrow: 0 },
   filterRowContent: { paddingHorizontal: spacing.lg },
   list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxxl },
-  orderCard: { gap: 2 },
-  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  slotBadge: { ...typography.caption, marginTop: 2 },
-  recipient: { ...typography.bodySmall, marginTop: spacing.sm },
-  recipientName: { fontWeight: '700', color: colors.textPrimary },
+  orderCard: { overflow: 'hidden' },
+  orderHeaderStrip: { backgroundColor: colors.surfaceLow, padding: spacing.lg, gap: spacing.xs },
+  orderHeaderTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  orderNumber: { ...typography.caption, color: colors.textSecondary, letterSpacing: 0.6 },
+  statusChip: { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.full },
+  statusChipText: { ...typography.caption, letterSpacing: 0.4 },
+  studentName: { ...typography.h2 },
+
+  orderBody: { padding: spacing.lg, gap: spacing.sm },
+  slotRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  slotText: { ...typography.label, color: colors.primary },
   location: { ...typography.bodySmall },
-  itemsList: { marginTop: spacing.sm, marginBottom: spacing.md },
-  itemLine: { ...typography.bodySmall, color: colors.textPrimary },
-  itemQty: { fontWeight: '700', color: colors.primaryDark },
-  actionsWrap: { marginTop: spacing.xs },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
+  itemRowDivided: { borderTopWidth: 1, borderTopColor: colors.borderLight },
+  itemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemIconLetter: { ...typography.h3, color: colors.primary },
+  itemName: { ...typography.body, flex: 1 },
+  itemQtyBadge: { ...typography.label, color: colors.textSecondary },
+  actionsWrap: { marginTop: spacing.md },
   actionRow: { flexDirection: 'row', gap: spacing.sm },
   noActions: { ...typography.caption, textAlign: 'center', paddingVertical: spacing.sm },
 });

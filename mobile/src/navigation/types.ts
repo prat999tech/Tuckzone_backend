@@ -19,6 +19,8 @@ export type CustomerTabParamList = {
 export type CustomerStackParamList = {
   CustomerTabs: undefined;
   Checkout: undefined;
+  /** Reached by replace() from Checkout, so back cannot return to a submitted cart. */
+  OrderConfirmation: { orderId: string };
   OrderDetail: { orderId: string };
   Notifications: undefined;
 };
