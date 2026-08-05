@@ -22,9 +22,13 @@ export function Card({ padded = true, elevated = true, style, children, ...rest 
 const styles = StyleSheet.create({
   base: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderLight,
+    // 24px (rounded-xl) is the design's card radius — noticeably softer than the 8px used
+    // for inputs, which is what gives the layout its retail feel.
+    borderRadius: radius.xl,
+    // A full 1px outline-variant border, not a hairline: the design leans on outlines
+    // rather than shadows to separate surfaces, so it has to actually read as a line.
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  padded: { padding: spacing.lg },
+  padded: { padding: spacing.xl },
 });

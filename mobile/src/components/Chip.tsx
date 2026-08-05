@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, typography } from '../theme';
 
 interface ChipProps {
   label: string;
@@ -33,12 +33,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
     marginRight: spacing.sm,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipInactive: { backgroundColor: colors.surface, borderColor: colors.border },
-  label: { fontSize: 13, fontWeight: '600' },
+  label: { ...typography.label, fontSize: 14 },
   labelActive: { color: colors.textOnPrimary },
   labelInactive: { color: colors.textSecondary },
   dot: { fontSize: 10 },

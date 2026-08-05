@@ -70,7 +70,9 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.md,
+    // Fully rounded: the design system uses pill buttons to set them apart from the
+    // 8px-radius inputs and the 24px cards they sit inside.
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -80,8 +82,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  md: { paddingVertical: 12, paddingHorizontal: spacing.xl },
-  lg: { paddingVertical: 16, paddingHorizontal: spacing.xxl },
+  // 56px is the design's mobile touch target for a primary action (h-14).
+  md: { height: 48, paddingHorizontal: spacing.xxl },
+  lg: { height: 56, paddingHorizontal: spacing.xxxl },
   fullWidth: { width: '100%' },
   disabled: { opacity: 0.5 },
 });
@@ -96,18 +99,18 @@ const variantStyles: Record<
     text: { color: colors.textOnPrimary },
   },
   secondary: {
-    container: { backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border },
-    pressed: { backgroundColor: colors.borderLight },
+    container: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    pressed: { backgroundColor: colors.surfaceLow },
     text: { color: colors.textPrimary },
   },
   danger: {
     container: { backgroundColor: colors.danger },
-    pressed: { backgroundColor: '#B91C1C' },
+    pressed: { backgroundColor: colors.dangerDark },
     text: { color: colors.textOnPrimary },
   },
   ghost: {
     container: { backgroundColor: 'transparent' },
-    pressed: { backgroundColor: colors.borderLight },
-    text: { color: colors.primaryDark },
+    pressed: { backgroundColor: colors.surfaceLow },
+    text: { color: colors.primary },
   },
 };

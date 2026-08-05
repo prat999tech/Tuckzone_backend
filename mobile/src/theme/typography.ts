@@ -1,16 +1,54 @@
 import { TextStyle } from 'react-native';
 import { colors } from './colors';
 
-/** One type scale for the whole app. Pick a variant by name rather than setting
- *  fontSize/fontWeight inline, so headings are the same size everywhere they appear. */
+/**
+ * Font family names as registered by useFonts() in App.tsx.
+ *
+ * React Native has no synthetic bolding for custom fonts — setting fontWeight:'700' on a
+ * Regular face silently does nothing on Android — so each weight is loaded as its own
+ * family and weight is chosen by picking the right entry here rather than via fontWeight.
+ */
+export const fonts = {
+  regular: 'PlusJakartaSans_400Regular',
+  semiBold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  extraBold: 'PlusJakartaSans_800ExtraBold',
+} as const;
+
+/**
+ * One type scale for the whole app, matching the design system's named styles. Pick a
+ * variant by name rather than setting fontSize/fontFamily inline, so headings are the same
+ * size everywhere they appear.
+ */
 export const typography: Record<string, TextStyle> = {
-  display: { fontSize: 28, fontWeight: '700', color: colors.textPrimary },
-  h1: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
-  h2: { fontSize: 18, fontWeight: '600', color: colors.textPrimary },
-  h3: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
-  body: { fontSize: 15, fontWeight: '400', color: colors.textPrimary },
-  bodyMedium: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  bodySmall: { fontSize: 13, fontWeight: '400', color: colors.textSecondary },
-  caption: { fontSize: 12, fontWeight: '500', color: colors.textTertiary },
-  button: { fontSize: 15, fontWeight: '600' },
+  // display-lg — 32/40 ExtraBold, -0.02em tracking
+  display: {
+    fontFamily: fonts.extraBold,
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: -0.64,
+    color: colors.textPrimary,
+  },
+  // headline-lg — 24/32 Bold, -0.01em
+  h1: {
+    fontFamily: fonts.bold,
+    fontSize: 24,
+    lineHeight: 32,
+    letterSpacing: -0.24,
+    color: colors.textPrimary,
+  },
+  // headline-md — 20/28 Bold
+  h2: { fontFamily: fonts.bold, fontSize: 20, lineHeight: 28, color: colors.textPrimary },
+  // In-card heading, one step below headline-md
+  h3: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.textPrimary },
+  // body-lg — 16/24
+  body: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24, color: colors.textPrimary },
+  bodyMedium: { fontFamily: fonts.semiBold, fontSize: 16, lineHeight: 24, color: colors.textPrimary },
+  // body-md — 14/20
+  bodySmall: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textSecondary },
+  // label-lg — 14/20 SemiBold
+  label: { fontFamily: fonts.semiBold, fontSize: 14, lineHeight: 20, color: colors.textPrimary },
+  // label-sm — 12/16 SemiBold, for status chips and micro-copy
+  caption: { fontFamily: fonts.semiBold, fontSize: 12, lineHeight: 16, color: colors.textTertiary },
+  button: { fontFamily: fonts.semiBold, fontSize: 14, lineHeight: 20 },
 };
