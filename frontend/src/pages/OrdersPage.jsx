@@ -86,8 +86,8 @@ export default function OrdersPage() {
 
               <div className="order-details-grid">
                 <div className="detail-item">
-                  <span className="label">Delivery Slot</span>
-                  <span className="value">{order.slotName} ({order.deliveryTime})</span>
+                  <span className="label">Recess Time</span>
+                  <span className="value">{order.slotName}</span>
                 </div>
                 <div className="detail-item">
                   <span className="label">Recipient</span>

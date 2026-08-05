@@ -206,9 +206,7 @@ public class OrderServiceImpl implements OrderService {
                     "Only students, teachers and parents can place orders");
         }
 
-        DeliverySlot slot = deliverySlotRepository.findById(request.slotId())
-                .filter(DeliverySlot::isActive)
-                .orElseThrow(() -> new ResourceNotFoundException("Delivery slot not found"));
+        DeliverySlot slot = resolveRecessSlot();
 
         LocalDate date = request.menuDate();
         validateOrderingWindow(date, slot);
@@ -373,6 +371,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // --- helpers ---------------------------------------------------------------
+
+    /** There is a single ordering slot (Recess Time) — the customer no longer picks one,
+     *  so the server resolves the one active slot instead of trusting a client-supplied id. */
+    private DeliverySlot resolveRecessSlot() {
+        return deliverySlotRepository.findByActiveTrueOrderByOrderCutoffTimeAsc().stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Recess Time is not configured"));
+    }
 
     private void validateOrderingWindow(LocalDate date, DeliverySlot slot) {
         // All comparisons run in the school's timezone via the injected Clock. Using the

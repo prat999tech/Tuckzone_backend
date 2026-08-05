@@ -13,10 +13,8 @@ import com.school.canteen.dto.order.PlaceOrderRequest;
 import com.school.canteen.dto.wallet.MockTopupCompleteRequest;
 import com.school.canteen.dto.wallet.TopupInitResponse;
 import com.school.canteen.dto.wallet.TopupRequest;
-import com.school.canteen.entity.DeliverySlot;
 import com.school.canteen.exception.InsufficientBalanceException;
 import com.school.canteen.repository.DailyMenuItemRepository;
-import com.school.canteen.repository.DeliverySlotRepository;
 import com.school.canteen.repository.NotificationOutboxRepository;
 import com.school.canteen.service.AuthService;
 import com.school.canteen.service.DailyMenuService;
@@ -50,17 +48,12 @@ class OrderConcurrencyIntegrationTest extends IntegrationTestBase {
     @Autowired private MenuItemService menuItemService;
     @Autowired private DailyMenuService dailyMenuService;
     @Autowired private OrderService orderService;
-    @Autowired private DeliverySlotRepository slotRepository;
     @Autowired private DailyMenuItemRepository dailyMenuItemRepository;
     @Autowired private NotificationOutboxRepository outboxRepository;
 
     /** Tomorrow, so the slot cutoff has not passed regardless of when the suite runs. */
     private LocalDate menuDate() {
         return LocalDate.now().plusDays(1);
-    }
-
-    private DeliverySlot slot() {
-        return slotRepository.findByActiveTrueOrderByOrderCutoffTimeAsc().getFirst();
     }
 
     private UUID teacherWithBalance(BigDecimal amount) {
@@ -80,7 +73,7 @@ class OrderConcurrencyIntegrationTest extends IntegrationTestBase {
     }
 
     private PlaceOrderRequest order(UUID itemId, int qty, String key) {
-        return new PlaceOrderRequest(slot().getId(), null, menuDate(), null, "Staff Room",
+        return new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, qty)), key);
     }
 

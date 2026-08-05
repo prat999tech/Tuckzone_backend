@@ -201,7 +201,7 @@ price so the **admin dashboard shows real profit numbers** rather than zeros —
 
 Safe to run twice; a second run inserts nothing.
 
-Delivery slots already exist — migration V4 creates *Morning Recess* and *Lunch Recess*.
+The ordering slot already exists — migrations V4 and V12 leave a single active *Recess Time* slot, so there is nothing to configure here.
 
 ---
 

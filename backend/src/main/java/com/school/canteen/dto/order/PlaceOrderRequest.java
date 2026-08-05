@@ -13,10 +13,10 @@ import java.util.UUID;
 /**
  * A checkout. beneficiaryStudentProfileId is set only when a parent orders for a child.
  * idempotencyKey is a client-generated id for this checkout — resending it returns the
- * same order instead of placing another.
+ * same order instead of placing another. There is a single ordering slot (Recess Time),
+ * so the caller no longer chooses one — the server resolves it automatically.
  */
 public record PlaceOrderRequest(
-        @NotNull UUID slotId,
         /** DELIVERY (default) or TAKEAWAY. Takeaway is restricted to teachers. */
         OrderType orderType,
         @NotNull LocalDate menuDate,

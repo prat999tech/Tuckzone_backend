@@ -162,7 +162,7 @@ export function OrdersBoardScreen() {
                 <Text style={typography.h3}>{order.orderNumber}</Text>
                 <Badge label={order.status} />
               </View>
-              <Text style={styles.slotBadge}>{order.slotName} · {order.deliveryTime}</Text>
+              <Text style={styles.slotBadge}>{order.slotName}</Text>
               <Text style={styles.recipient}>
                 To: <Text style={styles.recipientName}>{order.recipientName}</Text>
               </Text>

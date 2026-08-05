@@ -5,8 +5,8 @@
 -- Safe to run more than once: items are matched by name and the daily menu uses the
 -- (menu_date, menu_item_id) unique constraint, so a second run changes nothing.
 --
--- Delivery slots are NOT created here — migration V4 already inserts "Morning Recess"
--- and "Lunch Recess". Ordering windows are not created either: no row means OPEN, so the
+-- Delivery slots are NOT created here — migrations V4 and V12 already leave a single
+-- active "Recess Time" slot. Ordering windows are not created either: no row means OPEN, so the
 -- canteen accepts orders by default until an admin closes a slot.
 
 -- ── Catalogue ────────────────────────────────────────────────────────────────

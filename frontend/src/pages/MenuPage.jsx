@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getTodayMenu, getFixedMenu, getDeliverySlots } from '../api/menu';
+import { getTodayMenu, getFixedMenu } from '../api/menu';
 import { getChildren } from '../api/parent';
 import { placeOrder } from '../api/orders';
 import { useAuth } from '../context/AuthContext';
@@ -11,7 +11,6 @@ export default function MenuPage() {
   const { user } = useAuth();
   const [dailyMenu, setDailyMenu] = useState([]);
   const [fixedMenu, setFixedMenu] = useState([]);
-  const [slots, setSlots] = useState([]);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +20,6 @@ export default function MenuPage() {
   // Cart & Order Form State
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState('');
   const [selectedChild, setSelectedChild] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [errors, setErrors] = useState({});
@@ -34,21 +32,19 @@ export default function MenuPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [dailyData, fixedData, slotData] = await Promise.all([
+      const [dailyData, fixedData] = await Promise.all([
         getTodayMenu({ date: selectedDate }),
         getFixedMenu(),
-        getDeliverySlots(),
       ]);
       setDailyMenu(dailyData);
       setFixedMenu(fixedData);
-      setSlots(slotData);
 
       if (user?.role === 'PARENT') {
         const childData = await getChildren();
         setChildren(childData);
       }
     } catch (err) {
-      toast.error('Failed to load menu or slots');
+      toast.error('Failed to load menu');
     } finally {
       setLoading(false);
     }
@@ -85,9 +81,6 @@ export default function MenuPage() {
 
   const validateOrderForm = () => {
     const errs = {};
-    if (!selectedSlot) {
-      errs.slot = 'Please select a delivery slot';
-    }
 
     if (user?.role === 'PARENT') {
       if (!selectedChild) {
@@ -113,7 +106,6 @@ export default function MenuPage() {
 
     try {
       const orderPayload = {
-        slotId: selectedSlot,
         menuDate: selectedDate,
         deliveryLocation: user?.role === 'PARENT' ? 'Child Classroom' : deliveryLocation.trim(),
         items: cart.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
@@ -313,27 +305,8 @@ export default function MenuPage() {
 
             <div className="order-details-form">
               <div className="form-group">
-                <label>Delivery Slot</label>
-                <select
-                  value={selectedSlot}
-                  onChange={(e) => {
-                    setSelectedSlot(e.target.value);
-                    if (errors.slot) setErrors({ ...errors, slot: null });
-                  }}
-                  className={errors.slot ? 'input-error' : ''}
-                >
-                  <option value="">Select a slot...</option>
-                  {slots.map((slot) => (
-                    <option key={slot.id} value={slot.id}>
-                      {slot.name} (deliver at {slot.deliveryTime})
-                    </option>
-                  ))}
-                </select>
-                {errors.slot && (
-                  <span className="field-error-text">
-                    <AlertCircle size={14} /> {errors.slot}
-                  </span>
-                )}
+                <label>Recess Time</label>
+                <p className="recess-note">Your order will be ready for Recess Time.</p>
               </div>
 
               {user?.role === 'PARENT' ? (
