@@ -22,7 +22,7 @@ public interface MenuItemService {
      *  just their own catalog items. */
     List<MenuItemResponse> list(boolean includeInactive, MenuType menuType);
 
-    /** The Fixed Menu as customers see it: active, in-stock FIXED items, optionally
-     *  name-filtered. No date dimension — unlike Daily Menu, these need no scheduling. */
+    /** The Daily Delights as customers see it: active, in-stock FIXED items, optionally
+     *  name-filtered. No date dimension — unlike Meal of the Day, these need no scheduling. */
     List<MenuItemResponse> listFixedMenu(String query);
 }

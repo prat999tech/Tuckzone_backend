@@ -172,11 +172,11 @@ export function DashboardScreen() {
         </>
       )}
 
-      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Daily Menu Items</Text>
-      <TopItemsCard items={data.topDailyItems} emptyMessage="No daily menu sales recorded yet today." />
+      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Meal of the Day Items</Text>
+      <TopItemsCard items={data.topDailyItems} emptyMessage="No Meal of the Day sales recorded yet today." />
 
-      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Fixed Menu Items</Text>
-      <TopItemsCard items={data.topFixedItems} emptyMessage="No fixed menu sales recorded yet today." />
+      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Daily Delights Items</Text>
+      <TopItemsCard items={data.topFixedItems} emptyMessage="No Daily Delights sales recorded yet today." />
     </ScreenContainer>
   );
 }

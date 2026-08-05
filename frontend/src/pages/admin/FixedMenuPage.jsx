@@ -23,7 +23,7 @@ export default function FixedMenuPage() {
       const data = await getMenuItems(true, 'FIXED');
       setItems(data);
     } catch (err) {
-      toast.error('Failed to load fixed menu items');
+      toast.error('Failed to load Daily Delights items');
     } finally {
       setLoading(false);
     }
@@ -126,7 +126,7 @@ export default function FixedMenuPage() {
     <div className="admin-container">
       <div className="page-header flex-between">
         <div>
-          <h1>Fixed Menu Management</h1>
+          <h1>Daily Delights Management</h1>
           <p>Permanent items like drinks, chips and snacks — always available until you change them.</p>
         </div>
         <button className="btn-primary" onClick={() => openModal()}>
@@ -137,7 +137,7 @@ export default function FixedMenuPage() {
       {loading ? (
         <div className="loading-state">Loading items...</div>
       ) : items.length === 0 ? (
-        <div className="empty-state">No fixed menu items yet. Add one to get started.</div>
+        <div className="empty-state">No Daily Delights items yet. Add one to get started.</div>
       ) : (
         <div className="items-grid">
           {items.map((item) => (
@@ -191,7 +191,7 @@ export default function FixedMenuPage() {
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingId ? 'Edit Fixed Menu Item' : 'Add New Fixed Menu Item'}</h2>
+              <h2>{editingId ? 'Edit Daily Delights Item' : 'Add New Daily Delights Item'}</h2>
               <button className="close-btn" onClick={() => setIsModalOpen(false)}>
                 <X size={20} />
               </button>

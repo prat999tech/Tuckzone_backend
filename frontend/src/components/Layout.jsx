@@ -47,8 +47,8 @@ const Layout = () => {
         return [{ to: '/admin/users', icon: UserCheck, label: 'User Approvals' }];
       case 'CANTEEN_ADMIN':
         return [
-          { to: '/admin/daily-menu', icon: Calendar,        label: 'Daily Menu' },
-          { to: '/admin/fixed-menu', icon: ChefHat,         label: 'Fixed Menu' },
+          { to: '/admin/daily-menu', icon: Calendar,        label: 'Meal of the Day' },
+          { to: '/admin/fixed-menu', icon: ChefHat,         label: 'Daily Delights' },
           { to: '/admin/orders',     icon: ClipboardList,   label: 'Orders Board' },
           { to: '/admin/sub-admins', icon: ShieldPlus,      label: 'Sub Admins' },
         ];

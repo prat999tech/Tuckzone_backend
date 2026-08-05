@@ -46,8 +46,8 @@ public class DailyMenuServiceImpl implements DailyMenuService {
         }
         if (menuItem.getMenuType() != MenuType.DAILY) {
             throw new BadRequestException(
-                    "Only Daily Menu items can be scheduled onto a date; "
-                            + menuItem.getName() + " is a Fixed Menu item");
+                    "Only Meal of the Day items can be scheduled onto a date; "
+                            + menuItem.getName() + " is a Daily Delights item");
         }
         if (dailyMenuItemRepository.existsByMenuDateAndMenuItem_Id(
                 request.menuDate(), request.menuItemId())) {
@@ -72,7 +72,7 @@ public class DailyMenuServiceImpl implements DailyMenuService {
         // a read, so without the lock an order placed between the read and the write would
         // be erased from the stock count and the canteen would oversell.
         DailyMenuItem entry = dailyMenuItemRepository.lockById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Daily menu entry not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Meal of the Day entry not found: " + id));
 
         // Preserve what's already been consumed when the admin changes the day's total.
         int consumed = entry.getTotalQuantity() - entry.getRemainingQuantity();
@@ -127,6 +127,6 @@ public class DailyMenuServiceImpl implements DailyMenuService {
 
     private DailyMenuItem findOrThrow(UUID id) {
         return dailyMenuItemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Daily menu entry not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Meal of the Day entry not found: " + id));
     }
 }

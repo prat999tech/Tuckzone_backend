@@ -40,7 +40,7 @@ export default function DailyMenuPage() {
       const data = await getDailyMenu(date);
       setDailyItems(data);
     } catch (err) {
-      toast.error('Failed to load daily menu');
+      toast.error('Failed to load Meal of the Day');
     } finally {
       setLoading(false);
     }
@@ -82,7 +82,7 @@ export default function DailyMenuPage() {
         menuDate: date,
         totalQuantity: Number(newQuantity),
       });
-      toast.success('Item added to daily menu');
+      toast.success('Item added to Meal of the Day');
       setSelectedCatalogItem('');
       setNewQuantity(50);
       setErrors({});
@@ -172,7 +172,7 @@ export default function DailyMenuPage() {
   return (
     <div className="admin-container">
       <div className="page-header">
-        <h1>Daily Menu Management</h1>
+        <h1>Meal of the Day Management</h1>
         <p>Manage the rotating catalog and publish each school day&apos;s menu with stock.</p>
       </div>
 
@@ -264,7 +264,7 @@ export default function DailyMenuPage() {
       </div>
 
       {loading ? (
-        <div className="loading-state">Loading daily menu...</div>
+        <div className="loading-state">Loading Meal of the Day...</div>
       ) : dailyItems.length === 0 ? (
         <div className="empty-state">No items scheduled for {date}. Use the dropdown above to add items.</div>
       ) : (

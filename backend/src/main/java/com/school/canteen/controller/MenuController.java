@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The menu as customers see it, split into the two sections the app now has: Daily Menu
- * (date-scheduled, rotates day to day) and Fixed Menu (always orderable once active and in
+ * The menu as customers see it, split into the two sections the app now has: Meal of the Day
+ * (date-scheduled, rotates day to day) and Daily Delights (always orderable once active and in
  * stock, no date dimension). Any authenticated user may read either. Daily defaults to
  * today when no date is supplied.
  */

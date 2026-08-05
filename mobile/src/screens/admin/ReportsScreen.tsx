@@ -81,10 +81,10 @@ export function ReportsScreen() {
             )}
           </Card>
 
-          <Text style={[typography.h2, styles.sectionTitle]}>Top Daily Menu Items</Text>
+          <Text style={[typography.h2, styles.sectionTitle]}>Top Meal of the Day Items</Text>
           <TopItemsList items={report.topDailyItems} />
 
-          <Text style={[typography.h2, styles.sectionTitle]}>Top Fixed Menu Items</Text>
+          <Text style={[typography.h2, styles.sectionTitle]}>Top Daily Delights Items</Text>
           <TopItemsList items={report.topFixedItems} />
 
           <Text style={[typography.h2, styles.sectionTitle]}>Peak Order Hours</Text>

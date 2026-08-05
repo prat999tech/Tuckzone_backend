@@ -37,8 +37,8 @@ export function MenuManagementScreen() {
         <View style={styles.segmentWrap}>
           <SegmentedControl
             options={[
-              { value: 'daily', label: 'Daily Menu' },
-              { value: 'fixed', label: 'Fixed Menu' },
+              { value: 'daily', label: 'Meal of the Day' },
+              { value: 'fixed', label: 'Daily Delights' },
             ]}
             value={view}
             onChange={setView}
@@ -197,7 +197,7 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
 
   return (
     <>
-      <Text style={typography.h2}>{menuType === 'DAILY' ? 'Daily Item Catalog' : 'Fixed Menu Catalog'}</Text>
+      <Text style={typography.h2}>{menuType === 'DAILY' ? 'Daily Item Catalog' : 'Daily Delights Catalog'}</Text>
       <Button
         label={menuType === 'DAILY' ? 'Add Daily Item' : 'Add Fixed Item'}
         icon={<Plus size={18} color={colors.textOnPrimary} />}
@@ -286,7 +286,7 @@ function DailyScheduleView() {
       setDailyItems(daily);
       setCatalog(catalogItems);
     } catch (error) {
-      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to load daily menu') });
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to load Meal of the Day') });
     } finally {
       setLoading(false);
     }

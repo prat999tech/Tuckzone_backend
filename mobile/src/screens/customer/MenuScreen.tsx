@@ -46,7 +46,7 @@ function tomorrowIso(): string {
   return toIso(date);
 }
 
-/** Wraps a Fixed Menu item into the same shape the cart already understands, so
+/** Wraps a Daily Delights item into the same shape the cart already understands, so
  *  CartContext/CheckoutScreen need no changes at all. Fixed items have no per-date
  *  stock, so remainingQuantity is set high enough to never gate the "+" button. */
 function toFixedCartItem(item: MenuItemResponse, menuDate: string): DailyMenuItemResponse {
@@ -201,11 +201,11 @@ export function MenuScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[typography.h2, styles.sectionTitle]}>Today&apos;s Menu</Text>
+          <Text style={[typography.h2, styles.sectionTitle]}>Meal of the Day</Text>
           {dailyItems.length === 0 ? (
             <EmptyState
               icon={<UtensilsCrossed color={colors.primaryDark} size={30} />}
-              title="No daily menu published"
+              title="No Meal of the Day published"
               message={`The canteen hasn't published a menu for ${date} yet.`}
             />
           ) : (
@@ -265,12 +265,12 @@ export function MenuScreen() {
             </View>
           )}
 
-          <Text style={[typography.h2, styles.sectionTitle]}>Fixed Menu</Text>
+          <Text style={[typography.h2, styles.sectionTitle]}>Daily Delights</Text>
           {fixedItems.length === 0 ? (
             <EmptyState
               icon={<UtensilsCrossed color={colors.primaryDark} size={30} />}
-              title="No fixed menu items"
-              message="No fixed menu items are available right now."
+              title="No Daily Delights items"
+              message="No Daily Delights items are available right now."
             />
           ) : (
             <View style={styles.grid}>

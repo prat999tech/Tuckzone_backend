@@ -12,6 +12,6 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, UUID> {
 
     List<MenuItem> findByMenuTypeAndActiveTrue(MenuType menuType);
 
-    /** The Fixed Menu as customers see it: active, in-stock items only. */
+    /** The Daily Delights as customers see it: active, in-stock items only. */
     List<MenuItem> findByMenuTypeAndActiveTrueAndAvailableTrue(MenuType menuType);
 }

@@ -168,7 +168,7 @@ export default function MenuManagementPage() {
     }
     try {
       await addDailyMenu({ menuItemId: selectedCatalogItem, menuDate: date, totalQuantity: Number(newQuantity) });
-      toast.success('Item added to today’s menu');
+      toast.success('Item added to Meal of the Day');
       setSelectedCatalogItem('');
       setNewQuantity(50);
       setDailyErrors({});
@@ -206,10 +206,10 @@ export default function MenuManagementPage() {
 
       <div className="status-tabs">
         <button className={`tab-btn ${tab === 'DAILY' ? 'active' : ''}`} onClick={() => setTab('DAILY')}>
-          Daily Menu
+          Meal of the Day
         </button>
         <button className={`tab-btn ${tab === 'FIXED' ? 'active' : ''}`} onClick={() => setTab('FIXED')}>
-          Fixed Menu
+          Daily Delights
         </button>
       </div>
 

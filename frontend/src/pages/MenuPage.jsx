@@ -246,12 +246,12 @@ export default function MenuPage() {
       </div>
 
       <section className="menu-section">
-        <h2 className="menu-section-title">Today&apos;s Menu</h2>
+        <h2 className="menu-section-title">Meal of the Day</h2>
         {loading ? (
           <div className="loading-state">Loading menu...</div>
         ) : filteredDaily.length === 0 ? (
           <div className="empty-state">
-            No daily menu is published for {selectedDate}. Ask the canteen admin to schedule that day&apos;s items.
+            No Meal of the Day is published for {selectedDate}. Ask the canteen admin to schedule that day&apos;s items.
           </div>
         ) : (
           <div className="menu-grid">
@@ -261,11 +261,11 @@ export default function MenuPage() {
       </section>
 
       <section className="menu-section">
-        <h2 className="menu-section-title">Fixed Menu</h2>
+        <h2 className="menu-section-title">Daily Delights</h2>
         {loading ? (
           <div className="loading-state">Loading menu...</div>
         ) : filteredFixed.length === 0 ? (
-          <div className="empty-state">No fixed menu items available right now.</div>
+          <div className="empty-state">No Daily Delights items available right now.</div>
         ) : (
           <div className="menu-grid">
             {filteredFixed.map(renderFixedCard)}
