@@ -1,52 +1,50 @@
 import React, { useEffect, useState } from 'react';
-import { getTodayMenu, getDeliverySlots } from '../api/menu';
+import { getTodayMenu, getFixedMenu } from '../api/menu';
 import { getChildren } from '../api/parent';
 import { placeOrder } from '../api/orders';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingCart, Plus, Minus, AlertCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, AlertCircle, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './MenuPage.css';
 
 export default function MenuPage() {
   const { user } = useAuth();
-  const [menuItems, setMenuItems] = useState([]);
-  const [slots, setSlots] = useState([]);
+  const [dailyMenu, setDailyMenu] = useState([]);
+  const [fixedMenu, setFixedMenu] = useState([]);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [foodType, setFoodType] = useState('ALL');
-  const [category, setCategory] = useState('ALL');
+  const [search, setSearch] = useState('');
 
   // Cart & Order Form State
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState('');
   const [selectedChild, setSelectedChild] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [menuData, slotData] = await Promise.all([
+      const [dailyData, fixedData] = await Promise.all([
         getTodayMenu({ date: selectedDate }),
-        getDeliverySlots(),
+        getFixedMenu(),
       ]);
-      setMenuItems(menuData);
-      setSlots(slotData);
+      setDailyMenu(dailyData);
+      setFixedMenu(fixedData);
 
       if (user?.role === 'PARENT') {
         const childData = await getChildren();
         setChildren(childData);
       }
     } catch (err) {
-      toast.error('Failed to load menu or slots');
+      toast.error('Failed to load menu');
     } finally {
       setLoading(false);
     }
@@ -83,9 +81,6 @@ export default function MenuPage() {
 
   const validateOrderForm = () => {
     const errs = {};
-    if (!selectedSlot) {
-      errs.slot = 'Please select a delivery slot';
-    }
 
     if (user?.role === 'PARENT') {
       if (!selectedChild) {
@@ -111,7 +106,6 @@ export default function MenuPage() {
 
     try {
       const orderPayload = {
-        slotId: selectedSlot,
         menuDate: selectedDate,
         deliveryLocation: user?.role === 'PARENT' ? 'Child Classroom' : deliveryLocation.trim(),
         items: cart.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
@@ -130,17 +124,97 @@ export default function MenuPage() {
     }
   };
 
-  const filteredMenu = menuItems.filter((item) => {
-    const typeMatch = foodType === 'ALL' || item.menuItem.foodType === foodType;
-    const catMatch = category === 'ALL' || item.menuItem.category === category;
-    return typeMatch && catMatch;
-  });
+  const matchesSearch = (name) =>
+    !search.trim() || name.toLowerCase().includes(search.trim().toLowerCase());
+
+  const filteredDaily = dailyMenu.filter((dayItem) => matchesSearch(dayItem.menuItem.name));
+  const filteredFixed = fixedMenu.filter((item) => matchesSearch(item.name));
+
+  const renderDailyCard = (dayItem) => {
+    const { menuItem, remainingQuantity, available } = dayItem;
+    const isSoldOut = !available || remainingQuantity <= 0;
+    const qtyInCart = getQuantityInCart(menuItem.id);
+
+    return (
+      <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={dayItem.id}>
+        {isSoldOut && <div className="sold-out-badge">Sold Out</div>}
+        <div className="food-img-placeholder">
+          {menuItem.imageUrl ? (
+            <img src={menuItem.imageUrl} alt={menuItem.name} />
+          ) : (
+            <div className="img-fallback">{menuItem.name.charAt(0)}</div>
+          )}
+        </div>
+        <div className="food-info">
+          <h3>{menuItem.name}</h3>
+          <p className="desc">{menuItem.description}</p>
+          <div className="food-meta">
+            <span className="price">₹{menuItem.price}</span>
+            <span className="stock">{remainingQuantity} left</span>
+          </div>
+
+          <div className="food-actions">
+            {qtyInCart > 0 ? (
+              <div className="qty-controls">
+                <button onClick={() => removeFromCart(menuItem.id)}><Minus size={16} /></button>
+                <span>{qtyInCart}</span>
+                <button onClick={() => addToCart(menuItem)} disabled={isSoldOut || qtyInCart >= remainingQuantity}><Plus size={16} /></button>
+              </div>
+            ) : (
+              <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
+                Add to Cart
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFixedCard = (menuItem) => {
+    const isSoldOut = !menuItem.available;
+    const qtyInCart = getQuantityInCart(menuItem.id);
+
+    return (
+      <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={menuItem.id}>
+        {isSoldOut && <div className="sold-out-badge">Out of Stock</div>}
+        <div className="food-img-placeholder">
+          {menuItem.imageUrl ? (
+            <img src={menuItem.imageUrl} alt={menuItem.name} />
+          ) : (
+            <div className="img-fallback">{menuItem.name.charAt(0)}</div>
+          )}
+        </div>
+        <div className="food-info">
+          <h3>{menuItem.name}</h3>
+          <p className="desc">{menuItem.description}</p>
+          <div className="food-meta">
+            <span className="price">₹{menuItem.price}</span>
+          </div>
+
+          <div className="food-actions">
+            {qtyInCart > 0 ? (
+              <div className="qty-controls">
+                <button onClick={() => removeFromCart(menuItem.id)}><Minus size={16} /></button>
+                <span>{qtyInCart}</span>
+                <button onClick={() => addToCart(menuItem)} disabled={isSoldOut}><Plus size={16} /></button>
+              </div>
+            ) : (
+              <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
+                Add to Cart
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="menu-container">
       <div className="menu-header">
         <div>
-          <h1>Today&apos;s Menu</h1>
+          <h1>Menu</h1>
           <p>Order fresh meals delivered right to your classroom</p>
         </div>
 
@@ -153,94 +227,43 @@ export default function MenuPage() {
         </div>
       </div>
 
-      <div className="menu-filters">
-        <div className="filter-group">
-          <button
-            className={`filter-chip ${foodType === 'ALL' ? 'active' : ''}`}
-            onClick={() => setFoodType('ALL')}
-          >
-            All Food
-          </button>
-          <button
-            className={`filter-chip veg ${foodType === 'VEG' ? 'active' : ''}`}
-            onClick={() => setFoodType('VEG')}
-          >
-            Veg Only
-          </button>
-          <button
-            className={`filter-chip non-veg ${foodType === 'NON_VEG' ? 'active' : ''}`}
-            onClick={() => setFoodType('NON_VEG')}
-          >
-            Non-Veg
-          </button>
-        </div>
-
-        <div className="filter-group">
-          {['ALL', 'MEALS', 'SNACKS', 'DRINKS', 'COMBOS'].map((cat) => (
-            <button
-              key={cat}
-              className={`filter-chip ${category === cat ? 'active' : ''}`}
-              onClick={() => setCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      <div className="menu-search">
+        <Search size={18} className="menu-search-icon" />
+        <input
+          type="text"
+          placeholder="Search menu items..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      {loading ? (
-        <div className="loading-state">Loading menu...</div>
-      ) : filteredMenu.length === 0 ? (
-        <div className="empty-state">
-          No menu is published for {selectedDate}. Ask the canteen admin to schedule that day&apos;s items.
-        </div>
-      ) : (
-        <div className="menu-grid">
-          {filteredMenu.map((dayItem) => {
-            const { menuItem, remainingQuantity, available } = dayItem;
-            const isSoldOut = !available || remainingQuantity <= 0;
-            const qtyInCart = getQuantityInCart(menuItem.id);
+      <section className="menu-section">
+        <h2 className="menu-section-title">Meal of the Day</h2>
+        {loading ? (
+          <div className="loading-state">Loading menu...</div>
+        ) : filteredDaily.length === 0 ? (
+          <div className="empty-state">
+            No Meal of the Day is published for {selectedDate}. Ask the canteen admin to schedule that day&apos;s items.
+          </div>
+        ) : (
+          <div className="menu-grid">
+            {filteredDaily.map(renderDailyCard)}
+          </div>
+        )}
+      </section>
 
-            return (
-              <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={dayItem.id}>
-                {isSoldOut && <div className="sold-out-badge">Sold Out</div>}
-                <div className="food-img-placeholder">
-                  {menuItem.imageUrl ? (
-                    <img src={menuItem.imageUrl} alt={menuItem.name} />
-                  ) : (
-                    <div className="img-fallback">{menuItem.name.charAt(0)}</div>
-                  )}
-                  <div className={`food-type-badge ${menuItem.foodType.toLowerCase()}`}>
-                    <div className="dot"></div>
-                  </div>
-                </div>
-                <div className="food-info">
-                  <h3>{menuItem.name}</h3>
-                  <p className="desc">{menuItem.description}</p>
-                  <div className="food-meta">
-                    <span className="price">₹{menuItem.price}</span>
-                    <span className="stock">{remainingQuantity} left</span>
-                  </div>
-
-                  <div className="food-actions">
-                    {qtyInCart > 0 ? (
-                      <div className="qty-controls">
-                        <button onClick={() => removeFromCart(menuItem.id)}><Minus size={16} /></button>
-                        <span>{qtyInCart}</span>
-                        <button onClick={() => addToCart(menuItem)} disabled={isSoldOut || qtyInCart >= remainingQuantity}><Plus size={16} /></button>
-                      </div>
-                    ) : (
-                      <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
-                        Add to Cart
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <section className="menu-section">
+        <h2 className="menu-section-title">Daily Delights</h2>
+        {loading ? (
+          <div className="loading-state">Loading menu...</div>
+        ) : filteredFixed.length === 0 ? (
+          <div className="empty-state">No Daily Delights items available right now.</div>
+        ) : (
+          <div className="menu-grid">
+            {filteredFixed.map(renderFixedCard)}
+          </div>
+        )}
+      </section>
 
       {cart.length > 0 && (
         <div className="floating-cart-bar" onClick={() => setIsCartOpen(true)}>
@@ -282,27 +305,8 @@ export default function MenuPage() {
 
             <div className="order-details-form">
               <div className="form-group">
-                <label>Delivery Slot</label>
-                <select
-                  value={selectedSlot}
-                  onChange={(e) => {
-                    setSelectedSlot(e.target.value);
-                    if (errors.slot) setErrors({ ...errors, slot: null });
-                  }}
-                  className={errors.slot ? 'input-error' : ''}
-                >
-                  <option value="">Select a slot...</option>
-                  {slots.map((slot) => (
-                    <option key={slot.id} value={slot.id}>
-                      {slot.name} (deliver at {slot.deliveryTime})
-                    </option>
-                  ))}
-                </select>
-                {errors.slot && (
-                  <span className="field-error-text">
-                    <AlertCircle size={14} /> {errors.slot}
-                  </span>
-                )}
+                <label>Recess Time</label>
+                <p className="recess-note">Your order will be ready for Recess Time.</p>
               </div>
 
               {user?.role === 'PARENT' ? (

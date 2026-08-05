@@ -92,13 +92,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     List<Object[]> dailySalesBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     @Query("""
-            select oi.itemName, sum(oi.quantity), coalesce(sum(oi.lineTotal), 0)
+            select oi.itemName, oi.menuItem.menuType, sum(oi.quantity), coalesce(sum(oi.lineTotal), 0)
               from OrderItem oi
              where oi.order.menuDate between :from and :to
                and oi.order.status not in (
                    com.school.canteen.enums.OrderStatus.CANCELLED,
                    com.school.canteen.enums.OrderStatus.REJECTED)
-             group by oi.itemName
+             group by oi.itemName, oi.menuItem.menuType
              order by sum(oi.quantity) desc
             """)
     List<Object[]> topItemsBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);

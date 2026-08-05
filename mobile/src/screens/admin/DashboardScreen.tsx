@@ -20,8 +20,33 @@ import { adminApi } from '../../api/admin';
 import { apiErrorMessage } from '../../api/client';
 import { formatCurrency } from '../../utils/format';
 import { colors, radius, spacing, typography } from '../../theme';
-import type { DashboardResponse } from '../../api/types';
+import type { DashboardResponse, TopItemRow } from '../../api/types';
 import type { AdminStackParamList } from '../../navigation/types';
+
+/** Shared row rendering for a ranked best-seller list, reused for the Daily and Fixed
+ *  menu sections so both read as one consistent list style. */
+function TopItemsCard({ items, emptyMessage }: { items: TopItemRow[]; emptyMessage: string }) {
+  return (
+    <Card>
+      {items.length === 0 ? (
+        <Text style={typography.bodySmall}>{emptyMessage}</Text>
+      ) : (
+        items.map((item, index) => (
+          <View
+            key={item.itemName}
+            style={[styles.topItemRow, index < items.length - 1 && styles.topItemBorder]}
+          >
+            <View style={styles.rankBadge}>
+              <Text style={styles.rankText}>{index + 1}</Text>
+            </View>
+            <Text style={[typography.body, { flex: 1 }]}>{item.itemName}</Text>
+            <Text style={typography.bodySmall}>{item.quantitySold} sold</Text>
+          </View>
+        ))
+      )}
+    </Card>
+  );
+}
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -147,25 +172,11 @@ export function DashboardScreen() {
         </>
       )}
 
-      <Text style={[typography.h2, styles.sectionTitle]}>Top Selling Items</Text>
-      <Card>
-        {data.topItems.length === 0 ? (
-          <Text style={typography.bodySmall}>No sales recorded yet today.</Text>
-        ) : (
-          data.topItems.map((item, index) => (
-            <View
-              key={item.itemName}
-              style={[styles.topItemRow, index < data.topItems.length - 1 && styles.topItemBorder]}
-            >
-              <View style={styles.rankBadge}>
-                <Text style={styles.rankText}>{index + 1}</Text>
-              </View>
-              <Text style={[typography.body, { flex: 1 }]}>{item.itemName}</Text>
-              <Text style={typography.bodySmall}>{item.quantitySold} sold</Text>
-            </View>
-          ))
-        )}
-      </Card>
+      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Meal of the Day Items</Text>
+      <TopItemsCard items={data.topDailyItems} emptyMessage="No Meal of the Day sales recorded yet today." />
+
+      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Daily Delights Items</Text>
+      <TopItemsCard items={data.topFixedItems} emptyMessage="No Daily Delights sales recorded yet today." />
     </ScreenContainer>
   );
 }

@@ -128,7 +128,7 @@ export default function OrdersBoardPage() {
             <div className={`kitchen-card status-${order.status.toLowerCase()}`} key={order.id}>
               <div className="kc-header">
                 <h3>{order.orderNumber}</h3>
-                <span className="slot-badge">{order.slotName} ({order.deliveryTime})</span>
+                <span className="slot-badge">{order.slotName}</span>
               </div>
 
               <div className="kc-body">

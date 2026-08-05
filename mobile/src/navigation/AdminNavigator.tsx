@@ -5,6 +5,7 @@ import { AdminTabs } from './AdminTabs';
 import { ReportsScreen } from '../screens/admin/ReportsScreen';
 import { ExpensesScreen } from '../screens/admin/ExpensesScreen';
 import { UsersScreen } from '../screens/admin/UsersScreen';
+import { SubAdminsScreen } from '../screens/admin/SubAdminsScreen';
 import { OrderingWindowsScreen } from '../screens/admin/OrderingWindowsScreen';
 import { TakeawayCollectScreen } from '../screens/admin/TakeawayCollectScreen';
 import { NotificationsScreen } from '../screens/customer/NotificationsScreen';
@@ -26,6 +27,7 @@ export function AdminNavigator() {
       <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Sales Reports' }} />
       <Stack.Screen name="Expenses" component={ExpensesScreen} options={{ title: 'Expenses' }} />
       <Stack.Screen name="Users" component={UsersScreen} options={{ title: 'Accounts' }} />
+      <Stack.Screen name="SubAdmins" component={SubAdminsScreen} options={{ title: 'Sub Admins' }} />
       <Stack.Screen
         name="OrderingWindows"
         component={OrderingWindowsScreen}

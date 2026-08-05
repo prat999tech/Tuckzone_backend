@@ -79,7 +79,7 @@ export function CheckoutScreen({ navigation }: Props) {
 
   function validate(): boolean {
     const next: Record<string, string> = {};
-    if (!selectedSlotId) next.slot = 'Please select a delivery slot';
+    if (!selectedSlotId) next.slot = 'Recess Time is unavailable right now — please try again';
     if (isParent && !selectedChildId) next.child = 'Please select which child this order is for';
     if (!isParent && orderType === 'DELIVERY' && !deliveryLocation.trim()) {
       next.location = 'Delivery location is required';
@@ -99,7 +99,6 @@ export function CheckoutScreen({ navigation }: Props) {
     setPlacing(true);
     try {
       await ordersApi.place({
-        slotId: selectedSlotId,
         orderType: isTeacher ? orderType : 'DELIVERY',
         menuDate,
         beneficiaryStudentProfileId: isParent ? selectedChildId : undefined,
@@ -197,17 +196,8 @@ export function CheckoutScreen({ navigation }: Props) {
         </View>
       </Card>
 
-      <Text style={[typography.h2, styles.sectionTitle]}>Delivery Slot</Text>
-      <View style={styles.slotRow}>
-        {slots.map((slot) => (
-          <Chip
-            key={slot.id}
-            label={`${slot.name} (${slot.deliveryTime})`}
-            active={selectedSlotId === slot.id}
-            onPress={() => setSelectedSlotId(slot.id)}
-          />
-        ))}
-      </View>
+      <Text style={[typography.h2, styles.sectionTitle]}>Recess Time</Text>
+      <Text style={styles.recessNote}>Your order will be ready for Recess Time — no time selection needed.</Text>
       {errors.slot ? <Text style={styles.errorText}>{errors.slot}</Text> : null}
 
       {closedForOrdering && (
@@ -303,6 +293,7 @@ const styles = StyleSheet.create({
   totalValue: { ...typography.h3, color: colors.primaryDark },
   sectionTitle: { marginTop: spacing.xl, marginBottom: spacing.sm },
   slotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  recessNote: { ...typography.bodySmall },
   errorText: { ...typography.caption, color: colors.danger, marginTop: spacing.xs, fontWeight: '600' },
   warningCard: {
     flexDirection: 'row',

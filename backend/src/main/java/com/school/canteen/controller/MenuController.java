@@ -1,9 +1,9 @@
 package com.school.canteen.controller;
 
 import com.school.canteen.dto.menu.DailyMenuItemResponse;
-import com.school.canteen.enums.FoodType;
-import com.school.canteen.enums.MenuCategory;
+import com.school.canteen.dto.menu.MenuItemResponse;
 import com.school.canteen.service.DailyMenuService;
+import com.school.canteen.service.MenuItemService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,8 +14,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The menu as customers see it: only available items whose catalog entry is active, with
- * optional veg/category/search filters. Any authenticated user may read it. Defaults to
+ * The menu as customers see it, split into the two sections the app now has: Meal of the Day
+ * (date-scheduled, rotates day to day) and Daily Delights (always orderable once active and in
+ * stock, no date dimension). Any authenticated user may read either. Daily defaults to
  * today when no date is supplied.
  */
 @RestController
@@ -23,23 +24,28 @@ import org.springframework.web.bind.annotation.RestController;
 public class MenuController {
 
     private final DailyMenuService dailyMenuService;
+    private final MenuItemService menuItemService;
     private final Clock clock;
 
-    public MenuController(DailyMenuService dailyMenuService, Clock clock) {
+    public MenuController(DailyMenuService dailyMenuService, MenuItemService menuItemService, Clock clock) {
         this.dailyMenuService = dailyMenuService;
+        this.menuItemService = menuItemService;
         this.clock = clock;
     }
 
-    @GetMapping
-    public List<DailyMenuItemResponse> menu(
+    @GetMapping("/daily")
+    public List<DailyMenuItemResponse> daily(
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(required = false) FoodType foodType,
-            @RequestParam(required = false) MenuCategory category,
             @RequestParam(required = false) String q) {
         // "Today" in the school's timezone. With the JVM default (UTC on the deploy host)
         // the menu would roll over to the next day at 5:30 AM local time.
         LocalDate menuDate = (date != null) ? date : LocalDate.now(clock);
-        return dailyMenuService.getMenu(menuDate, foodType, category, q);
+        return dailyMenuService.getMenu(menuDate, q);
+    }
+
+    @GetMapping("/fixed")
+    public List<MenuItemResponse> fixed(@RequestParam(required = false) String q) {
+        return menuItemService.listFixedMenu(q);
     }
 }

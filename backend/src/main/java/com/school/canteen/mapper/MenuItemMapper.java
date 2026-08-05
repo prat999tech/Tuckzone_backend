@@ -21,8 +21,8 @@ public class MenuItemMapper {
         item.setDescription(request.description());
         item.setPrice(request.price());
         item.setCostPrice(request.costPrice());
-        item.setFoodType(request.foodType());
-        item.setCategory(request.category());
+        item.setMenuType(request.menuType());
+        item.setAvailable(request.available());
         item.setImageUrl(request.imageUrl());
         item.setAllergens(request.allergens());
     }
@@ -34,8 +34,8 @@ public class MenuItemMapper {
                 item.getDescription(),
                 item.getPrice(),
                 item.getCostPrice(),
-                item.getFoodType(),
-                item.getCategory(),
+                item.getMenuType(),
+                item.isAvailable(),
                 item.getImageUrl(),
                 item.getAllergens(),
                 item.isActive());

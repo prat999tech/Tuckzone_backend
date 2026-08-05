@@ -7,7 +7,6 @@ export interface OrderLineRequest {
 }
 
 export interface PlaceOrderRequest {
-  slotId: string;
   orderType?: OrderType;
   menuDate: string;
   beneficiaryStudentProfileId?: string;

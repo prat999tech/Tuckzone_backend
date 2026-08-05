@@ -90,7 +90,7 @@ export function OrderDetailScreen({ route }: Props) {
 
       <Card style={styles.detailsCard}>
         <DetailRow label="Recipient" value={order.recipientName} />
-        <DetailRow label="Slot" value={`${order.slotName} (${order.deliveryTime})`} />
+        <DetailRow label="Recess Time" value={order.slotName} />
         <DetailRow
           label={order.orderType === 'TAKEAWAY' ? 'Collection' : 'Location'}
           value={order.orderType === 'TAKEAWAY' ? 'Counter pickup' : order.deliveryLocation}

@@ -6,14 +6,15 @@ import { LoadingView } from '../components/LoadingView';
 import { AuthNavigator } from './AuthNavigator';
 import { CustomerNavigator } from './CustomerNavigator';
 import { AdminNavigator } from './AdminNavigator';
+import { SubAdminNavigator } from './SubAdminNavigator';
 
 /**
  * The single place that decides which world the user is in: signed-out, customer
- * (student/teacher/parent), or canteen admin. Everything else assumes it is already in
- * the right world and never has to re-check the role.
+ * (student/teacher/parent), canteen admin, or sub admin. Everything else assumes it is
+ * already in the right world and never has to re-check the role.
  */
 export function RootNavigator() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, isSubAdmin } = useAuth();
   usePushRegistration();
 
   if (loading) {
@@ -22,7 +23,15 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {!user ? <AuthNavigator /> : isAdmin ? <AdminNavigator /> : <CustomerNavigator />}
+      {!user ? (
+        <AuthNavigator />
+      ) : isAdmin ? (
+        <AdminNavigator />
+      ) : isSubAdmin ? (
+        <SubAdminNavigator />
+      ) : (
+        <CustomerNavigator />
+      )}
     </NavigationContainer>
   );
 }

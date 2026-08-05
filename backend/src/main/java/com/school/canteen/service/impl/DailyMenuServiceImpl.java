@@ -5,8 +5,7 @@ import com.school.canteen.dto.menu.DailyMenuItemResponse;
 import com.school.canteen.dto.menu.DailyMenuUpdateRequest;
 import com.school.canteen.entity.DailyMenuItem;
 import com.school.canteen.entity.MenuItem;
-import com.school.canteen.enums.FoodType;
-import com.school.canteen.enums.MenuCategory;
+import com.school.canteen.enums.MenuType;
 import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.DuplicateResourceException;
 import com.school.canteen.exception.ResourceNotFoundException;
@@ -45,6 +44,11 @@ public class DailyMenuServiceImpl implements DailyMenuService {
         if (!menuItem.isActive()) {
             throw new BadRequestException("Cannot add a retired (inactive) item to the menu");
         }
+        if (menuItem.getMenuType() != MenuType.DAILY) {
+            throw new BadRequestException(
+                    "Only Meal of the Day items can be scheduled onto a date; "
+                            + menuItem.getName() + " is a Daily Delights item");
+        }
         if (dailyMenuItemRepository.existsByMenuDateAndMenuItem_Id(
                 request.menuDate(), request.menuItemId())) {
             throw new DuplicateResourceException(
@@ -68,7 +72,7 @@ public class DailyMenuServiceImpl implements DailyMenuService {
         // a read, so without the lock an order placed between the read and the write would
         // be erased from the stock count and the canteen would oversell.
         DailyMenuItem entry = dailyMenuItemRepository.lockById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Daily menu entry not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Meal of the Day entry not found: " + id));
 
         // Preserve what's already been consumed when the admin changes the day's total.
         int consumed = entry.getTotalQuantity() - entry.getRemainingQuantity();
@@ -107,16 +111,13 @@ public class DailyMenuServiceImpl implements DailyMenuService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DailyMenuItemResponse> getMenu(LocalDate date, FoodType foodType,
-                                               MenuCategory category, String query) {
+    public List<DailyMenuItemResponse> getMenu(LocalDate date, String query) {
         String normalizedQuery = (query == null || query.isBlank())
                 ? null
                 : query.trim().toLowerCase(Locale.ROOT);
 
         return dailyMenuItemRepository
                 .findByMenuDateAndAvailableTrueAndMenuItem_ActiveTrue(date).stream()
-                .filter(entry -> foodType == null || entry.getMenuItem().getFoodType() == foodType)
-                .filter(entry -> category == null || entry.getMenuItem().getCategory() == category)
                 .filter(entry -> normalizedQuery == null
                         || entry.getMenuItem().getName().toLowerCase(Locale.ROOT)
                                 .contains(normalizedQuery))
@@ -126,6 +127,6 @@ public class DailyMenuServiceImpl implements DailyMenuService {
 
     private DailyMenuItem findOrThrow(UUID id) {
         return dailyMenuItemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Daily menu entry not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Meal of the Day entry not found: " + id));
     }
 }

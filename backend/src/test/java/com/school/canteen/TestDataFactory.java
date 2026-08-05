@@ -5,8 +5,7 @@ import com.school.canteen.dto.auth.StudentRegisterRequest;
 import com.school.canteen.dto.auth.TeacherRegisterRequest;
 import com.school.canteen.dto.menu.DailyMenuItemRequest;
 import com.school.canteen.dto.menu.MenuItemRequest;
-import com.school.canteen.enums.FoodType;
-import com.school.canteen.enums.MenuCategory;
+import com.school.canteen.enums.MenuType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -78,8 +77,8 @@ public final class TestDataFactory {
                 "Test item",
                 price,
                 costPrice,
-                FoodType.VEG,
-                MenuCategory.SNACKS,
+                MenuType.DAILY,
+                true,
                 null,
                 null);
     }

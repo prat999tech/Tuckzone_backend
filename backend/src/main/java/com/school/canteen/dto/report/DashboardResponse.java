@@ -19,5 +19,7 @@ public record DashboardResponse(
         BigDecimal netProfit,
         long totalCustomers,
         List<TopItemRow> topItems,
+        List<TopItemRow> topDailyItems,
+        List<TopItemRow> topFixedItems,
         List<LowStockRow> lowStock) {
 }

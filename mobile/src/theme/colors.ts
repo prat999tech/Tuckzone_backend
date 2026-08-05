@@ -35,10 +35,6 @@ export const colors = {
   info: '#2563EB',
   infoLight: '#DBEAFE',
 
-  // Domain-specific
-  veg: '#16A34A',
-  nonVeg: '#DC2626',
-
   // Overlays
   overlay: 'rgba(17, 24, 39, 0.45)',
   shadow: '#0F172A',

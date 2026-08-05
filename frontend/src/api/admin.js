@@ -20,8 +20,8 @@ export const createMenuItem = async (data) => {
   return response.data;
 };
 
-export const getMenuItems = async (includeInactive) => {
-  const response = await client.get('/admin/menu-items', { params: { includeInactive } });
+export const getMenuItems = async (includeInactive, menuType) => {
+  const response = await client.get('/admin/menu-items', { params: { includeInactive, menuType } });
   return response.data;
 };
 
@@ -55,12 +55,59 @@ export const removeDailyMenu = async (id) => {
   return response.data;
 };
 
-export const getAdminOrders = async (date, status) => {
-  const response = await client.get('/admin/orders', { params: { date, status } });
+export const getAdminOrders = async (date, status, search, sort) => {
+  const response = await client.get('/admin/orders', { params: { date, status, search, sort } });
   return response.data;
 };
 
 export const updateOrderStatus = async (id, data) => {
   const response = await client.put(`/admin/orders/${id}/status`, data);
+  return response.data;
+};
+
+export const exportOrdersExcel = async (date, status, search) => {
+  const response = await client.get('/admin/orders/export/excel', {
+    params: { date, status, search },
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+export const exportOrdersPdf = async (date, status, search) => {
+  const response = await client.get('/admin/orders/export/pdf', {
+    params: { date, status, search },
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+// ─── Sub Admin account management (Canteen Admin only) ───
+export const listSubAdmins = async () => {
+  const response = await client.get('/admin/sub-admins');
+  return response.data;
+};
+
+export const createSubAdmin = async (data) => {
+  const response = await client.post('/admin/sub-admins', data);
+  return response.data;
+};
+
+export const updateSubAdmin = async (id, data) => {
+  const response = await client.put(`/admin/sub-admins/${id}`, data);
+  return response.data;
+};
+
+export const activateSubAdmin = async (id) => {
+  const response = await client.post(`/admin/sub-admins/${id}/activate`);
+  return response.data;
+};
+
+export const deactivateSubAdmin = async (id) => {
+  const response = await client.post(`/admin/sub-admins/${id}/deactivate`);
+  return response.data;
+};
+
+export const deleteSubAdmin = async (id) => {
+  const response = await client.delete(`/admin/sub-admins/${id}`);
   return response.data;
 };

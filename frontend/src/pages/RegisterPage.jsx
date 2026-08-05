@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { registerParent, registerStudent, registerTeacher } from '../api/auth';
+import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
 import './RegisterPage.css';
 
@@ -278,17 +279,15 @@ export default function RegisterPage() {
 
             <div className="form-group">
               <label>Password</label>
-              <div className="input-with-icon">
-                <Lock className="input-icon" size={20} />
-                <input
-                  type="password"
-                  name="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={errors.password ? 'input-error' : ''}
-                />
-              </div>
+              <PasswordInput
+                icon={Lock}
+                iconSize={20}
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                className={errors.password ? 'input-error' : ''}
+              />
               {errors.password && (
                 <span className="field-error-text">
                   <AlertCircle size={14} /> {errors.password}

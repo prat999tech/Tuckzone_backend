@@ -2310,10 +2310,6 @@
             "PlaceOrderRequest": {
                 "type": "object",
                 "properties": {
-                    "slotId": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
                     "orderType": {
                         "type": "string",
                         "enum": [
@@ -2350,8 +2346,7 @@
                 "required": [
                     "idempotencyKey",
                     "items",
-                    "menuDate",
-                    "slotId"
+                    "menuDate"
                 ]
             },
             "DeviceTokenRequest": {

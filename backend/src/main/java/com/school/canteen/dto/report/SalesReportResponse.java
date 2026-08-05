@@ -21,5 +21,7 @@ public record SalesReportResponse(
         long orderCount,
         List<DailySalesRow> daily,
         List<TopItemRow> topItems,
+        List<TopItemRow> topDailyItems,
+        List<TopItemRow> topFixedItems,
         List<PeakHourRow> peakHours) {
 }

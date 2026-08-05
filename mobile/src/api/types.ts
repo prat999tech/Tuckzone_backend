@@ -3,11 +3,10 @@
  * field rename on the backend is a single, obvious place to fix on the client.
  */
 
-export type Role = 'STUDENT' | 'TEACHER' | 'PARENT' | 'CANTEEN_ADMIN';
+export type Role = 'STUDENT' | 'TEACHER' | 'PARENT' | 'CANTEEN_ADMIN' | 'SUB_ADMIN';
 export type UserStatus = 'ACTIVE' | 'DISABLED';
 export type OtpPurpose = 'LOGIN' | 'PASSWORD_RESET' | 'EMAIL_VERIFICATION';
-export type FoodType = 'VEG' | 'NON_VEG';
-export type MenuCategory = 'SNACKS' | 'MEALS' | 'DRINKS' | 'COMBOS';
+export type MenuType = 'DAILY' | 'FIXED';
 export type OrderStatus =
   | 'PLACED'
   | 'ACCEPTED'
@@ -84,8 +83,8 @@ export interface MenuItemResponse {
   description?: string | null;
   price: number;
   costPrice?: number | null;
-  foodType: FoodType;
-  category: MenuCategory;
+  menuType: MenuType;
+  available: boolean;
   imageUrl?: string | null;
   allergens?: string | null;
   active: boolean;
@@ -211,8 +210,17 @@ export interface DashboardResponse {
   expenses: number;
   netProfit: number;
   totalCustomers: number;
-  topItems: { itemName: string; quantitySold: number; revenue: number }[];
+  topItems: TopItemRow[];
+  topDailyItems: TopItemRow[];
+  topFixedItems: TopItemRow[];
   lowStock: { itemName: string; remainingQuantity: number; totalQuantity: number }[];
+}
+
+export interface TopItemRow {
+  itemName: string;
+  menuType: MenuType;
+  quantitySold: number;
+  revenue: number;
 }
 
 export interface SalesReportResponse {
@@ -225,7 +233,9 @@ export interface SalesReportResponse {
   netProfit: number;
   orderCount: number;
   daily: { date: string; orders: number; revenue: number }[];
-  topItems: { itemName: string; quantitySold: number; revenue: number }[];
+  topItems: TopItemRow[];
+  topDailyItems: TopItemRow[];
+  topFixedItems: TopItemRow[];
   peakHours: { hour: number; orders: number }[];
 }
 

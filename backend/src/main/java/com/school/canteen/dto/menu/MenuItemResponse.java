@@ -1,7 +1,6 @@
 package com.school.canteen.dto.menu;
 
-import com.school.canteen.enums.FoodType;
-import com.school.canteen.enums.MenuCategory;
+import com.school.canteen.enums.MenuType;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -11,8 +10,8 @@ public record MenuItemResponse(
         String description,
         BigDecimal price,
         BigDecimal costPrice,
-        FoodType foodType,
-        MenuCategory category,
+        MenuType menuType,
+        boolean available,
         String imageUrl,
         String allergens,
         boolean active) {

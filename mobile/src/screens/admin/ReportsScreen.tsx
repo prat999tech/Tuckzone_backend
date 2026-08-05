@@ -9,7 +9,7 @@ import { adminApi } from '../../api/admin';
 import { apiErrorMessage } from '../../api/client';
 import { formatCurrency } from '../../utils/format';
 import { colors, spacing, typography } from '../../theme';
-import type { SalesReportResponse } from '../../api/types';
+import type { SalesReportResponse, TopItemRow } from '../../api/types';
 
 function isoDaysAgo(days: number): string {
   const date = new Date();
@@ -81,15 +81,11 @@ export function ReportsScreen() {
             )}
           </Card>
 
-          <Text style={[typography.h2, styles.sectionTitle]}>Top Items</Text>
-          <Card>
-            {report.topItems.slice(0, 10).map((item, index) => (
-              <View key={item.itemName} style={[styles.dailyRow, index < 9 && styles.rowBorder]}>
-                <Text style={[typography.body, { flex: 1 }]}>{item.itemName}</Text>
-                <Text style={typography.bodySmall}>{item.quantitySold} sold</Text>
-              </View>
-            ))}
-          </Card>
+          <Text style={[typography.h2, styles.sectionTitle]}>Top Meal of the Day Items</Text>
+          <TopItemsList items={report.topDailyItems} />
+
+          <Text style={[typography.h2, styles.sectionTitle]}>Top Daily Delights Items</Text>
+          <TopItemsList items={report.topFixedItems} />
 
           <Text style={[typography.h2, styles.sectionTitle]}>Peak Order Hours</Text>
           <Card>
@@ -109,6 +105,24 @@ export function ReportsScreen() {
         </>
       )}
     </ScreenContainer>
+  );
+}
+
+function TopItemsList({ items }: { items: TopItemRow[] }) {
+  const top10 = items.slice(0, 10);
+  return (
+    <Card>
+      {top10.length === 0 ? (
+        <Text style={typography.bodySmall}>No sales in this period.</Text>
+      ) : (
+        top10.map((item, index) => (
+          <View key={item.itemName} style={[styles.dailyRow, index < top10.length - 1 && styles.rowBorder]}>
+            <Text style={[typography.body, { flex: 1 }]}>{item.itemName}</Text>
+            <Text style={typography.bodySmall}>{item.quantitySold} sold</Text>
+          </View>
+        ))
+      )}
+    </Card>
   );
 }
 

@@ -22,10 +22,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Canteen-admin management of a given day's offerings and stock. */
+/**
+ * Canteen-admin management of a given day's offerings and stock.
+ *
+ * Authorization is per-method rather than class-level: Sub Admin may add items to the daily
+ * menu and toggle availability/quantity, but must never remove one, so only {@link #remove}
+ * stays Canteen-Admin-only.
+ */
 @RestController
 @RequestMapping("/api/admin/daily-menu")
-@PreAuthorize("hasRole('CANTEEN_ADMIN')")
 public class DailyMenuAdminController {
 
     private final DailyMenuService dailyMenuService;
@@ -36,17 +41,20 @@ public class DailyMenuAdminController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
     public DailyMenuItemResponse addItem(@Valid @RequestBody DailyMenuItemRequest request) {
         return dailyMenuService.addItem(request);
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
     public List<DailyMenuItemResponse> listForDate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return dailyMenuService.listForDate(date);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
     public DailyMenuItemResponse update(@PathVariable UUID id,
                                         @Valid @RequestBody DailyMenuUpdateRequest request) {
         return dailyMenuService.update(id, request);
@@ -54,6 +62,7 @@ public class DailyMenuAdminController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
     public void remove(@PathVariable UUID id) {
         dailyMenuService.remove(id);
     }
