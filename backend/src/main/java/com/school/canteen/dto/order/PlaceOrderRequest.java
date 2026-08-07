@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import com.school.canteen.enums.OrderType;
+import com.school.canteen.enums.PaymentMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -27,5 +28,13 @@ public record PlaceOrderRequest(
         // student's own location are both derived from a classroom, never from this field.
         @Size(max = 200) String deliveryLocation,
         @NotEmpty @Valid List<OrderLineRequest> items,
-        @NotBlank @Size(max = 80) String idempotencyKey) {
+        @NotBlank @Size(max = 80) String idempotencyKey,
+        /**
+         * Null (or WALLET_ONLY) = the original, unchanged behaviour: pay the whole total
+         * from wallet balance immediately, synchronously, in this same call — exactly as
+         * every order before this field existed. GATEWAY_ONLY / WALLET_PLUS_GATEWAY route
+         * through PaymentService instead, creating a Payment the client must complete
+         * checkout against; the order is PENDING until that settles.
+         */
+        PaymentMode paymentMode) {
 }

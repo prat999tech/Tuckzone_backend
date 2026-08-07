@@ -115,6 +115,13 @@ EMAIL_FROM_ADDRESS=you@yourdomain.com
 the SES console first). While the SES account is in the sandbox, the recipient address
 needs to be verified too — request production access to email arbitrary addresses.
 
+## Payments (wallet recharge & order checkout)
+
+Default (`APP_PAYMENT_PROVIDER=mock`) needs no setup — wallet top-ups and gateway/split
+order checkouts both work via the mock provider's self-signed callback. Platform fees are
+disabled by default (Canteen Admin → Payment Settings to turn one on). Full details,
+including switching to a real Razorpay sandbox: `docs/payments/`.
+
 ## Reset to a clean database
 
 ```bash

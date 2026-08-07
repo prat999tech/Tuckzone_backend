@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { OrderResponse, OrderType } from './types';
+import type { OrderResponse, OrderType, PaymentMode } from './types';
 
 export interface OrderLineRequest {
   menuItemId: string;
@@ -13,6 +13,10 @@ export interface PlaceOrderRequest {
   deliveryLocation?: string;
   items: OrderLineRequest[];
   idempotencyKey: string;
+  /** Omitted (or WALLET_ONLY) = the original, unchanged behaviour: pay the whole total
+   *  from wallet balance immediately. GATEWAY_ONLY / WALLET_PLUS_GATEWAY route through
+   *  PaymentService instead — see OrderResponse.payment. */
+  paymentMode?: PaymentMode;
 }
 
 export const ordersApi = {

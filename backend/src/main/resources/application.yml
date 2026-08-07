@@ -80,6 +80,8 @@ app:
       login-attempts-per-window: 10
       otp-requests-per-window: 5
       otp-verify-attempts-per-window: 10
+      payment-create-attempts-per-window: 10
+      payment-verify-attempts-per-window: 15
       window-minutes: 15
 
   # One-time passcodes for registration, OTP sign-in and password reset — delivered by
@@ -145,6 +147,11 @@ app:
     allow-mock-topup: ${APP_ALLOW_MOCK_TOPUP:true}
     # Hard ceiling on a single top-up, so mock mode cannot mint absurd balances.
     max-topup-amount: 10000.00
+    # Only read when provider=razorpay. Verifies inbound webhook calls are genuinely from
+    # Razorpay — configured separately from key-secret in the Razorpay dashboard's webhook
+    # settings, so rotating one never invalidates the other.
+    razorpay:
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
 
 # Generated API contract for building the Android client.
 # Browse it at /swagger-ui.html ; raw spec at /v3/api-docs

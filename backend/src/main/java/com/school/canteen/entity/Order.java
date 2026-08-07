@@ -82,6 +82,14 @@ public class Order extends BaseEntity {
     @Column(name = "pickup_code", length = 12)
     private String pickupCode;
 
+    /**
+     * Set only when this order used the gateway/split-payment path (see PaymentService).
+     * Null for the existing wallet-only fast path, which never creates a Payment row.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_id")
+    private Payment payment;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -209,6 +217,14 @@ public class Order extends BaseEntity {
 
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
+    }
+
+    public Payment getPayment() {
+        return payment;
+    }
+
+    public void setPayment(Payment payment) {
+        this.payment = payment;
     }
 
     public List<OrderItem> getItems() {

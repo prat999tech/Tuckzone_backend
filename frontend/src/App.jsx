@@ -17,6 +17,7 @@ import FixedMenuPage from './pages/admin/FixedMenuPage';
 import DailyMenuPage from './pages/admin/DailyMenuPage';
 import OrdersBoardPage from './pages/admin/OrdersBoardPage';
 import SubAdminsPage from './pages/admin/SubAdminsPage';
+import PaymentSettingsPage from './pages/admin/PaymentSettingsPage';
 import IncomingOrdersPage from './pages/subadmin/IncomingOrdersPage';
 import MenuManagementPage from './pages/subadmin/MenuManagementPage';
 import ExportOrdersPage from './pages/subadmin/ExportOrdersPage';
@@ -74,6 +75,7 @@ function App() {
                   <Route path="/admin/daily-menu" element={<DailyMenuPage />} />
                   <Route path="/admin/orders" element={<OrdersBoardPage />} />
                   <Route path="/admin/sub-admins" element={<SubAdminsPage />} />
+                  <Route path="/admin/payment-settings" element={<PaymentSettingsPage />} />
                 </Route>
 
                 {/* Sub Admin Only */}

@@ -6,6 +6,8 @@ import com.school.canteen.dto.order.OrderLineRequest;
 import com.school.canteen.dto.order.OrderResponse;
 import com.school.canteen.dto.order.OrderStatusUpdateRequest;
 import com.school.canteen.dto.order.PlaceOrderRequest;
+import com.school.canteen.dto.payment.PaymentInitiationResponse;
+import com.school.canteen.dto.payment.RefundRequest;
 import com.school.canteen.entity.DailyMenuItem;
 import com.school.canteen.entity.DeliverySlot;
 import com.school.canteen.entity.MenuItem;
@@ -18,7 +20,9 @@ import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.enums.OrderType;
 import com.school.canteen.enums.PaymentMethod;
+import com.school.canteen.enums.PaymentMode;
 import com.school.canteen.enums.PaymentStatus;
+import com.school.canteen.enums.PaymentUseCase;
 import com.school.canteen.enums.Role;
 import com.school.canteen.exception.ApiException;
 import com.school.canteen.exception.BadRequestException;
@@ -34,9 +38,11 @@ import com.school.canteen.repository.OrderRepository;
 import com.school.canteen.repository.ParentChildLinkRepository;
 import com.school.canteen.repository.StudentProfileRepository;
 import com.school.canteen.repository.UserRepository;
+import com.school.canteen.service.CreatePaymentCommand;
 import com.school.canteen.service.NotificationService;
 import com.school.canteen.service.OrderService;
 import com.school.canteen.service.OrderingWindowService;
+import com.school.canteen.service.PaymentService;
 import com.school.canteen.service.WalletService;
 import com.school.canteen.util.PageRequests;
 import java.math.BigDecimal;
@@ -93,6 +99,7 @@ public class OrderServiceImpl implements OrderService {
     private final ParentChildLinkRepository parentChildLinkRepository;
     private final UserRepository userRepository;
     private final WalletService walletService;
+    private final PaymentService paymentService;
     private final NotificationService notificationService;
     private final OrderingWindowService orderingWindowService;
     private final OrderMapper orderMapper;
@@ -112,6 +119,7 @@ public class OrderServiceImpl implements OrderService {
                             ParentChildLinkRepository parentChildLinkRepository,
                             UserRepository userRepository,
                             WalletService walletService,
+                            PaymentService paymentService,
                             NotificationService notificationService,
                             OrderingWindowService orderingWindowService,
                             OrderMapper orderMapper,
@@ -125,6 +133,7 @@ public class OrderServiceImpl implements OrderService {
         this.parentChildLinkRepository = parentChildLinkRepository;
         this.userRepository = userRepository;
         this.walletService = walletService;
+        this.paymentService = paymentService;
         this.notificationService = notificationService;
         this.orderingWindowService = orderingWindowService;
         this.orderMapper = orderMapper;
@@ -215,16 +224,23 @@ public class OrderServiceImpl implements OrderService {
         order.setSlot(slot);
         order.setMenuDate(date);
         order.setStatus(OrderStatus.PLACED);
-        order.setPaymentMethod(PaymentMethod.WALLET);
         order.setPaymentStatus(PaymentStatus.PENDING);
         order.setIdempotencyKey(request.idempotencyKey());
 
         BigDecimal total = addLinesAndReserveStock(order, date, request.items());
         order.setTotalAmount(total);
-        orderRepository.save(order);
 
-        // Pay from the placing user's wallet. If the balance is short, this throws and the
+        boolean useGateway = request.paymentMode() == PaymentMode.GATEWAY_ONLY
+                || request.paymentMode() == PaymentMode.WALLET_PLUS_GATEWAY;
+        if (useGateway) {
+            return placeWithGatewayOrSplit(order, user, total, request);
+        }
+
+        // Original, unchanged fast path: paymentMode null or WALLET_ONLY. Pay from the
+        // placing user's wallet immediately. If the balance is short, this throws and the
         // whole transaction rolls back — including every stock decrement above.
+        order.setPaymentMethod(PaymentMethod.WALLET);
+        orderRepository.save(order);
         walletService.debit(userId, total, "ORDER", order.getId().toString(),
                 "Order " + OrderMapper.formatOrderNumber(order.getOrderNumber()));
         order.setPaymentStatus(PaymentStatus.PAID);
@@ -240,6 +256,40 @@ public class OrderServiceImpl implements OrderService {
                         "amount", total.toPlainString()));
 
         return orderMapper.toResponse(order);
+    }
+
+    /**
+     * The new path: a Payment (useCase=CHECKOUT) is created through PaymentService, which
+     * computes the real pricing (including any admin-enabled platform fee — never
+     * calculated here), debits whatever wallet portion applies synchronously, and either
+     * settles immediately (pure wallet funding — see PaymentServiceImpl.createPayment) or
+     * leaves the order PENDING with gateway details for the client to complete checkout.
+     * If wallet debit fails (insufficient balance) or the gateway call fails, this whole
+     * method's transaction rolls back — the order and its stock reservation never persist,
+     * identical in spirit to the wallet-only path's rollback guarantee above.
+     */
+    private OrderResponse placeWithGatewayOrSplit(Order order, User user, BigDecimal total,
+                                                   PlaceOrderRequest request) {
+        order.setPaymentMethod(PaymentMethod.DIRECT);
+        orderRepository.save(order);
+
+        BigDecimal walletAvailable = request.paymentMode() == PaymentMode.WALLET_PLUS_GATEWAY
+                ? walletService.getWallet(user.getId()).balance()
+                : BigDecimal.ZERO;
+
+        PaymentInitiationResponse payment = paymentService.createPayment(new CreatePaymentCommand(
+                user.getId(), PaymentUseCase.CHECKOUT, total, BigDecimal.ZERO, BigDecimal.ZERO,
+                request.paymentMode(), walletAvailable, "ORDER", order.getId().toString(),
+                request.idempotencyKey()));
+
+        // "PAID" means createPayment already settled this order in full from wallet alone
+        // (see PaymentServiceImpl.settleOrder, which mutated this same managed entity
+        // within this same transaction) — order.getPaymentStatus() now reflects that.
+        // Otherwise it's still PENDING, and PAYMENT_SUCCESSFUL fires later, from
+        // PaymentService, once the gateway leg is confirmed via verify or webhook.
+        notifyStatus(order, OrderStatus.PLACED);
+        boolean settledImmediately = "PAID".equals(payment.status());
+        return orderMapper.toResponse(order, settledImmediately ? null : payment);
     }
 
     @Override
@@ -517,7 +567,7 @@ public class OrderServiceImpl implements OrderService {
                         "status", status.name()));
     }
 
-    /** Puts stock back and refunds the wallet (if paid), then moves to a terminal status. */
+    /** Puts stock back and refunds (if paid), then moves to a terminal status. */
     private void refundAndRestore(Order order, OrderStatus terminalStatus) {
         for (OrderItem item : order.getItems()) {
             // menuItem can be null if the catalog row was permanently deleted after this
@@ -529,9 +579,20 @@ public class OrderServiceImpl implements OrderService {
             }
         }
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            walletService.credit(order.getPlacedBy().getId(), order.getTotalAmount(),
-                    "REFUND", order.getId().toString(),
-                    "Refund for " + OrderMapper.formatOrderNumber(order.getOrderNumber()));
+            if (order.getPayment() != null) {
+                // Placed through the gateway/split path: refund proportionally to how it
+                // was actually funded (wallet share back to wallet, gateway share back
+                // through the provider, platform fee excluded from both) instead of always
+                // crediting the wallet in full — see PaymentServiceImpl.refundPayment.
+                paymentService.refundPayment(order.getPayment().getId(), new RefundRequest(null,
+                        "Order " + OrderMapper.formatOrderNumber(order.getOrderNumber()) + " " + terminalStatus));
+            } else {
+                // Original wallet-only path, unchanged: it was funded entirely from
+                // wallet, with no Payment row and nothing to split.
+                walletService.credit(order.getPlacedBy().getId(), order.getTotalAmount(),
+                        "REFUND", order.getId().toString(),
+                        "Refund for " + OrderMapper.formatOrderNumber(order.getOrderNumber()));
+            }
             order.setPaymentStatus(PaymentStatus.REFUNDED);
         }
         order.setStatus(terminalStatus);

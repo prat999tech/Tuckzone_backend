@@ -78,6 +78,15 @@
 			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 
+		<!-- Razorpay Java SDK: used only inside payment/providers/RazorpayProvider — order
+		     creation and refunds go through this; signature verification does not need it
+		     (see HmacSignatureVerifier), since Razorpay's scheme is plain HMAC-SHA256. -->
+		<dependency>
+			<groupId>com.razorpay</groupId>
+			<artifactId>razorpay-java</artifactId>
+			<version>1.4.8</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>

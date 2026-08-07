@@ -12,6 +12,7 @@ import {
   ClipboardList,
   FileDown,
   ShieldPlus,
+  CreditCard,
   LogOut,
   Menu,
   X
@@ -51,6 +52,7 @@ const Layout = () => {
           { to: '/admin/fixed-menu', icon: ChefHat,         label: 'Daily Delights' },
           { to: '/admin/orders',     icon: ClipboardList,   label: 'Orders Board' },
           { to: '/admin/sub-admins', icon: ShieldPlus,      label: 'Sub Admins' },
+          { to: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings' },
         ];
       case 'SUB_ADMIN':
         return [

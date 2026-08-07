@@ -1,6 +1,8 @@
 package com.school.canteen.service.impl;
 
 import com.school.canteen.config.PaymentProperties;
+import com.school.canteen.dto.payment.PaymentInitiationResponse;
+import com.school.canteen.dto.payment.VerifyPaymentRequest;
 import com.school.canteen.dto.wallet.MockTopupCompleteRequest;
 import com.school.canteen.dto.wallet.TopupInitResponse;
 import com.school.canteen.dto.wallet.TopupRequest;
@@ -8,64 +10,66 @@ import com.school.canteen.dto.wallet.VerifyTopupRequest;
 import com.school.canteen.dto.wallet.WalletResponse;
 import com.school.canteen.dto.wallet.WalletTransactionResponse;
 import com.school.canteen.entity.Wallet;
-import com.school.canteen.entity.WalletTopup;
 import com.school.canteen.entity.WalletTransaction;
-import com.school.canteen.enums.NotificationEvent;
-import com.school.canteen.enums.TopupStatus;
 import com.school.canteen.enums.TransactionType;
-import com.school.canteen.exception.ApiException;
 import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.InsufficientBalanceException;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.mapper.WalletMapper;
-import com.school.canteen.payment.GatewayOrder;
-import com.school.canteen.payment.PaymentGateway;
+import com.school.canteen.repository.PaymentRepository;
 import com.school.canteen.repository.UserRepository;
 import com.school.canteen.repository.WalletRepository;
-import com.school.canteen.repository.WalletTopupRepository;
 import com.school.canteen.repository.WalletTransactionRepository;
-import com.school.canteen.service.NotificationService;
+import com.school.canteen.service.CreatePaymentCommand;
+import com.school.canteen.service.PaymentService;
 import com.school.canteen.service.WalletService;
 import com.school.canteen.util.PageRequests;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import org.springframework.http.HttpStatus;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * The wallet's own REST contract (WalletController) is unchanged — every method here still
+ * has the exact signature it always did. Internally, top-up creation/verification now goes
+ * through {@link PaymentService} (useCase=WALLET_RECHARGE) instead of talking to a
+ * {@code PaymentGateway} directly; {@code wallet_topups} is no longer written to (see
+ * V15__payment_platform.sql — it is left as frozen historical data, superseded by the
+ * generic {@code payments} table). {@link #debit}/{@link #credit} are untouched: they are
+ * the ledger primitives {@link PaymentServiceImpl} itself calls back into, so ordering's
+ * existing wallet-only fast path is not affected by any of this.
+ */
 @Service
 public class WalletServiceImpl implements WalletService {
 
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
-    private final WalletTopupRepository walletTopupRepository;
+    private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
-    private final PaymentGateway paymentGateway;
     private final PaymentProperties paymentProperties;
-    private final NotificationService notificationService;
+    private final PaymentService paymentService;
     private final WalletMapper walletMapper;
 
     public WalletServiceImpl(WalletRepository walletRepository,
                              WalletTransactionRepository walletTransactionRepository,
-                             WalletTopupRepository walletTopupRepository,
+                             PaymentRepository paymentRepository,
                              UserRepository userRepository,
-                             PaymentGateway paymentGateway,
                              PaymentProperties paymentProperties,
-                             NotificationService notificationService,
+                             // @Lazy breaks the WalletServiceImpl <-> PaymentServiceImpl
+                             // cycle: PaymentServiceImpl depends on WalletService (to move
+                             // money), and this class depends on PaymentService (to create
+                             // one) — without @Lazy here, Spring cannot construct either
+                             // bean first and the context fails to start.
+                             @Lazy PaymentService paymentService,
                              WalletMapper walletMapper) {
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
-        this.walletTopupRepository = walletTopupRepository;
+        this.paymentRepository = paymentRepository;
         this.userRepository = userRepository;
-        this.paymentGateway = paymentGateway;
         this.paymentProperties = paymentProperties;
-        this.notificationService = notificationService;
+        this.paymentService = paymentService;
         this.walletMapper = walletMapper;
     }
 
@@ -93,87 +97,45 @@ public class WalletServiceImpl implements WalletService {
             throw new BadRequestException(
                     "Maximum top-up amount is " + paymentProperties.maxTopupAmount());
         }
-        Wallet wallet = getOrCreateWallet(userId);
-        long amountPaise = request.amount().movePointRight(2).longValueExact();
-        GatewayOrder order = paymentGateway.createOrder(amountPaise, "topup_" + wallet.getId());
+        // Ensures the wallet row exists before payment creation touches anything wallet-shaped.
+        getOrCreateWallet(userId);
 
-        WalletTopup topup = new WalletTopup();
-        topup.setWallet(wallet);
-        topup.setAmount(request.amount());
-        topup.setGatewayOrderId(order.orderId());
-        topup.setStatus(TopupStatus.CREATED);
-        walletTopupRepository.save(topup);
+        PaymentInitiationResponse payment = paymentService.createPayment(
+                CreatePaymentCommand.walletRecharge(userId, request.amount(), null));
 
         return new TopupInitResponse(
-                topup.getId(),
-                order.orderId(),
-                request.amount(),
-                order.currency(),
-                order.keyId());
+                payment.paymentId(),
+                payment.providerOrderId(),
+                payment.pricing().subtotal(),
+                payment.pricing().currency(),
+                payment.providerKeyId(),
+                payment.pricing().platformFee(),
+                payment.pricing().grandTotal());
     }
 
     @Override
     @Transactional
     public WalletResponse verifyTopup(UUID userId, VerifyTopupRequest request) {
-        // Locked read serializes concurrent verifications of the same top-up.
-        WalletTopup topup = walletTopupRepository.lockByGatewayOrderId(request.gatewayOrderId())
+        // A scalar id lookup, not a full entity fetch — see findIdByProviderOrderId's
+        // javadoc for why loading the entity here would break the PESSIMISTIC_WRITE lock
+        // that paymentService.verifyPayment takes next, in this same transaction.
+        UUID paymentId = paymentRepository.findIdByProviderOrderId(request.gatewayOrderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Top-up not found"));
-
-        if (!topup.getWallet().getUser().getId().equals(userId)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "This top-up does not belong to you");
-        }
-        // Already credited: return current state without crediting again (idempotent).
-        if (topup.getStatus() == TopupStatus.PAID) {
-            return walletMapper.toWalletResponse(topup.getWallet());
-        }
-        if (topup.getStatus() == TopupStatus.FAILED) {
-            throw new BadRequestException("This top-up has already failed; start a new one");
-        }
-
-        boolean genuine = paymentGateway.verifyPayment(
-                request.gatewayOrderId(), request.gatewayPaymentId(), request.signature());
-        if (!genuine) {
-            // Left CREATED (retryable). A real "payment.failed" webhook would mark FAILED.
-            throw new BadRequestException("Payment verification failed");
-        }
-
-        topup.setGatewayPaymentId(request.gatewayPaymentId());
-        topup.setStatus(TopupStatus.PAID);
-        applyLocked(topup.getWallet().getId(), TransactionType.CREDIT, topup.getAmount(),
-                "TOPUP", topup.getId().toString(), "Wallet top-up");
-
-        notificationService.notifyUser(topup.getWallet().getUser(),
-                NotificationEvent.WALLET_TOPPED_UP,
-                "Wallet topped up",
-                topup.getAmount() + " was added to your wallet. New balance: "
-                        + topup.getWallet().getBalance() + ".",
-                Map.of("amount", topup.getAmount().toPlainString(),
-                        "balance", topup.getWallet().getBalance().toPlainString()));
-
-        return walletMapper.toWalletResponse(topup.getWallet());
+        paymentService.verifyPayment(userId, paymentId, new VerifyPaymentRequest(
+                request.gatewayOrderId(), request.gatewayPaymentId(), request.signature()));
+        return walletMapper.toWalletResponse(getOrCreateWallet(userId));
     }
 
     @Override
     @Transactional
     public WalletResponse mockCompleteTopup(UUID userId, MockTopupCompleteRequest request) {
-        // Gated on an explicit switch rather than on the provider name. Previously this
-        // keyed off provider=="mock", which the production profile inherited by accident —
-        // meaning any logged-in user could credit their own wallet for free on the live
-        // deployment. Kept enabled deliberately until a real gateway is integrated.
-        if (!paymentProperties.allowMockTopup()) {
-            throw new BadRequestException(
-                    "Mock top-up is disabled; complete the payment through the gateway");
-        }
-
-        String paymentId = "pay_" + UUID.randomUUID().toString().replace("-", "");
-        String signature = hmacSha256Hex(
-                request.gatewayOrderId() + "|" + paymentId,
-                paymentProperties.keySecret());
-
-        return verifyTopup(userId, new VerifyTopupRequest(
-                request.gatewayOrderId(),
-                paymentId,
-                signature));
+        // Delegates to the general-purpose PaymentService.mockComplete (same gating on
+        // app.payment.allow-mock-topup, same self-signed HMAC scheme) — kept as its own
+        // wallet-shaped endpoint only for API-contract backward compatibility.
+        UUID paymentId = paymentRepository.findIdByProviderOrderId(request.gatewayOrderId())
+                .orElseThrow(() -> new ResourceNotFoundException("Top-up not found"));
+        paymentService.mockComplete(userId, paymentId);
+        return walletMapper.toWalletResponse(getOrCreateWallet(userId));
     }
 
     @Override
@@ -233,16 +195,6 @@ public class WalletServiceImpl implements WalletService {
 
     private Wallet getOrCreateWallet(UUID userId) {
         return walletRepository.findByUser_Id(userId).orElseGet(() -> createWallet(userId));
-    }
-
-    private static String hmacSha256Hex(String data, String secret) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            return HexFormat.of().formatHex(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            throw new IllegalStateException("Unable to compute mock payment signature", ex);
-        }
     }
 
     private Wallet createWallet(UUID userId) {

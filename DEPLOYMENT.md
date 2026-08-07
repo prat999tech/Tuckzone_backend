@@ -327,7 +327,9 @@ a complete working demo — the APK is polish, not a dependency.
 ## Before real users (not needed for the demo)
 
 - [ ] `APP_ALLOW_MOCK_TOPUP=false` — wallet top-ups are currently **free money**, deliberately
-- [ ] Real payment gateway
+- [ ] `APP_PAYMENT_PROVIDER=razorpay` with real `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/
+      `RAZORPAY_WEBHOOK_SECRET` — see `docs/payments/` for sandbox setup and the webhook
+      URL to register (`/api/payments/webhooks/razorpay`)
 - [ ] `APP_OTP_DELIVERY=email`, and either:
       - `APP_EMAIL_PROVIDER=smtp` with real SMTP credentials, or
       - `APP_EMAIL_PROVIDER=ses` with `AWS_REGION` + `AWS_ACCESS_KEY_ID` +

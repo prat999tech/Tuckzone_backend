@@ -1,5 +1,6 @@
 package com.school.canteen.dto.order;
 
+import com.school.canteen.dto.payment.PaymentInitiationResponse;
 import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.enums.OrderType;
 import com.school.canteen.enums.PaymentMethod;
@@ -36,5 +37,13 @@ public record OrderResponse(
         PaymentStatus paymentStatus,
         BigDecimal totalAmount,
         List<OrderItemResponse> items,
-        Instant createdAt) {
+        Instant createdAt,
+        /**
+         * Non-null only when this order was placed with paymentMode=GATEWAY_ONLY or
+         * WALLET_PLUS_GATEWAY and still needs the client to complete a gateway checkout
+         * (its own {@code status} field is "PAID" if it settled immediately from wallet
+         * alone — nothing left to check out). Null for the ordinary wallet-only order,
+         * which never creates a Payment at all.
+         */
+        PaymentInitiationResponse payment) {
 }

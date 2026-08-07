@@ -19,6 +19,9 @@ export type OrderStatus =
 export type OrderType = 'DELIVERY' | 'TAKEAWAY';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'REFUNDED';
 export type TransactionType = 'CREDIT' | 'DEBIT';
+export type PaymentUseCase = 'WALLET_RECHARGE' | 'CHECKOUT' | 'SUBSCRIPTION';
+export type PaymentMode = 'WALLET_ONLY' | 'GATEWAY_ONLY' | 'WALLET_PLUS_GATEWAY';
+export type PaymentTxnStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
 export type OrderingStatus = 'OPEN' | 'CLOSED';
 export type ExpenseCategory =
   | 'INGREDIENTS'
@@ -137,6 +140,9 @@ export interface OrderResponse {
   totalAmount: number;
   items: OrderItemResponse[];
   createdAt: string;
+  /** Non-null only when placed with paymentMode GATEWAY_ONLY/WALLET_PLUS_GATEWAY and still
+   *  needs the client to complete a gateway checkout — see PaymentInitiationResponse. */
+  payment?: PaymentInitiationResponse | null;
 }
 
 /**
@@ -187,9 +193,50 @@ export interface WalletTransactionResponse {
 export interface TopupInitResponse {
   topupId: string;
   gatewayOrderId: string;
+  /** The wallet credit amount — never includes platformFee (the wallet never receives it). */
   amount: number;
   currency: string;
   gatewayKeyId: string;
+  /** 0 unless an admin has enabled a WALLET_RECHARGE platform fee. */
+  platformFee: number;
+  /** amount + platformFee — what the gateway widget actually charges. */
+  grandTotal: number;
+}
+
+export interface PricingBreakdown {
+  subtotal: number;
+  platformFee: number;
+  discount: number;
+  tax: number;
+  walletUsed: number;
+  gatewayAmount: number;
+  grandTotal: number;
+  currency: string;
+}
+
+export interface PaymentInitiationResponse {
+  paymentId: string;
+  status: PaymentTxnStatus | string;
+  /** Null when the payment settled immediately from wallet alone — nothing to check out. */
+  providerOrderId?: string | null;
+  providerKeyId?: string | null;
+  pricing: PricingBreakdown;
+}
+
+export interface PaymentStatusResponse {
+  paymentId: string;
+  useCase: PaymentUseCase;
+  status: PaymentTxnStatus | string;
+  provider: string;
+  providerPaymentId?: string | null;
+  pricing: PricingBreakdown;
+  createdAt: string;
+}
+
+export interface VerifyPaymentRequest {
+  providerOrderId: string;
+  providerPaymentId: string;
+  signature: string;
 }
 
 export interface ChildResponse {
