@@ -17,6 +17,10 @@ app:
     length: 6
     ttl-minutes: 5
     max-attempts: 5
+    # 0, not the production default: tests legitimately request two codes for the same
+    # address back-to-back (registerVerifiedParent() requests a fresh code right after
+    # registration already issued one), and a real cooldown would fail that as a 429.
+    resend-cooldown-seconds: 0
   notification:
     email-from-address: test@tuckzone.local
     email-from-name: TuckZone Test

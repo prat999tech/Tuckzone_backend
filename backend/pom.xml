@@ -40,6 +40,15 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+			<!-- AWS SDK v2 BOM: pins every software.amazon.awssdk module (including the
+			     transitive ones SES pulls in) to one consistent version. -->
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>2.46.7</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -81,6 +90,16 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
+		<!-- Amazon SES: alternative to SMTP for OTP/notification email, using the SES
+		     HTTPS API directly instead of an SMTP relay. Only used when
+		     app.notification.email-provider=ses; credentials/region come from the
+		     standard AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION env vars via
+		     the SDK's default provider chains, so nothing AWS-specific is hardcoded. -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>ses</artifactId>
 		</dependency>
 
 		<!-- OpenAPI/Swagger UI. The 3.x line targets Spring Boot 4 / Spring Framework 7;

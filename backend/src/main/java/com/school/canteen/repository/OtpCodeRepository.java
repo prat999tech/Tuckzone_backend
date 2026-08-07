@@ -48,4 +48,17 @@ public interface OtpCodeRepository extends JpaRepository<OtpCode, UUID> {
     @Modifying
     @Query("delete from OtpCode o where o.expiresAt < :cutoff")
     int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
+
+    /**
+     * When the most recent code (consumed or not) for this email + purpose was created.
+     * Backs the resend cooldown: a read of "was one issued in the last N seconds" that
+     * does not need the pessimistic lock {@link #lockLatest} takes for verification.
+     */
+    @Query("""
+            select max(o.createdAt) from OtpCode o
+             where o.email = :email
+               and o.purpose = :purpose
+            """)
+    Optional<Instant> latestIssuedAt(@Param("email") String email,
+                                     @Param("purpose") OtpPurpose purpose);
 }

@@ -75,6 +75,8 @@ export interface OtpIssuedResponse {
   message: string;
   expiresInMinutes: number;
   devCode: string | null;
+  /** Seconds to wait before requesting another code for the same address. */
+  resendAfterSeconds: number;
 }
 
 export interface MenuItemResponse {

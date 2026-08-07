@@ -15,8 +15,11 @@ import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'VerifyEmail'>;
 
-/** Seconds to wait before "Resend code" becomes tappable again. */
-const RESEND_COOLDOWN_SECONDS = 30;
+/**
+ * Seconds to wait before "Resend code" becomes tappable again, until the first real
+ * response tells us the server's actual policy (see OtpIssuedResponse.resendAfterSeconds).
+ */
+const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
 
 /**
  * Second half of registration: the account exists but cannot sign in with a password until
@@ -31,7 +34,7 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
   const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const [cooldown, setCooldown] = useState(DEFAULT_RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
     configApi
@@ -76,7 +79,7 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
     setResending(true);
     try {
       const response = await authApi.requestOtp(email.trim(), 'EMAIL_VERIFICATION');
-      setCooldown(RESEND_COOLDOWN_SECONDS);
+      setCooldown(response.resendAfterSeconds ?? DEFAULT_RESEND_COOLDOWN_SECONDS);
       if (response.devCode) {
         setCode(response.devCode);
         Toast.show({ type: 'success', text1: 'Dev mode', text2: `Code: ${response.devCode}` });

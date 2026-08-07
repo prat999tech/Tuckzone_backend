@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getMe, login as loginRequest } from '../api/auth';
+import {
+  getMe,
+  login as loginRequest,
+  loginWithOtp as loginWithOtpRequest,
+  requestOtp as requestOtpRequest,
+} from '../api/auth';
 
 const AuthContext = createContext();
 
@@ -27,8 +32,7 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  const login = async (email, password) => {
-    const data = await loginRequest({ email, password });
+  const applySession = (data) => {
     localStorage.setItem('canteen_token', data.accessToken);
     if (data.refreshToken) {
       localStorage.setItem('canteen_refresh_token', data.refreshToken);
@@ -36,6 +40,19 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('canteen_user', JSON.stringify(data.user));
     setUser(data.user);
     return data;
+  };
+
+  const login = async (email, password) => {
+    const data = await loginRequest({ email, password });
+    return applySession(data);
+  };
+
+  /** Emails a one-time passcode for sign-in; resendAfterSeconds drives the UI's cooldown. */
+  const requestOtp = (email, purpose = 'LOGIN') => requestOtpRequest(email, purpose);
+
+  const loginWithOtp = async (email, code) => {
+    const data = await loginWithOtpRequest(email, code);
+    return applySession(data);
   };
 
   const logout = () => {
@@ -53,6 +70,8 @@ export const AuthProvider = ({ children }) => {
         role: user?.role,
         loading,
         login,
+        requestOtp,
+        loginWithOtp,
         logout,
       }}
     >

@@ -328,8 +328,13 @@ a complete working demo — the APK is polish, not a dependency.
 
 - [ ] `APP_ALLOW_MOCK_TOPUP=false` — wallet top-ups are currently **free money**, deliberately
 - [ ] Real payment gateway
-- [ ] `APP_OTP_DELIVERY=email`, `APP_EMAIL_PROVIDER=smtp`, real SMTP credentials, and
-      `EMAIL_FROM_ADDRESS` on a domain you own with SPF + DKIM
+- [ ] `APP_OTP_DELIVERY=email`, and either:
+      - `APP_EMAIL_PROVIDER=smtp` with real SMTP credentials, or
+      - `APP_EMAIL_PROVIDER=ses` with `AWS_REGION` + `AWS_ACCESS_KEY_ID` +
+        `AWS_SECRET_ACCESS_KEY` (prefer an attached IAM role over keys where the host
+        supports one) and SES moved out of the sandbox in that region
+      — either way, `EMAIL_FROM_ADDRESS` on a domain you own with SPF + DKIM (and, for
+      SES, verified as a sending identity)
 - [ ] Rotate `JWT_SECRET` and `ADMIN_SIGNUP_CODE`
 - [ ] Paid Render instance, so uptime doesn't depend on a pinger
 - [ ] Neon backups enabled
