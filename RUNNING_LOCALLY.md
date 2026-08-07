@@ -99,6 +99,13 @@ deliberate, so a misconfiguration can't silently swallow every email.
 Any SMTP provider works (Zoho `smtp.zoho.in`, AWS SES, your own domain) — only these
 four values change.
 
+## Payments (wallet recharge & order checkout)
+
+Default (`APP_PAYMENT_PROVIDER=mock`) needs no setup — wallet top-ups and gateway/split
+order checkouts both work via the mock provider's self-signed callback. Platform fees are
+disabled by default (Canteen Admin → Payment Settings to turn one on). Full details,
+including switching to a real Razorpay sandbox: `docs/payments/`.
+
 ## Reset to a clean database
 
 ```bash

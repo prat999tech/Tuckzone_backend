@@ -71,6 +71,9 @@ export function WalletScreen() {
     setError(undefined);
     setProcessingAmount(amount);
     try {
+      // platformFee is 0 unless an admin has enabled one for WALLET_RECHARGE — surfaced
+      // here so a customer sees exactly what they'll pay before confirming, computed
+      // entirely server-side (see PricingService), never by this screen.
       const topup = await walletApi.initiateTopup(amount);
       if (mockPayments) {
         // No real gateway integrated yet — see backend app.payment.allow-mock-topup.
@@ -78,7 +81,13 @@ export function WalletScreen() {
         // checkout SDK flow; everything else on this screen stays the same.
         await walletApi.mockCompleteTopup(topup.gatewayOrderId);
       }
-      Toast.show({ type: 'success', text1: 'Wallet recharged', text2: formatCurrency(amount) });
+      Toast.show({
+        type: 'success',
+        text1: 'Wallet recharged',
+        text2: topup.platformFee > 0
+          ? `${formatCurrency(amount)} (+ ${formatCurrency(topup.platformFee)} fee)`
+          : formatCurrency(amount),
+      });
       setCustomAmount('');
       load();
     } catch (err) {

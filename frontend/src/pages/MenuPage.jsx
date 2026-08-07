@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { getTodayMenu, getFixedMenu } from '../api/menu';
 import { getChildren } from '../api/parent';
 import { placeOrder } from '../api/orders';
+import { getWallet } from '../api/wallet';
+import { getConfig } from '../api/config';
+import { mockCompletePayment, verifyPayment } from '../api/payments';
+import { openRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
 import { classLabel } from '../utils/format';
 import { ShoppingCart, AlertCircle, Search } from 'lucide-react';
@@ -15,6 +19,9 @@ export default function MenuPage() {
   const [fixedMenu, setFixedMenu] = useState([]);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [mockPaymentsEnabled, setMockPaymentsEnabled] = useState(true);
+  const [placingOrder, setPlacingOrder] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [search, setSearch] = useState('');
@@ -30,6 +37,11 @@ export default function MenuPage() {
     fetchInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
+
+  useEffect(() => {
+    getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
+    getConfig().then((c) => setMockPaymentsEnabled(c.mockPaymentsEnabled)).catch(() => undefined);
+  }, []);
 
   const fetchInitialData = async () => {
     try {
@@ -121,23 +133,58 @@ export default function MenuPage() {
       return;
     }
 
+    const cartTotal = getCartTotal();
+    // Wallet balance is only ever a hint for which path to take here — the backend
+    // re-checks it for real when it actually debits. Insufficient balance means covering
+    // the gap through the gateway instead of blocking checkout outright.
+    const needsGateway = walletBalance != null && cartTotal > walletBalance;
+
     try {
+      setPlacingOrder(true);
       const orderPayload = {
         menuDate: selectedDate,
         deliveryLocation: user?.role === 'TEACHER' ? deliveryLocation.trim() : undefined,
         items: cart.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
         idempotencyKey: crypto.randomUUID(),
         ...(user?.role === 'PARENT' && { beneficiaryStudentProfileId: selectedChild }),
+        ...(needsGateway && { paymentMode: 'WALLET_PLUS_GATEWAY' }),
       };
 
-      await placeOrder(orderPayload);
-      toast.success('Order placed successfully!');
+      const order = await placeOrder(orderPayload);
+
+      if (order.payment) {
+        // Wallet alone didn't cover it — finish the gateway leg PaymentService created.
+        if (mockPaymentsEnabled) {
+          toast.loading('Processing payment...', { id: 'order-payment' });
+          await mockCompletePayment(order.payment.paymentId);
+        } else {
+          toast.loading('Opening payment...', { id: 'order-payment' });
+          const result = await openRazorpayCheckout({
+            providerOrderId: order.payment.providerOrderId,
+            providerKeyId: order.payment.providerKeyId,
+            description: `TuckZone order ${order.orderNumber}`,
+          });
+          toast.loading('Confirming payment...', { id: 'order-payment' });
+          await verifyPayment(order.payment.paymentId, {
+            providerOrderId: result.providerOrderId,
+            providerPaymentId: result.providerPaymentId,
+            signature: result.signature,
+          });
+        }
+        toast.success('Order placed and paid successfully!', { id: 'order-payment' });
+      } else {
+        toast.success('Order placed successfully!');
+      }
+
       setCart([]);
       setIsCartOpen(false);
       setErrors({});
       fetchInitialData();
+      getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to place order');
+      toast.error(err.response?.data?.message || err.message || 'Failed to place order', { id: 'order-payment' });
+    } finally {
+      setPlacingOrder(false);
     }
   };
 
@@ -326,6 +373,14 @@ export default function MenuPage() {
               <span>₹{getCartTotal().toFixed(2)}</span>
             </div>
 
+            {walletBalance != null && getCartTotal() > walletBalance && (
+              <p className="field-hint">
+                <AlertCircle size={14} /> Wallet balance (₹{walletBalance.toFixed(2)}) won't
+                cover this order — you'll pay the remaining ₹
+                {(getCartTotal() - walletBalance).toFixed(2)} via the payment gateway.
+              </p>
+            )}
+
             <div className="order-details-form">
               <div className="form-group">
                 <label>Recess</label>
@@ -389,8 +444,8 @@ export default function MenuPage() {
               )}
             </div>
 
-            <button className="btn-primary w-100" onClick={placeOrderAction}>
-              Pay & Place Order
+            <button className="btn-primary w-100" onClick={placeOrderAction} disabled={placingOrder}>
+              {placingOrder ? 'Processing...' : 'Pay & Place Order'}
             </button>
           </div>
         </div>

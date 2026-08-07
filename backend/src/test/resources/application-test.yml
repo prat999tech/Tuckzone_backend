@@ -41,4 +41,6 @@ app:
       login-attempts-per-window: 1000
       otp-requests-per-window: 1000
       otp-verify-attempts-per-window: 1000
+      payment-create-attempts-per-window: 1000
+      payment-verify-attempts-per-window: 1000
       window-minutes: 15

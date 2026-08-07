@@ -14,6 +14,9 @@ import { EmptyState } from '../../components/EmptyState';
 import { menuApi } from '../../api/menu';
 import { ordersApi } from '../../api/orders';
 import { parentApi } from '../../api/parent';
+import { walletApi } from '../../api/wallet';
+import { paymentsApi } from '../../api/payments';
+import { configApi } from '../../api/config';
 import { apiErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -48,6 +51,8 @@ export function CheckoutScreen({ navigation }: Props) {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [mockPaymentsEnabled, setMockPaymentsEnabled] = useState(true);
 
   const isParent = user?.role === 'PARENT';
   const isTeacher = user?.role === 'TEACHER';
@@ -61,7 +66,11 @@ export function CheckoutScreen({ navigation }: Props) {
     if (isParent) {
       parentApi.getChildren().then(setChildren).catch(() => undefined);
     }
+    walletApi.getWallet().then((w) => setWalletBalance(w.balance)).catch(() => undefined);
+    configApi.get().then((c) => setMockPaymentsEnabled(c.mockPaymentsEnabled)).catch(() => undefined);
   }, [isParent]);
+
+  const needsGateway = walletBalance != null && total > walletBalance;
 
   useEffect(() => {
     if (!selectedSlotId || !menuDate) return;
@@ -103,7 +112,29 @@ export function CheckoutScreen({ navigation }: Props) {
         deliveryLocation: isTeacher ? deliveryLocation.trim() : undefined,
         items: lines.map((line) => ({ menuItemId: line.dayItem.menuItem.id, quantity: line.quantity })),
         idempotencyKey: idempotencyKeyRef.current,
+        // Wallet alone would fall short of the total — cover the rest through the
+        // gateway. Undefined when the wallet already covers it, which keeps that case on
+        // the exact same synchronous, unchanged fast path as before.
+        paymentMode: needsGateway ? 'WALLET_PLUS_GATEWAY' : undefined,
       });
+
+      if (order.payment && order.payment.providerOrderId) {
+        if (mockPaymentsEnabled) {
+          await paymentsApi.mockComplete(order.payment.paymentId);
+        } else {
+          // A real (non-mock) gateway needs a checkout widget to actually collect the
+          // gateway portion, and that bridge isn't wired up on mobile yet (the web app has
+          // it — see MenuPage.jsx). The order and its wallet portion are already committed
+          // server-side; if the gateway portion is never completed, PaymentExpirySweeper
+          // reverses the wallet debit and cancels the order automatically after 15 minutes.
+          Toast.show({
+            type: 'info',
+            text1: 'Payment incomplete',
+            text2: 'Card/UPI checkout isn\'t available in the app yet — please use the web app or contact the canteen.',
+          });
+        }
+      }
+
       clearCart();
       // Straight to the confirmation screen rather than the Orders list: the shopper needs
       // the order number and pickup instructions immediately, not a list to hunt through.
@@ -210,6 +241,17 @@ export function CheckoutScreen({ navigation }: Props) {
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
           </View>
+
+          {needsGateway && (
+            <View style={styles.warningBox}>
+              <AlertTriangle size={18} color={colors.warning} />
+              <Text style={styles.warningText}>
+                Wallet balance ({formatCurrency(walletBalance ?? 0)}) won&apos;t cover this
+                order — the remaining {formatCurrency(total - (walletBalance ?? 0))} will be
+                charged through the payment gateway.
+              </Text>
+            </View>
+          )}
         </Card>
 
         {/* ── Delivery Information ──────────────────────────────────────── */}

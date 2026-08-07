@@ -10,5 +10,7 @@ public record RateLimitProperties(
         int loginAttemptsPerWindow,
         int otpRequestsPerWindow,
         int otpVerifyAttemptsPerWindow,
+        int paymentCreateAttemptsPerWindow,
+        int paymentVerifyAttemptsPerWindow,
         int windowMinutes) {
 }

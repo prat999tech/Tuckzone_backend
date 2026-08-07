@@ -4,6 +4,7 @@ import com.school.canteen.dto.order.AdminOrderResponse;
 import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderItemResponse;
 import com.school.canteen.dto.order.OrderResponse;
+import com.school.canteen.dto.payment.PaymentInitiationResponse;
 import com.school.canteen.entity.DeliverySlot;
 import com.school.canteen.entity.Order;
 import com.school.canteen.entity.OrderItem;
@@ -22,6 +23,12 @@ public class OrderMapper {
     }
 
     public OrderResponse toResponse(Order order) {
+        return toResponse(order, null);
+    }
+
+    /** @param payment attached only right after placing an order that needs the client to
+     *                 complete a gateway checkout — see OrderResponse#payment javadoc. */
+    public OrderResponse toResponse(Order order, PaymentInitiationResponse payment) {
         StudentInfo info = resolveStudentInfo(order);
         return new OrderResponse(
                 order.getId(),
@@ -41,7 +48,8 @@ public class OrderMapper {
                 order.getPaymentStatus(),
                 order.getTotalAmount(),
                 order.getItems().stream().map(this::toItemResponse).toList(),
-                order.getCreatedAt());
+                order.getCreatedAt(),
+                payment);
     }
 
     /**

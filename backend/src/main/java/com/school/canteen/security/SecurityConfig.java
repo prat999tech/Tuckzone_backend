@@ -45,6 +45,11 @@ public class SecurityConfig {
                         // mobile client. Neither exposes any user data.
                         .requestMatchers("/api/health/**", "/api/auth/**", "/api/config/**",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Public: called server-to-server by the payment provider, never by a
+                        // browser/app — there is no JWT to present. Authenticity comes entirely
+                        // from the provider signature verified inside PaymentService.handleWebhook,
+                        // not from Spring Security.
+                        .requestMatchers("/api/payments/webhooks/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

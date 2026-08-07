@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, AlertCircle } from 'lucide-react';
-import { getTransactions, getWallet, initiateTopup, mockCompleteTopup } from '../api/wallet';
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, AlertCircle, ShieldCheck } from 'lucide-react';
+import { getTransactions, getWallet, initiateTopup, mockCompleteTopup, verifyTopup } from '../api/wallet';
+import { getConfig } from '../api/config';
+import { openRazorpayCheckout } from '../utils/razorpay';
 import toast from 'react-hot-toast';
 import './WalletPage.css';
 
@@ -11,9 +13,14 @@ export default function WalletPage() {
   const [topupAmount, setTopupAmount] = useState('');
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [mockPaymentsEnabled, setMockPaymentsEnabled] = useState(true);
+  // Set only in mock mode, between "initiated" and the explicit "Simulate Payment" tap —
+  // a real provider never pauses here, it opens the widget immediately instead.
+  const [pendingTopup, setPendingTopup] = useState(null);
 
   useEffect(() => {
     fetchWalletData();
+    getConfig().then((c) => setMockPaymentsEnabled(c.mockPaymentsEnabled)).catch(() => undefined);
   }, []);
 
   const fetchWalletData = async () => {
@@ -45,6 +52,15 @@ export default function WalletPage() {
     return null;
   };
 
+  const finishTopup = async (gatewayOrderId, gatewayPaymentId, signature) => {
+    await verifyTopup({ gatewayOrderId, gatewayPaymentId, signature });
+    toast.success('Wallet recharged successfully', { id: 'payment' });
+    setTopupAmount('');
+    setPendingTopup(null);
+    setError(null);
+    fetchWalletData();
+  };
+
   const handleTopup = async (amount) => {
     const value = amount || topupAmount;
     const validationErr = validateAmount(value);
@@ -57,14 +73,42 @@ export default function WalletPage() {
 
     try {
       setIsProcessing(true);
+      // Backend computes this — platformFee is 0 unless an admin has turned one on for
+      // WALLET_RECHARGE; the frontend never calculates it.
       const topup = await initiateTopup({ amount: Number(value).toFixed(2) });
 
-      toast.loading('Processing payment...', { id: 'payment' });
-      await mockCompleteTopup({ gatewayOrderId: topup.gatewayOrderId });
+      if (mockPaymentsEnabled) {
+        // Explicit step, not silent: a real gateway always requires the user to actually
+        // act in a widget, so the dev/mock path shows an equivalent deliberate action
+        // instead of completing itself.
+        setPendingTopup(topup);
+        return;
+      }
 
+      toast.loading('Opening payment...', { id: 'payment' });
+      const result = await openRazorpayCheckout({
+        providerOrderId: topup.gatewayOrderId,
+        providerKeyId: topup.gatewayKeyId,
+        description: 'TuckZone wallet top-up',
+      });
+      toast.loading('Confirming payment...', { id: 'payment' });
+      await finishTopup(result.providerOrderId, result.providerPaymentId, result.signature);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Top-up failed', { id: 'payment' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSimulatePayment = async () => {
+    if (!pendingTopup) return;
+    try {
+      setIsProcessing(true);
+      toast.loading('Processing payment...', { id: 'payment' });
+      await mockCompleteTopup({ gatewayOrderId: pendingTopup.gatewayOrderId });
+      setPendingTopup(null);
       toast.success('Wallet recharged successfully', { id: 'payment' });
       setTopupAmount('');
-      setError(null);
       fetchWalletData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Top-up failed', { id: 'payment' });
@@ -93,50 +137,88 @@ export default function WalletPage() {
             <Wallet size={48} className="card-icon" />
           </div>
 
-          <div className="topup-section">
-            <h3>Quick Top-up</h3>
-            <div className="quick-amounts">
-              {[100, 200, 500, 1000].map((amt) => (
+          {pendingTopup ? (
+            <div className="topup-section">
+              <h3>Confirm Payment (Test Mode)</h3>
+              <div className="pricing-breakdown">
+                <div className="pricing-row">
+                  <span>Recharge amount</span>
+                  <span>₹{Number(pendingTopup.amount).toFixed(2)}</span>
+                </div>
+                {Number(pendingTopup.platformFee) > 0 && (
+                  <div className="pricing-row">
+                    <span>Platform fee</span>
+                    <span>₹{Number(pendingTopup.platformFee).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="pricing-row pricing-total">
+                  <span>You pay</span>
+                  <span>₹{Number(pendingTopup.grandTotal).toFixed(2)}</span>
+                </div>
+              </div>
+              <p className="field-hint">
+                <ShieldCheck size={14} /> No real gateway is configured — this simulates a
+                successful payment for development.
+              </p>
+              <div className="topup-actions">
+                <button className="btn-primary" onClick={handleSimulatePayment} disabled={isProcessing}>
+                  Simulate Payment
+                </button>
                 <button
-                  key={amt}
-                  className="btn-quick-amt"
-                  onClick={() => handleTopup(amt)}
+                  className="btn-secondary"
+                  onClick={() => setPendingTopup(null)}
                   disabled={isProcessing}
                 >
-                  +₹{amt}
+                  Cancel
                 </button>
-              ))}
-            </div>
-            <div className="custom-topup">
-              <div className="input-group-col" style={{ flex: 1 }}>
-                <div className="input-with-icon">
-                  <span className="currency-symbol">₹</span>
-                  <input
-                    type="number"
-                    placeholder="Enter custom amount"
-                    value={topupAmount}
-                    onChange={(e) => {
-                      setTopupAmount(e.target.value);
-                      if (error) setError(null);
-                    }}
-                    className={error ? 'input-error' : ''}
-                  />
-                </div>
-                {error && (
-                  <span className="field-error-text">
-                    <AlertCircle size={14} /> {error}
-                  </span>
-                )}
               </div>
-              <button
-                className="btn-primary"
-                onClick={() => handleTopup()}
-                disabled={isProcessing || !topupAmount}
-              >
-                <CreditCard size={18} /> Add Money
-              </button>
             </div>
-          </div>
+          ) : (
+            <div className="topup-section">
+              <h3>Quick Top-up</h3>
+              <div className="quick-amounts">
+                {[100, 200, 500, 1000].map((amt) => (
+                  <button
+                    key={amt}
+                    className="btn-quick-amt"
+                    onClick={() => handleTopup(amt)}
+                    disabled={isProcessing}
+                  >
+                    +₹{amt}
+                  </button>
+                ))}
+              </div>
+              <div className="custom-topup">
+                <div className="input-group-col" style={{ flex: 1 }}>
+                  <div className="input-with-icon">
+                    <span className="currency-symbol">₹</span>
+                    <input
+                      type="number"
+                      placeholder="Enter custom amount"
+                      value={topupAmount}
+                      onChange={(e) => {
+                        setTopupAmount(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      className={error ? 'input-error' : ''}
+                    />
+                  </div>
+                  {error && (
+                    <span className="field-error-text">
+                      <AlertCircle size={14} /> {error}
+                    </span>
+                  )}
+                </div>
+                <button
+                  className="btn-primary"
+                  onClick={() => handleTopup()}
+                  disabled={isProcessing || !topupAmount}
+                >
+                  <CreditCard size={18} /> Add Money
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="transactions-section">
             <h3>Recent Transactions</h3>
