@@ -9,8 +9,9 @@
 -- columns this file used to populate were dropped by V11, which made the previous version
 -- fail outright with "column food_type does not exist".
 --
--- Delivery slots are NOT created here — V4 inserts them and V12 collapses them to a single
--- "Recess Time". Ordering windows are not created either: no row means OPEN, so the canteen
+-- Delivery slots are NOT created here — V4 inserts them, V12 collapses them to a single
+-- slot, and V13 renames it to "Recess". Ordering windows are not created either: no row
+-- means OPEN, so the canteen
 -- accepts orders by default until an admin closes the slot.
 
 -- ── Catalogue ────────────────────────────────────────────────────────────────

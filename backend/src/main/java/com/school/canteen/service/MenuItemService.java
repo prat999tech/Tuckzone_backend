@@ -13,8 +13,20 @@ public interface MenuItemService {
 
     MenuItemResponse update(UUID id, MenuItemRequest request);
 
-    /** Soft delete: marks the item inactive so history stays intact. */
+    /** Soft delete (Retire): marks the item inactive so history stays intact. Hidden from
+     *  students, still visible to admin under the Retired filter. */
     void deactivate(UUID id);
+
+    /** Reverses {@link #deactivate}: brings a retired item back to Active. */
+    MenuItemResponse activate(UUID id);
+
+    /**
+     * Hard delete: permanently removes the row. Rejected if any order has ever contained
+     * this item — that history must never be destroyed — so this only succeeds for an item
+     * nobody has ordered yet. Any daily-menu scheduling entries for it are cleaned up first
+     * since those are disposable, unlike order history.
+     */
+    void permanentlyDelete(UUID id);
 
     MenuItemResponse get(UUID id);
 

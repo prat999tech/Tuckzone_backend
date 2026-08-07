@@ -19,6 +19,7 @@ import com.school.canteen.dto.order.OrderItemResponse;
 import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.service.OrderExportService;
 import com.school.canteen.service.OrderService;
+import com.school.canteen.util.OrderStatusDisplay;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -99,7 +100,7 @@ public class OrderExportServiceImpl implements OrderExportService {
                 totalCell.setCellValue(order.totalAmount().doubleValue());
                 totalCell.setCellStyle(currencyStyle);
 
-                row.createCell(6).setCellValue(order.status().name());
+                row.createCell(6).setCellValue(OrderStatusDisplay.label(order.status()));
                 row.createCell(7).setCellValue(order.paymentStatus().name());
 
                 Cell dateCell = row.createCell(8);
@@ -193,7 +194,7 @@ public class OrderExportServiceImpl implements OrderExportService {
             addCell(table, itemsSummary(order.items()), bodyFont);
             addCell(table, String.valueOf(totalQuantity(order.items())), bodyFont);
             addCell(table, "₹" + order.totalAmount().toPlainString(), bodyFont);
-            addCell(table, order.status().name(), bodyFont);
+            addCell(table, OrderStatusDisplay.label(order.status()), bodyFont);
             addCell(table, order.paymentStatus().name(), bodyFont);
             addCell(table, placedAt.format(dateFmt), bodyFont);
             addCell(table, placedAt.format(timeFmt), bodyFont);

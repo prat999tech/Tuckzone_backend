@@ -1,11 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar, Search, RefreshCw, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAdminOrders, updateOrderStatus } from '../../api/admin';
+import { orderStatusLabel } from '../../utils/format';
 import toast from 'react-hot-toast';
 import './IncomingOrdersPage.css';
 
-const STATUS_OPTIONS = ['ALL', 'PLACED', 'ACCEPTED', 'PREPARING', 'PACKED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'REJECTED', 'CANCELLED'];
+/** The table only shows "Placed"/"Delivered", so the filter mirrors that: 'PLACED' here
+ *  means "not yet delivered" (every status up to and including REJECTED/CANCELLED), not
+ *  literally the PLACED enum value. The real per-order status still drives which action
+ *  buttons render - this filter only narrows which rows are visible. */
+const STATUS_OPTIONS = ['ALL', 'PLACED', 'DELIVERED'];
 const PAGE_SIZE = 10;
+
+function matchesFilter(order, filter) {
+  if (filter === 'ALL') return true;
+  return orderStatusLabel(order.status) === (filter === 'PLACED' ? 'Placed' : 'Delivered');
+}
 
 export default function IncomingOrdersPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -69,7 +79,7 @@ export default function IncomingOrdersPage() {
     let result = orders;
 
     if (statusFilter !== 'ALL') {
-      result = result.filter((order) => order.status === statusFilter);
+      result = result.filter((order) => matchesFilter(order, statusFilter));
     }
 
     if (search.trim()) {
@@ -168,7 +178,9 @@ export default function IncomingOrdersPage() {
 
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="status-select">
           {STATUS_OPTIONS.map((status) => (
-            <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+            <option key={status} value={status}>
+              {status === 'ALL' ? 'All' : orderStatusLabel(status === 'PLACED' ? 'PLACED' : 'DELIVERED')}
+            </option>
           ))}
         </select>
       </div>
@@ -187,6 +199,7 @@ export default function IncomingOrdersPage() {
                   <th>Student Name</th>
                   <th>Class/Section</th>
                   <th>Roll No</th>
+                  <th>Location</th>
                   <th>Items</th>
                   <th className="sortable" onClick={() => toggleSort('totalAmount')}>
                     Total <ArrowUpDown size={12} />
@@ -206,6 +219,7 @@ export default function IncomingOrdersPage() {
                     <td>{order.studentName || order.recipientName}</td>
                     <td>{classSection(order)}</td>
                     <td>{order.studentRollNumber || '—'}</td>
+                    <td>{order.deliveryLocation || '—'}</td>
                     <td>
                       <ul className="items-list">
                         {order.items.map((item) => (
@@ -221,7 +235,7 @@ export default function IncomingOrdersPage() {
                     </td>
                     <td>
                       <span className={`badge status-badge status-${order.status.toLowerCase()}`}>
-                        {order.status.replace(/_/g, ' ')}
+                        {orderStatusLabel(order.status)}
                       </span>
                     </td>
                     <td className="text-muted">

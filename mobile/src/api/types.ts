@@ -124,6 +124,10 @@ export interface OrderResponse {
   slotName: string;
   deliveryTime: string;
   recipientName: string;
+  /** Null for a teacher's own order, which has no class. Resolved server-side from the
+   *  student's profile — never something the client typed at checkout. */
+  recipientClass?: string | null;
+  recipientSection?: string | null;
   deliveryLocation: string;
   deliveryPersonName?: string | null;
   paymentMethod: string;
@@ -131,6 +135,34 @@ export interface OrderResponse {
   totalAmount: number;
   items: OrderItemResponse[];
   createdAt: string;
+}
+
+/**
+ * What `/admin/orders` and the status-transition endpoint actually return — a superset of
+ * {@link OrderResponse} that additionally carries the ordering student's identity
+ * (name/class/section/roll number), which only Canteen Admin/Sub Admin ever see.
+ */
+export interface AdminOrderResponse {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  orderType: OrderType;
+  pickupCode?: string | null;
+  menuDate: string;
+  slotName: string;
+  deliveryTime: string;
+  recipientName: string;
+  deliveryLocation: string;
+  deliveryPersonName?: string | null;
+  paymentMethod: string;
+  paymentStatus: PaymentStatus;
+  totalAmount: number;
+  items: OrderItemResponse[];
+  createdAt: string;
+  studentName?: string | null;
+  studentClass?: string | null;
+  studentSection?: string | null;
+  studentRollNumber?: string | null;
 }
 
 export interface WalletResponse {

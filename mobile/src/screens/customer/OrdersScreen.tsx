@@ -10,7 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
 import { ordersApi } from '../../api/orders';
 import { apiErrorMessage } from '../../api/client';
-import { formatCurrency, formatDate } from '../../utils/format';
+import { formatCurrency, formatDate, orderStatusLabel } from '../../utils/format';
 import { colors, radius, spacing, statusColor, typography } from '../../theme';
 import type { OrderResponse } from '../../api/types';
 import type { CustomerStackParamList } from '../../navigation/types';
@@ -74,7 +74,7 @@ export function OrdersScreen() {
                   <View style={styles.headerTop}>
                     <Text style={styles.orderNumber}>ORDER #{order.orderNumber}</Text>
                     <View style={[styles.statusChip, { backgroundColor: tone.bg }]}>
-                      <Text style={[styles.statusText, { color: tone.fg }]}>{order.status}</Text>
+                      <Text style={[styles.statusText, { color: tone.fg }]}>{orderStatusLabel(order.status)}</Text>
                     </View>
                     <Text style={[styles.total, voided && styles.totalVoided]}>
                       {formatCurrency(order.totalAmount)}

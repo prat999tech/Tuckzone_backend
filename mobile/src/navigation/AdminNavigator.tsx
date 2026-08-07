@@ -7,7 +7,6 @@ import { ExpensesScreen } from '../screens/admin/ExpensesScreen';
 import { UsersScreen } from '../screens/admin/UsersScreen';
 import { SubAdminsScreen } from '../screens/admin/SubAdminsScreen';
 import { OrderingWindowsScreen } from '../screens/admin/OrderingWindowsScreen';
-import { TakeawayCollectScreen } from '../screens/admin/TakeawayCollectScreen';
 import { NotificationsScreen } from '../screens/customer/NotificationsScreen';
 import type { AdminStackParamList } from './types';
 
@@ -32,11 +31,6 @@ export function AdminNavigator() {
         name="OrderingWindows"
         component={OrderingWindowsScreen}
         options={{ title: 'Advance Ordering' }}
-      />
-      <Stack.Screen
-        name="TakeawayCollect"
-        component={TakeawayCollectScreen}
-        options={{ title: 'Collect Takeaway' }}
       />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
     </Stack.Navigator>

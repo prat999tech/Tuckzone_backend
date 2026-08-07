@@ -22,6 +22,7 @@ public class OrderMapper {
     }
 
     public OrderResponse toResponse(Order order) {
+        StudentInfo info = resolveStudentInfo(order);
         return new OrderResponse(
                 order.getId(),
                 formatOrderNumber(order.getOrderNumber()),
@@ -32,6 +33,8 @@ public class OrderMapper {
                 order.getSlot().getName(),
                 order.getSlot().getDeliveryTime(),
                 order.getRecipientName(),
+                info.studentClass(),
+                info.section(),
                 order.getDeliveryLocation(),
                 order.getDeliveryPersonName(),
                 order.getPaymentMethod(),
@@ -78,6 +81,10 @@ public class OrderMapper {
      * Resolution order: the linked beneficiary profile (parent-for-child order) first, then
      * the placing user's own profile if they are a student ordering for themselves, and
      * finally a bare name with no class/section/roll for a teacher's own order.
+     *
+     * Shared by {@link #toResponse} and {@link #toAdminResponse} so the customer's own
+     * order view and the admin's view of that same order always agree on the student's
+     * class — neither trusts anything the client typed at checkout for it.
      */
     private StudentInfo resolveStudentInfo(Order order) {
         StudentProfile profile = order.getBeneficiaryStudentProfile();

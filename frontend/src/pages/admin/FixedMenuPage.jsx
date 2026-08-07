@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, Power, X, AlertCircle } from 'lucide-react';
-import { createMenuItem, deleteMenuItem, getMenuItems, updateMenuItem } from '../../api/admin';
+import { Plus, Edit2, Trash2, Power, RotateCcw, ChevronDown, ChevronRight, X, AlertCircle, UtensilsCrossed } from 'lucide-react';
+import {
+  activateMenuItem,
+  createMenuItem,
+  deleteMenuItem,
+  getMenuItems,
+  permanentlyDeleteMenuItem,
+  updateMenuItem,
+} from '../../api/admin';
 import toast from 'react-hot-toast';
+import EmptyState from '../../components/EmptyState';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import MenuActionDialog from '../../components/MenuActionDialog';
 import './FixedMenuPage.css';
 
 const EMPTY_FORM = { name: '', description: '', price: '', available: true, imageUrl: '', allergens: '' };
@@ -13,6 +23,9 @@ export default function FixedMenuPage() {
   const [editingId, setEditingId] = useState(null);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [actionTarget, setActionTarget] = useState(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null);
+  const [showRetired, setShowRetired] = useState(false);
 
   useEffect(() => {
     fetchItems();
@@ -74,14 +87,37 @@ export default function FixedMenuPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Retire this menu item from future ordering?')) return;
+  const handleRetire = async () => {
+    if (!actionTarget) return;
     try {
-      await deleteMenuItem(id);
+      await deleteMenuItem(actionTarget.id);
       toast.success('Item retired');
+      setActionTarget(null);
       fetchItems();
     } catch (err) {
-      toast.error('Delete failed');
+      toast.error(err.response?.data?.message || 'Could not retire item');
+    }
+  };
+
+  const handleRestore = async (item) => {
+    try {
+      await activateMenuItem(item.id);
+      toast.success('Item restored to Active');
+      fetchItems();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not restore item');
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteTarget) return;
+    try {
+      await permanentlyDeleteMenuItem(permanentDeleteTarget.id);
+      toast.success('Item permanently deleted');
+      setPermanentDeleteTarget(null);
+      fetchItems();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not permanently delete item');
     }
   };
 
@@ -122,6 +158,9 @@ export default function FixedMenuPage() {
     setIsModalOpen(true);
   };
 
+  const activeItems = items.filter((item) => item.active);
+  const retiredItems = items.filter((item) => !item.active);
+
   return (
     <div className="admin-container">
       <div className="page-header flex-between">
@@ -136,23 +175,30 @@ export default function FixedMenuPage() {
 
       {loading ? (
         <div className="loading-state">Loading items...</div>
-      ) : items.length === 0 ? (
-        <div className="empty-state">No Daily Delights items yet. Add one to get started.</div>
+      ) : activeItems.length === 0 ? (
+        <EmptyState
+          icon={UtensilsCrossed}
+          title="No Menu Available"
+          message="No menu items have been added yet."
+          action={
+            <button className="btn-primary" onClick={() => openModal()}>
+              <Plus size={18} /> Add Menu
+            </button>
+          }
+        />
       ) : (
         <div className="items-grid">
-          {items.map((item) => (
-            <div className={`catalog-card ${!item.active ? 'inactive' : ''}`} key={item.id}>
+          {activeItems.map((item) => (
+            <div className="catalog-card" key={item.id}>
               <div className="card-image">
                 {item.imageUrl ? (
                   <img src={item.imageUrl} alt={item.name} />
                 ) : (
                   <div className="img-fallback">{item.name.charAt(0)}</div>
                 )}
-                {item.active && (
-                  <span className={`stock-badge ${item.available ? 'available' : 'out'}`}>
-                    {item.available ? 'Available' : 'Out of Stock'}
-                  </span>
-                )}
+                <span className={`stock-badge ${item.available ? 'available' : 'out'}`}>
+                  {item.available ? 'Available' : 'Out of Stock'}
+                </span>
               </div>
               <div className="card-content">
                 <div className="card-header">
@@ -162,28 +208,72 @@ export default function FixedMenuPage() {
                 <div className="card-footer">
                   <span className="price">₹{item.price}</span>
                   <div className="actions">
-                    {item.active && (
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleToggleAvailable(item)}
-                        title={item.available ? 'Mark Out of Stock' : 'Mark Available'}
-                      >
-                        <Power size={16} />
-                      </button>
-                    )}
+                    <button
+                      className="btn-icon"
+                      onClick={() => handleToggleAvailable(item)}
+                      title={item.available ? 'Mark Out of Stock' : 'Mark Available'}
+                    >
+                      <Power size={16} />
+                    </button>
                     <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
                       <Edit2 size={16} />
                     </button>
-                    {item.active && (
-                      <button className="btn-icon-danger" onClick={() => handleDelete(item.id)} title="Delete">
-                        <Trash2 size={16} />
-                      </button>
-                    )}
+                    <button className="btn-icon-danger" onClick={() => setActionTarget(item)} title="Delete">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {!loading && retiredItems.length > 0 && (
+        <div className="retired-section">
+          <button className="retired-header" onClick={() => setShowRetired((prev) => !prev)}>
+            {showRetired ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            Retired Items ({retiredItems.length})
+          </button>
+          {showRetired && (
+            <div className="items-grid">
+              {retiredItems.map((item) => (
+                <div className="catalog-card inactive" key={item.id}>
+                  <div className="card-image">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name} />
+                    ) : (
+                      <div className="img-fallback">{item.name.charAt(0)}</div>
+                    )}
+                  </div>
+                  <div className="card-content">
+                    <div className="card-header">
+                      <h3>{item.name}</h3>
+                    </div>
+                    <p className="desc">{item.description}</p>
+                    <div className="card-footer">
+                      <span className="price">₹{item.price}</span>
+                      <div className="actions">
+                        <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
+                          <Edit2 size={16} />
+                        </button>
+                        <button className="btn-icon" onClick={() => handleRestore(item)} title="Restore">
+                          <RotateCcw size={16} />
+                        </button>
+                        <button
+                          className="btn-icon-danger"
+                          onClick={() => setPermanentDeleteTarget(item)}
+                          title="Delete Permanently"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -278,6 +368,26 @@ export default function FixedMenuPage() {
           </div>
         </div>
       )}
+
+      <MenuActionDialog
+        open={Boolean(actionTarget)}
+        itemName={actionTarget?.name}
+        onRetire={handleRetire}
+        onPermanentDelete={() => {
+          setPermanentDeleteTarget(actionTarget);
+          setActionTarget(null);
+        }}
+        onCancel={() => setActionTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(permanentDeleteTarget)}
+        title="Permanently delete this item?"
+        message="Are you sure you want to permanently delete this menu item? This action cannot be undone."
+        confirmLabel="Delete Permanently"
+        onCancel={() => setPermanentDeleteTarget(null)}
+        onConfirm={handlePermanentDelete}
+      />
     </div>
   );
 }

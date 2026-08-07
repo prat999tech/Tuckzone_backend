@@ -1,0 +1,3 @@
+.confirm-dialog { max-width: 420px; }
+.confirm-dialog .modal-body p { color: var(--gray-600); font-size: 0.9rem; line-height: 1.5; }
+.confirm-dialog-actions { padding: 0 1.5rem 1.5rem; }

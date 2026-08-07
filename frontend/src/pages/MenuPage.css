@@ -399,6 +399,12 @@
   gap: 1rem;
 }
 
+.order-details-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
 .form-group label {
   font-size: 0.8125rem;
   font-weight: 600;
@@ -414,6 +420,7 @@
 @media (max-width: 480px) {
   .cart-drawer { max-width: 100%; }
   .menu-grid { grid-template-columns: 1fr 1fr; }
+  .order-details-form .form-row { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 380px) {

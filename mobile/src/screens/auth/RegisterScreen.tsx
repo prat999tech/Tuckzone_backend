@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { User, Mail, Phone, Lock, Hash, BookOpen, KeyRound, Layers, Users } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
@@ -65,7 +65,8 @@ export function RegisterScreen({ navigation }: Props) {
       set('studentClass', validateRequired(studentClass, 'Class'));
       set('section', validateRequired(section, 'Section'));
       set('rollNumber', validateRequired(rollNumber, 'Roll number'));
-      set('parentMobile', validateMobile(parentMobile));
+      // Optional: only checked for a valid format when the student actually enters one.
+      if (parentMobile) set('parentMobile', validateMobile(parentMobile));
       if (studentMobile) set('studentMobile', validateMobile(studentMobile));
     }
     if (role === 'TEACHER') {
@@ -99,7 +100,7 @@ export function RegisterScreen({ navigation }: Props) {
           section,
           rollNumber,
           seatNumber: seatNumber || undefined,
-          parentMobile: parentMobile.trim(),
+          parentMobile: parentMobile.trim() || undefined,
           studentMobile: studentMobile.trim() || undefined,
         });
       } else if (role === 'TEACHER') {
@@ -138,179 +139,181 @@ export function RegisterScreen({ navigation }: Props) {
   }
 
   return (
-    <ScreenContainer>
-      <SegmentedControl
-        options={[
-          { value: 'STUDENT', label: 'Student' },
-          { value: 'TEACHER', label: 'Teacher' },
-          { value: 'PARENT', label: 'Parent' },
-          { value: 'ADMIN', label: 'Canteen' },
-        ]}
-        value={role}
-        onChange={(next) => {
-          setRole(next);
-          setErrors({});
-        }}
-      />
-
-      <View style={styles.form}>
-        <Input
-          label="Full Name"
-          required
-          value={fullName}
-          onChangeText={setFullName}
-          error={errors.fullName}
-          leftIcon={<User size={18} color={colors.textTertiary} />}
-        />
-        <Input
-          label="Email Address"
-          required
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          error={errors.email}
-          leftIcon={<Mail size={18} color={colors.textTertiary} />}
-        />
-        <Input
-          label={role === 'STUDENT' ? 'Login Mobile (10 digits)' : 'Mobile Number (10 digits)'}
-          required
-          value={mobile}
-          onChangeText={setMobile}
-          keyboardType="number-pad"
-          maxLength={10}
-          error={errors.mobile}
-          leftIcon={<Phone size={18} color={colors.textTertiary} />}
-        />
-        <PasswordInput
-          label="Password"
-          required
-          value={password}
-          onChangeText={setPassword}
-          error={errors.password}
-          leftIcon={<Lock size={18} color={colors.textTertiary} />}
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScreenContainer>
+        <SegmentedControl
+          options={[
+            { value: 'STUDENT', label: 'Student' },
+            { value: 'TEACHER', label: 'Teacher' },
+            { value: 'PARENT', label: 'Parent' },
+            { value: 'ADMIN', label: 'Canteen' },
+          ]}
+          value={role}
+          onChange={(next) => {
+            setRole(next);
+            setErrors({});
+          }}
         />
 
-        {role === 'STUDENT' && (
-          <>
+        <View style={styles.form}>
+          <Input
+            label="Full Name"
+            required
+            value={fullName}
+            onChangeText={setFullName}
+            error={errors.fullName}
+            leftIcon={<User size={18} color={colors.textTertiary} />}
+          />
+          <Input
+            label="Email Address"
+            required
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            error={errors.email}
+            leftIcon={<Mail size={18} color={colors.textTertiary} />}
+          />
+          <Input
+            label={role === 'STUDENT' ? 'Login Mobile (10 digits)' : 'Mobile Number (10 digits)'}
+            required
+            value={mobile}
+            onChangeText={setMobile}
+            keyboardType="number-pad"
+            maxLength={10}
+            error={errors.mobile}
+            leftIcon={<Phone size={18} color={colors.textTertiary} />}
+          />
+          <PasswordInput
+            label="Password"
+            required
+            value={password}
+            onChangeText={setPassword}
+            error={errors.password}
+            leftIcon={<Lock size={18} color={colors.textTertiary} />}
+          />
+
+          {role === 'STUDENT' && (
+            <>
+              <View style={styles.row}>
+                <View style={styles.half}>
+                  <Input
+                    label="Admission No."
+                    required
+                    value={admissionNumber}
+                    onChangeText={setAdmissionNumber}
+                    error={errors.admissionNumber}
+                    leftIcon={<Hash size={18} color={colors.textTertiary} />}
+                  />
+                </View>
+                <View style={styles.half}>
+                  <Input
+                    label="Roll No."
+                    required
+                    value={rollNumber}
+                    onChangeText={setRollNumber}
+                    error={errors.rollNumber}
+                  />
+                </View>
+              </View>
+              <View style={styles.row}>
+                <View style={styles.third}>
+                  <Input
+                    label="Class"
+                    required
+                    value={studentClass}
+                    onChangeText={setStudentClass}
+                    error={errors.studentClass}
+                    leftIcon={<BookOpen size={18} color={colors.textTertiary} />}
+                  />
+                </View>
+                <View style={styles.third}>
+                  <Input
+                    label="Section"
+                    required
+                    value={section}
+                    onChangeText={setSection}
+                    error={errors.section}
+                    leftIcon={<Layers size={18} color={colors.textTertiary} />}
+                  />
+                </View>
+                <View style={styles.third}>
+                  <Input label="Seat No." value={seatNumber} onChangeText={setSeatNumber} />
+                </View>
+              </View>
+              <Input
+                label="Parent's Mobile (for linking, optional)"
+                value={parentMobile}
+                onChangeText={setParentMobile}
+                keyboardType="number-pad"
+                maxLength={10}
+                error={errors.parentMobile}
+                leftIcon={<Phone size={18} color={colors.textTertiary} />}
+              />
+              <Input
+                label="Student Contact (optional)"
+                value={studentMobile}
+                onChangeText={setStudentMobile}
+                keyboardType="number-pad"
+                maxLength={10}
+                error={errors.studentMobile}
+              />
+            </>
+          )}
+
+          {role === 'TEACHER' && (
             <View style={styles.row}>
               <View style={styles.half}>
                 <Input
-                  label="Admission No."
+                  label="Employee ID"
                   required
-                  value={admissionNumber}
-                  onChangeText={setAdmissionNumber}
-                  error={errors.admissionNumber}
+                  value={employeeId}
+                  onChangeText={setEmployeeId}
+                  error={errors.employeeId}
                   leftIcon={<Hash size={18} color={colors.textTertiary} />}
                 />
               </View>
               <View style={styles.half}>
                 <Input
-                  label="Roll No."
+                  label="Department"
                   required
-                  value={rollNumber}
-                  onChangeText={setRollNumber}
-                  error={errors.rollNumber}
+                  value={department}
+                  onChangeText={setDepartment}
+                  error={errors.department}
+                  leftIcon={<Users size={18} color={colors.textTertiary} />}
                 />
               </View>
             </View>
-            <View style={styles.row}>
-              <View style={styles.third}>
-                <Input
-                  label="Class"
-                  required
-                  value={studentClass}
-                  onChangeText={setStudentClass}
-                  error={errors.studentClass}
-                  leftIcon={<BookOpen size={18} color={colors.textTertiary} />}
-                />
-              </View>
-              <View style={styles.third}>
-                <Input
-                  label="Section"
-                  required
-                  value={section}
-                  onChangeText={setSection}
-                  error={errors.section}
-                  leftIcon={<Layers size={18} color={colors.textTertiary} />}
-                />
-              </View>
-              <View style={styles.third}>
-                <Input label="Seat No." value={seatNumber} onChangeText={setSeatNumber} />
-              </View>
-            </View>
-            <Input
-              label="Parent's Mobile (for linking)"
-              required
-              value={parentMobile}
-              onChangeText={setParentMobile}
-              keyboardType="number-pad"
-              maxLength={10}
-              error={errors.parentMobile}
-              leftIcon={<Phone size={18} color={colors.textTertiary} />}
-            />
-            <Input
-              label="Student Contact (optional)"
-              value={studentMobile}
-              onChangeText={setStudentMobile}
-              keyboardType="number-pad"
-              maxLength={10}
-              error={errors.studentMobile}
-            />
-          </>
-        )}
+          )}
 
-        {role === 'TEACHER' && (
-          <View style={styles.row}>
-            <View style={styles.half}>
+          {role === 'ADMIN' && (
+            <>
               <Input
-                label="Employee ID"
+                label="Canteen Signup Code"
                 required
-                value={employeeId}
-                onChangeText={setEmployeeId}
-                error={errors.employeeId}
-                leftIcon={<Hash size={18} color={colors.textTertiary} />}
+                value={signupCode}
+                onChangeText={setSignupCode}
+                autoCapitalize="none"
+                error={errors.signupCode}
+                leftIcon={<KeyRound size={18} color={colors.textTertiary} />}
               />
-            </View>
-            <View style={styles.half}>
-              <Input
-                label="Department"
-                required
-                value={department}
-                onChangeText={setDepartment}
-                error={errors.department}
-                leftIcon={<Users size={18} color={colors.textTertiary} />}
-              />
-            </View>
-          </View>
-        )}
+              <Text style={styles.adminHint}>
+                Whoever set up TuckZone for your school chose this code when installing the
+                server. Ask them for it — it is what stops anyone from giving themselves
+                canteen access.
+              </Text>
+            </>
+          )}
 
-        {role === 'ADMIN' && (
-          <>
-            <Input
-              label="Canteen Signup Code"
-              required
-              value={signupCode}
-              onChangeText={setSignupCode}
-              autoCapitalize="none"
-              error={errors.signupCode}
-              leftIcon={<KeyRound size={18} color={colors.textTertiary} />}
-            />
-            <Text style={styles.adminHint}>
-              Whoever set up TuckZone for your school chose this code when installing the
-              server. Ask them for it — it is what stops anyone from giving themselves
-              canteen access.
-            </Text>
-          </>
-        )}
-
-        <Button label="Register" onPress={handleSubmit} loading={loading} style={styles.submit} />
-      </View>
-    </ScreenContainer>
+          <Button label="Register" onPress={handleSubmit} loading={loading} style={styles.submit} />
+        </View>
+      </ScreenContainer>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   form: { marginTop: spacing.xl },
   row: { flexDirection: 'row', gap: spacing.md },
   half: { flex: 1 },

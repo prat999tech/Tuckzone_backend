@@ -10,7 +10,7 @@ import { Button } from '../../components/Button';
 import { LoadingView } from '../../components/LoadingView';
 import { ordersApi } from '../../api/orders';
 import { apiErrorMessage } from '../../api/client';
-import { formatCurrency } from '../../utils/format';
+import { classLabel, formatCurrency, orderStatusLabel } from '../../utils/format';
 import { colors, radius, spacing, typography } from '../../theme';
 import type { OrderResponse } from '../../api/types';
 import type { CustomerStackParamList } from '../../navigation/types';
@@ -71,25 +71,23 @@ export function OrderConfirmationScreen({ navigation, route }: Props) {
           <View style={styles.heroBadge}>
             <CheckCircle2 size={40} color={colors.textOnPrimary} strokeWidth={2.5} />
           </View>
-          <Text style={styles.heroTitle}>Order Received!</Text>
+          <Text style={styles.heroTitle}>Order Placed!</Text>
           <Text style={styles.heroSubtitle}>
-            Your tuckshop order #{order.orderNumber} is confirmed.
+            Your TuckZone order #{order.orderNumber} is confirmed.
           </Text>
           <View style={styles.statusPill}>
             <Zap size={14} color={colors.success} fill={colors.success} />
-            <Text style={styles.statusPillText}>STATUS: {order.status}</Text>
+            <Text style={styles.statusPillText}>STATUS: {orderStatusLabel(order.status).toUpperCase()}</Text>
           </View>
         </View>
 
-        {/* ── Pick up time ───────────────────────────────────────────── */}
+        {/* ── Recess slot ────────────────────────────────────────────── */}
         <Card style={styles.infoCard}>
           <View style={styles.infoIcon}>
             <Clock size={22} color={colors.textSecondary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoLabel}>PICK UP TIME</Text>
             <Text style={styles.infoValue}>{order.slotName}</Text>
-            {order.deliveryTime ? <Text style={styles.infoSub}>{order.deliveryTime}</Text> : null}
           </View>
         </Card>
 
@@ -104,7 +102,7 @@ export function OrderConfirmationScreen({ navigation, route }: Props) {
             <Text style={styles.infoSub}>
               {isTakeaway
                 ? `Show pickup code ${order.pickupCode ?? '—'} at the counter`
-                : `For ${order.recipientName}`}
+                : `For ${order.recipientName}${order.recipientClass ? ` · Class ${classLabel(order.recipientClass, order.recipientSection)}` : ''}`}
             </Text>
           </View>
         </Card>

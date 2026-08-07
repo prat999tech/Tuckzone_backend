@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Package, Clock, XCircle, CheckCircle, Truck, Info } from 'lucide-react';
+import { Package, Clock, CheckCircle, Truck } from 'lucide-react';
 import { cancelOrder, getMyOrders } from '../api/orders';
+import { classLabel, orderStatusLabel } from '../utils/format';
 import toast from 'react-hot-toast';
 import './OrdersPage.css';
 
@@ -33,26 +34,10 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'PLACED':
-        return <Clock size={20} className="text-blue" />;
-      case 'ACCEPTED':
-        return <CheckCircle size={20} className="text-amber" />;
-      case 'PREPARING':
-      case 'PACKED':
-        return <Package size={20} className="text-amber" />;
-      case 'OUT_FOR_DELIVERY':
-        return <Truck size={20} className="text-amber" />;
-      case 'DELIVERED':
-        return <CheckCircle size={20} className="text-green" />;
-      case 'CANCELLED':
-      case 'REJECTED':
-        return <XCircle size={20} className="text-red" />;
-      default:
-        return <Info size={20} />;
-    }
-  };
+  const getStatusIcon = (status) =>
+    status === 'DELIVERED'
+      ? <CheckCircle size={20} className="text-green" />
+      : <Clock size={20} className="text-blue" />;
 
   return (
     <div className="orders-container">
@@ -80,19 +65,25 @@ export default function OrdersPage() {
                 </div>
                 <div className={`status-badge status-${order.status.toLowerCase()}`}>
                   {getStatusIcon(order.status)}
-                  <span>{order.status.replace(/_/g, ' ')}</span>
+                  <span>{orderStatusLabel(order.status)}</span>
                 </div>
               </div>
 
               <div className="order-details-grid">
                 <div className="detail-item">
-                  <span className="label">Recess Time</span>
+                  <span className="label">Recess</span>
                   <span className="value">{order.slotName}</span>
                 </div>
                 <div className="detail-item">
                   <span className="label">Recipient</span>
                   <span className="value">{order.recipientName}</span>
                 </div>
+                {order.recipientClass && (
+                  <div className="detail-item">
+                    <span className="label">Class</span>
+                    <span className="value">{classLabel(order.recipientClass, order.recipientSection)}</span>
+                  </div>
+                )}
                 <div className="detail-item">
                   <span className="label">Location</span>
                   <span className="value">{order.deliveryLocation}</span>

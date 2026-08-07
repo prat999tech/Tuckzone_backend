@@ -11,7 +11,8 @@ export interface StudentRegisterRequest {
   section: string;
   rollNumber: string;
   seatNumber?: string;
-  parentMobile: string;
+  /** Optional — a student can register without it and be linked to a parent later. */
+  parentMobile?: string;
   studentMobile?: string;
 }
 

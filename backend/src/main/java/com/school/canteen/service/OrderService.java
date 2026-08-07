@@ -44,7 +44,4 @@ public interface OrderService {
     List<AdminOrderResponse> adminListForExport(LocalDate date, OrderStatus status, String search);
 
     AdminOrderResponse adminTransition(UUID orderId, OrderStatusUpdateRequest request);
-
-    /** Hands over a takeaway order at the counter against the customer's pickup code. */
-    OrderResponse collectByPickupCode(LocalDate menuDate, String pickupCode);
 }

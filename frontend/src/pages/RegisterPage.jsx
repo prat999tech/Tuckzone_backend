@@ -80,9 +80,7 @@ export default function RegisterPage() {
         errs.admissionNumber = 'Admission number is required';
       }
 
-      if (!formData.parentMobile.trim()) {
-        errs.parentMobile = "Parent's mobile number is required";
-      } else if (!/^\d{10}$/.test(formData.parentMobile.trim())) {
+      if (formData.parentMobile.trim() && !/^\d{10}$/.test(formData.parentMobile.trim())) {
         errs.parentMobile = "Parent's mobile number must be exactly 10 digits";
       }
 
@@ -138,7 +136,7 @@ export default function RegisterPage() {
           studentClass: formData.studentClass,
           section: formData.section,
           rollNumber: formData.rollNumber,
-          parentMobile: formData.parentMobile,
+          parentMobile: formData.parentMobile.trim() || undefined,
           studentMobile: formData.studentMobile || '',
         });
       } else if (role === 'TEACHER') {
@@ -320,7 +318,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Parent Mobile (10 digits)</label>
+                  <label>Parent Mobile (10 digits, optional)</label>
                   <div className="input-with-icon">
                     <Phone className="input-icon" size={20} />
                     <input

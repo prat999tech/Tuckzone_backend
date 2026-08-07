@@ -28,8 +28,12 @@ public record StudentRegisterRequest(
         @NotBlank @Size(max = 20) String rollNumber,
         @Size(max = 20) String seatNumber,
 
-        /** The number a parent must quote to link this student to their account. */
-        @NotBlank
+        /**
+         * The number a parent must quote to link this student to their account. Optional at
+         * registration — a student without it simply can't be linked until one is added later
+         * — but validated against the same pattern whenever it is supplied (null bypasses
+         * {@code @Pattern} by spec; only a non-blank value is checked).
+         */
         @Pattern(regexp = ValidationRules.MOBILE_PATTERN, message = ValidationRules.MOBILE_MESSAGE)
         String parentMobile,
 

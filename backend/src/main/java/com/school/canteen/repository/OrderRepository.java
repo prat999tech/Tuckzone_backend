@@ -23,8 +23,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     Optional<Order> findByIdAndPlacedBy_Id(UUID id, UUID userId);
 
-    Optional<Order> findByMenuDateAndPickupCode(LocalDate menuDate, String pickupCode);
-
     List<Order> findByPlacedBy_IdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     List<Order> findByMenuDateOrderByCreatedAtAsc(LocalDate menuDate, Pageable pageable);

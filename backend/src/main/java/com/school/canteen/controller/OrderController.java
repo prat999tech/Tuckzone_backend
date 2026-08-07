@@ -87,16 +87,6 @@ public class OrderController {
         return orderService.adminList(date, status, search, sort, page, size);
     }
 
-    /** Counter hand-over: staff type the code from the teacher's receipt. Canteen-Admin-only
-     *  — not part of the Sub Admin feature set. */
-    @PostMapping("/admin/orders/collect")
-    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
-    public OrderResponse collect(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam String pickupCode) {
-        return orderService.collectByPickupCode(date, pickupCode);
-    }
-
     @PutMapping("/admin/orders/{id}/status")
     @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
     public AdminOrderResponse adminTransition(@PathVariable UUID id,

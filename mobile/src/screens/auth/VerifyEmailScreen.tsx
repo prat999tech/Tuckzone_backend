@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MailCheck, ShieldCheck } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
@@ -91,53 +91,56 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
   }
 
   return (
-    <ScreenContainer>
-      <View style={styles.iconWrap}>
-        <MailCheck size={30} color={colors.primaryDark} />
-      </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScreenContainer>
+        <View style={styles.iconWrap}>
+          <MailCheck size={30} color={colors.primaryDark} />
+        </View>
 
-      <Text style={typography.h1}>Verify your email</Text>
-      <Text style={styles.intro}>
-        We sent a {otpLength}-digit code to
-      </Text>
-      <Text style={styles.email}>{email}</Text>
+        <Text style={typography.h1}>Verify your email</Text>
+        <Text style={styles.intro}>
+          We sent a {otpLength}-digit code to
+        </Text>
+        <Text style={styles.email}>{email}</Text>
 
-      <Input
-        label="Verification code"
-        required
-        placeholder={'0'.repeat(otpLength)}
-        value={code}
-        onChangeText={setCode}
-        keyboardType="number-pad"
-        maxLength={otpLength}
-        error={error}
-        leftIcon={<ShieldCheck size={18} color={colors.textTertiary} />}
-      />
+        <Input
+          label="Verification code"
+          required
+          placeholder={'0'.repeat(otpLength)}
+          value={code}
+          onChangeText={setCode}
+          keyboardType="number-pad"
+          maxLength={otpLength}
+          error={error}
+          leftIcon={<ShieldCheck size={18} color={colors.textTertiary} />}
+        />
 
-      <Button
-        label="Verify & continue"
-        onPress={handleVerify}
-        loading={submitting}
-        style={styles.verifyButton}
-      />
+        <Button
+          label="Verify & continue"
+          onPress={handleVerify}
+          loading={submitting}
+          style={styles.verifyButton}
+        />
 
-      <Button
-        label={cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
-        variant="ghost"
-        onPress={handleResend}
-        loading={resending}
-        disabled={cooldown > 0}
-      />
+        <Button
+          label={cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+          variant="ghost"
+          onPress={handleResend}
+          loading={resending}
+          disabled={cooldown > 0}
+        />
 
-      <Text style={styles.footnote}>
-        Wrong address? Go back and sign up again — the account is not usable until it is
-        verified.
-      </Text>
-    </ScreenContainer>
+        <Text style={styles.footnote}>
+          Wrong address? Go back and sign up again — the account is not usable until it is
+          verified.
+        </Text>
+      </ScreenContainer>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   iconWrap: {
     width: 60,
     height: 60,

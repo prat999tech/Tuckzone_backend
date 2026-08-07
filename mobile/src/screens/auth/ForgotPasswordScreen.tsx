@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Mail, Lock } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
@@ -79,58 +79,61 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   }
 
   return (
-    <ScreenContainer contentStyle={styles.container}>
-      <Text style={typography.h1}>Forgot your password?</Text>
-      <Text style={styles.subtitle}>
-        We&apos;ll email a one-time code to your registered address.
-      </Text>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScreenContainer contentStyle={styles.container}>
+        <Text style={typography.h1}>Forgot your password?</Text>
+        <Text style={styles.subtitle}>
+          We&apos;ll email a one-time code to your registered address.
+        </Text>
 
-      <View style={styles.form}>
-        <Input
-          label="Email address"
-          required
-          value={email}
-          onChangeText={(text) => {
-            setEmail(text);
-            setCodeSent(false);
-          }}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          error={errors.email}
-          leftIcon={<Mail size={18} color={colors.textTertiary} />}
-        />
+        <View style={styles.form}>
+          <Input
+            label="Email address"
+            required
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              setCodeSent(false);
+            }}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            error={errors.email}
+            leftIcon={<Mail size={18} color={colors.textTertiary} />}
+          />
 
-        {!codeSent ? (
-          <Button label="Send Code" onPress={handleSendCode} loading={sendingCode} />
-        ) : (
-          <>
-            <Input
-              label={`${otpLength}-digit code`}
-              required
-              value={code}
-              onChangeText={setCode}
-              keyboardType="number-pad"
-              maxLength={otpLength}
-              error={errors.code}
-            />
-            <PasswordInput
-              label="New password"
-              required
-              value={newPassword}
-              onChangeText={setNewPassword}
-              error={errors.newPassword}
-              leftIcon={<Lock size={18} color={colors.textTertiary} />}
-            />
-            <Button label="Reset Password" onPress={handleReset} loading={submitting} style={styles.actionSpacing} />
-            <Button label="Resend code" variant="ghost" fullWidth={false} onPress={handleSendCode} disabled={sendingCode} />
-          </>
-        )}
-      </View>
-    </ScreenContainer>
+          {!codeSent ? (
+            <Button label="Send Code" onPress={handleSendCode} loading={sendingCode} />
+          ) : (
+            <>
+              <Input
+                label={`${otpLength}-digit code`}
+                required
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                maxLength={otpLength}
+                error={errors.code}
+              />
+              <PasswordInput
+                label="New password"
+                required
+                value={newPassword}
+                onChangeText={setNewPassword}
+                error={errors.newPassword}
+                leftIcon={<Lock size={18} color={colors.textTertiary} />}
+              />
+              <Button label="Reset Password" onPress={handleReset} loading={submitting} style={styles.actionSpacing} />
+              <Button label="Resend code" variant="ghost" fullWidth={false} onPress={handleSendCode} disabled={sendingCode} />
+            </>
+          )}
+        </View>
+      </ScreenContainer>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: { flexGrow: 1 },
   subtitle: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs },
   form: { marginTop: spacing.xxl },

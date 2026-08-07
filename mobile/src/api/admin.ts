@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type {
+  AdminOrderResponse,
   DailyMenuItemResponse,
   DashboardResponse,
   DemandRow,
@@ -7,7 +8,6 @@ import type {
   ExpenseResponse,
   MenuType,
   MenuItemResponse,
-  OrderResponse,
   OrderStatus,
   OrderingStatus,
   OrderingWindowResponse,
@@ -70,7 +70,14 @@ export const adminApi = {
     apiClient.post<MenuItemResponse>('/admin/menu-items', data).then((r) => r.data),
   updateMenuItem: (id: string, data: MenuItemRequest) =>
     apiClient.put<MenuItemResponse>(`/admin/menu-items/${id}`, data).then((r) => r.data),
+  /** Soft delete (Retire): hides the item from students, keeps it under the Retired filter. */
   deactivateMenuItem: (id: string) => apiClient.delete<void>(`/admin/menu-items/${id}`).then((r) => r.data),
+  /** Brings a retired item back to Active. */
+  activateMenuItem: (id: string) =>
+    apiClient.post<MenuItemResponse>(`/admin/menu-items/${id}/activate`).then((r) => r.data),
+  /** Hard delete — rejected server-side if the item has any order history. */
+  permanentlyDeleteMenuItem: (id: string) =>
+    apiClient.delete<void>(`/admin/menu-items/${id}/permanent`).then((r) => r.data),
 
   // Daily menu / stock
   listDailyMenu: (date: string) =>
@@ -87,13 +94,9 @@ export const adminApi = {
 
   // Orders board
   listOrders: (date: string, status?: OrderStatus) =>
-    apiClient.get<OrderResponse[]>('/admin/orders', { params: { date, status } }).then((r) => r.data),
+    apiClient.get<AdminOrderResponse[]>('/admin/orders', { params: { date, status } }).then((r) => r.data),
   updateOrderStatus: (id: string, data: OrderStatusUpdateRequest) =>
-    apiClient.put<OrderResponse>(`/admin/orders/${id}/status`, data).then((r) => r.data),
-  collectTakeaway: (date: string, pickupCode: string) =>
-    apiClient
-      .post<OrderResponse>('/admin/orders/collect', null, { params: { date, pickupCode } })
-      .then((r) => r.data),
+    apiClient.put<AdminOrderResponse>(`/admin/orders/${id}/status`, data).then((r) => r.data),
 
   // Advance ordering control
   getOrderingStatus: (date: string) =>

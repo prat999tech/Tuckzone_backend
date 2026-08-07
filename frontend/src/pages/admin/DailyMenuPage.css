@@ -193,6 +193,24 @@
   margin-bottom: 2rem;
 }
 
+.retired-section { margin-bottom: 2rem; }
+
+.retired-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.5rem 0;
+  margin-bottom: 0.75rem;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--gray-700);
+  cursor: pointer;
+}
+.retired-header:hover { color: var(--gray-900); }
+
 .catalog-chip {
   display: flex;
   align-items: center;
@@ -207,7 +225,8 @@
 .catalog-chip.inactive { opacity: 0.5; }
 .catalog-chip .price { color: var(--primary); font-weight: 700; }
 
-.catalog-chip .btn-icon {
+.catalog-chip .btn-icon,
+.catalog-chip .btn-icon-danger {
   width: 26px;
   height: 26px;
 }
@@ -227,6 +246,22 @@
 }
 
 .btn-icon:hover { background: var(--info-bg); color: var(--info); }
+
+.btn-icon-danger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--gray-100);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon-danger:hover { background: var(--error-bg); color: var(--error); }
 
 /* ─── Modal (catalog add/edit) ─── */
 .modal-overlay {
