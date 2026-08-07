@@ -222,8 +222,8 @@ export default function IncomingOrdersPage() {
                     <td>{order.deliveryLocation || '—'}</td>
                     <td>
                       <ul className="items-list">
-                        {order.items.map((item) => (
-                          <li key={item.menuItemId}>{item.quantity}× {item.itemName}</li>
+                        {order.items.map((item, index) => (
+                          <li key={`${item.menuItemId}-${index}`}>{item.quantity}× {item.itemName}</li>
                         ))}
                       </ul>
                     </td>

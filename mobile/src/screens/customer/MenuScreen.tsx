@@ -62,7 +62,7 @@ function toFixedCartItem(item: MenuItemResponse, menuDate: string): DailyMenuIte
 
 export function MenuScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
-  const { addToCart, startNewCartWith, removeFromCart, quantityOf, itemCount, total } = useCart();
+  const { addToCart, startNewCartWith, removeFromCart, setQuantity, quantityOf, itemCount, total } = useCart();
 
   const [date, setDate] = useState(todayIso());
   const [dailyItems, setDailyItems] = useState<DailyMenuItemResponse[]>([]);
@@ -249,6 +249,7 @@ export function MenuScreen() {
                         quantity={qty}
                         onIncrement={() => handleAdd(dayItem)}
                         onDecrement={() => removeFromCart(dayItem.id)}
+                        onChangeQuantity={(next) => setQuantity(dayItem, next)}
                         incrementDisabled={qty >= dayItem.remainingQuantity || orderingClosed}
                       />
                     ) : (
@@ -313,6 +314,7 @@ export function MenuScreen() {
                         quantity={qty}
                         onIncrement={() => handleAdd(cartItem)}
                         onDecrement={() => removeFromCart(cartItem.id)}
+                        onChangeQuantity={(next) => setQuantity(cartItem, next)}
                         incrementDisabled={orderingClosed}
                       />
                     ) : (

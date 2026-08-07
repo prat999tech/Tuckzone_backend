@@ -8,12 +8,14 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { DateField } from '../../components/DateField';
+import { TimeField } from '../../components/TimeField';
 import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
 import { adminApi } from '../../api/admin';
+import { menuApi } from '../../api/menu';
 import { apiErrorMessage } from '../../api/client';
 import { colors, spacing, typography } from '../../theme';
-import type { DemandRow, OrderingWindowResponse } from '../../api/types';
+import type { DemandRow, DeliverySlotResponse, OrderingWindowResponse } from '../../api/types';
 
 function todayIso(): string {
   const now = new Date();
@@ -24,6 +26,9 @@ export function OrderingWindowsScreen() {
   const [date, setDate] = useState(todayIso());
   const [windows, setWindows] = useState<OrderingWindowResponse[]>([]);
   const [demand, setDemand] = useState<DemandRow[]>([]);
+  const [slots, setSlots] = useState<DeliverySlotResponse[]>([]);
+  const [cutoffDraft, setCutoffDraft] = useState('');
+  const [savingCutoff, setSavingCutoff] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expandedSlotId, setExpandedSlotId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -33,12 +38,19 @@ export function OrderingWindowsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [statusList, demandList] = await Promise.all([
+      const [statusList, demandList, slotList] = await Promise.all([
         adminApi.getOrderingStatus(date),
         adminApi.getDemand(date),
+        menuApi.getDeliverySlots(),
       ]);
       setWindows(statusList);
       setDemand(demandList);
+      setSlots(slotList);
+      // Only re-seed the draft when it's untouched (still blank), so a save-in-progress
+      // edit is never clobbered by a background refresh.
+      if (slotList.length > 0) {
+        setCutoffDraft((current) => current || slotList[0].orderCutoffTime);
+      }
     } catch (error) {
       Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to load ordering status') });
     } finally {
@@ -47,6 +59,22 @@ export function OrderingWindowsScreen() {
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleSaveCutoff() {
+    if (slots.length === 0) return;
+    setSavingCutoff(true);
+    try {
+      const updated = await adminApi.updateCutoffTime(slots[0].id, cutoffDraft);
+      setSlots([updated]);
+      setCutoffDraft(updated.orderCutoffTime);
+      Toast.show({ type: 'success', text1: 'Cut-off time updated', text2: 'Takes effect immediately' });
+      load();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not update cut-off time') });
+    } finally {
+      setSavingCutoff(false);
+    }
+  }
 
   function toggleExpand(slotId: string) {
     setExpandedSlotId((current) => (current === slotId ? null : slotId));
@@ -95,6 +123,22 @@ export function OrderingWindowsScreen() {
 
   return (
     <ScreenContainer>
+      <Text style={typography.h2}>Order Cut-off Time</Text>
+      <Card style={styles.cutoffCard}>
+        <Text style={styles.cutoffHint}>
+          Students cannot place orders after this time each day, unless a date below has its
+          own override.
+        </Text>
+        <TimeField label="Cut-off time" value={cutoffDraft} onChange={setCutoffDraft} />
+        <Button
+          label="Save"
+          onPress={handleSaveCutoff}
+          loading={savingCutoff}
+          disabled={slots.length === 0 || cutoffDraft === slots[0]?.orderCutoffTime}
+          style={styles.cutoffSaveButton}
+        />
+      </Card>
+
       <DateField label="Menu date" value={date} onChange={setDate} minimumDate={new Date()} />
 
       <Text style={[typography.h2, styles.sectionTitle]}>Recess</Text>
@@ -162,6 +206,9 @@ export function OrderingWindowsScreen() {
 }
 
 const styles = StyleSheet.create({
+  cutoffCard: { gap: spacing.md, marginTop: spacing.md, marginBottom: spacing.xl },
+  cutoffHint: { ...typography.bodySmall, color: colors.textSecondary },
+  cutoffSaveButton: { marginTop: spacing.xs },
   sectionTitle: { marginTop: spacing.xxl, marginBottom: spacing.md },
   slotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   reasonText: { ...typography.caption, marginTop: 2, fontStyle: 'italic' },

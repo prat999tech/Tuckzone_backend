@@ -42,9 +42,18 @@ export const activateMenuItem = async (id) => {
   return response.data;
 };
 
-// Hard delete — rejected server-side if the item has any order history.
+// Hard delete. Past orders are unaffected — each keeps its own snapshot of the item's
+// name/price/etc., independent of this catalog row.
 export const permanentlyDeleteMenuItem = async (id) => {
   const response = await client.delete(`/admin/menu-items/${id}/permanent`);
+  return response.data;
+};
+
+// Changes the slot's standing daily cutoff time — the default every date falls back to
+// unless that date has its own open() override on the mobile Advance Ordering screen.
+// Takes effect immediately.
+export const updateCutoffTime = async (slotId, orderCutoffTime) => {
+  const response = await client.put(`/admin/delivery-slots/${slotId}/cutoff-time`, { orderCutoffTime });
   return response.data;
 };
 

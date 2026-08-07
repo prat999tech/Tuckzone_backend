@@ -26,7 +26,7 @@ type Props = NativeStackScreenProps<CustomerStackParamList, 'Checkout'>;
 
 export function CheckoutScreen({ navigation }: Props) {
   const { user } = useAuth();
-  const { lines, total, cartDate, clearCart, addToCart, removeFromCart, removeLine } = useCart();
+  const { lines, total, cartDate, clearCart, addToCart, removeFromCart, removeLine, setQuantity } = useCart();
 
   // Generated exactly once per checkout attempt (this screen mount), and reused across
   // retries. A key regenerated on every tap would make double-tap protection worthless —
@@ -186,6 +186,7 @@ export function CheckoutScreen({ navigation }: Props) {
                   quantity={line.quantity}
                   onIncrement={() => addToCart(line.dayItem)}
                   onDecrement={() => removeFromCart(line.dayItem.id)}
+                  onChangeQuantity={(next) => setQuantity(line.dayItem, next)}
                   incrementDisabled={line.quantity >= line.dayItem.remainingQuantity}
                 />
                 <Pressable

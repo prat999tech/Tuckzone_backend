@@ -4,6 +4,7 @@ import type {
   DailyMenuItemResponse,
   DashboardResponse,
   DemandRow,
+  DeliverySlotResponse,
   ExpenseCategory,
   ExpenseResponse,
   MenuType,
@@ -106,6 +107,12 @@ export const adminApi = {
   openOrdering: (data: OrderingWindowRequest) =>
     apiClient.post<OrderingWindowResponse>('/admin/ordering/open', data).then((r) => r.data),
   getDemand: (date: string) => apiClient.get<DemandRow[]>('/admin/demand', { params: { date } }).then((r) => r.data),
+  /** Changes the slot's standing daily cutoff time — the default every date falls back to
+   *  unless that date has its own open() override. Takes effect immediately. */
+  updateCutoffTime: (slotId: string, orderCutoffTime: string) =>
+    apiClient
+      .put<DeliverySlotResponse>(`/admin/delivery-slots/${slotId}/cutoff-time`, { orderCutoffTime })
+      .then((r) => r.data),
 
   // Reporting
   getDashboard: (date?: string) =>
