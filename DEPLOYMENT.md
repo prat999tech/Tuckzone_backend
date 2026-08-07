@@ -201,7 +201,7 @@ price so the **admin dashboard shows real profit numbers** rather than zeros —
 
 Safe to run twice; a second run inserts nothing.
 
-The ordering slot already exists — migrations V4 and V12 leave a single active *Recess Time* slot, so there is nothing to configure here.
+The ordering slot already exists — migrations V4, V12 and V13 leave a single active *Recess* slot, so there is nothing to configure here.
 
 ---
 

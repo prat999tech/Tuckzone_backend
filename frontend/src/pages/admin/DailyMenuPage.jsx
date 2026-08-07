@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Plus, Edit2, AlertCircle, X } from 'lucide-react';
+import { Calendar, Plus, Edit2, Trash2, RotateCcw, ChevronDown, ChevronRight, AlertCircle, X, UtensilsCrossed } from 'lucide-react';
 import {
+  activateMenuItem,
   addDailyMenu,
   createMenuItem,
+  deleteMenuItem,
   getDailyMenu,
   getMenuItems,
+  permanentlyDeleteMenuItem,
   updateDailyMenu,
   updateMenuItem,
 } from '../../api/admin';
 import toast from 'react-hot-toast';
+import EmptyState from '../../components/EmptyState';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import MenuActionDialog from '../../components/MenuActionDialog';
 import './DailyMenuPage.css';
 
 const EMPTY_FORM = { name: '', description: '', price: '', imageUrl: '', allergens: '' };
@@ -27,6 +33,11 @@ export default function DailyMenuPage() {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
+
+  // Catalog delete flow: choice dialog first, then a second confirm for permanent delete
+  const [actionTarget, setActionTarget] = useState(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null);
+  const [showRetired, setShowRetired] = useState(false);
 
   useEffect(() => {
     fetchDailyMenu();
@@ -111,6 +122,9 @@ export default function DailyMenuPage() {
     return catalog.filter((item) => item.active && !usedIds.includes(item.id));
   };
 
+  const activeCatalog = catalog.filter((item) => item.active);
+  const retiredCatalog = catalog.filter((item) => !item.active);
+
   // ─── Catalog add/edit ───
   const validateForm = () => {
     const errs = {};
@@ -151,6 +165,40 @@ export default function DailyMenuPage() {
     }
   };
 
+  const handleRetire = async () => {
+    if (!actionTarget) return;
+    try {
+      await deleteMenuItem(actionTarget.id);
+      toast.success('Item retired');
+      setActionTarget(null);
+      fetchCatalog();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not retire item');
+    }
+  };
+
+  const handleRestore = async (item) => {
+    try {
+      await activateMenuItem(item.id);
+      toast.success('Item restored to Active');
+      fetchCatalog();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not restore item');
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteTarget) return;
+    try {
+      await permanentlyDeleteMenuItem(permanentDeleteTarget.id);
+      toast.success('Item permanently deleted');
+      setPermanentDeleteTarget(null);
+      fetchCatalog();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not permanently delete item');
+    }
+  };
+
   const openModal = (item = null) => {
     setFormErrors({});
     if (item) {
@@ -183,19 +231,59 @@ export default function DailyMenuPage() {
         </button>
       </div>
 
-      {catalog.length === 0 ? (
-        <div className="empty-state">No daily catalog items yet. Add one to schedule it below.</div>
+      {activeCatalog.length === 0 ? (
+        <EmptyState
+          icon={UtensilsCrossed}
+          title="No Menu Available"
+          message="No menu items have been added yet."
+          action={
+            <button className="btn-primary" onClick={() => openModal()}>
+              <Plus size={18} /> Add Menu
+            </button>
+          }
+        />
       ) : (
         <div className="catalog-chip-list">
-          {catalog.map((item) => (
-            <div key={item.id} className={`catalog-chip ${!item.active ? 'inactive' : ''}`}>
+          {activeCatalog.map((item) => (
+            <div key={item.id} className="catalog-chip">
               <span>{item.name}</span>
               <span className="price">₹{item.price}</span>
               <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
                 <Edit2 size={14} />
               </button>
+              <button className="btn-icon-danger" onClick={() => setActionTarget(item)} title="Delete">
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {retiredCatalog.length > 0 && (
+        <div className="retired-section">
+          <button className="retired-header" onClick={() => setShowRetired((prev) => !prev)}>
+            {showRetired ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            Retired Items ({retiredCatalog.length})
+          </button>
+          {showRetired && (
+            <div className="catalog-chip-list">
+              {retiredCatalog.map((item) => (
+                <div key={item.id} className="catalog-chip inactive">
+                  <span>{item.name}</span>
+                  <span className="price">₹{item.price}</span>
+                  <button className="btn-icon" onClick={() => openModal(item)} title="Edit">
+                    <Edit2 size={14} />
+                  </button>
+                  <button className="btn-icon" onClick={() => handleRestore(item)} title="Restore">
+                    <RotateCcw size={14} />
+                  </button>
+                  <button className="btn-icon-danger" onClick={() => setPermanentDeleteTarget(item)} title="Delete Permanently">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -266,7 +354,11 @@ export default function DailyMenuPage() {
       {loading ? (
         <div className="loading-state">Loading Meal of the Day...</div>
       ) : dailyItems.length === 0 ? (
-        <div className="empty-state">No items scheduled for {date}. Use the dropdown above to add items.</div>
+        <EmptyState
+          icon={UtensilsCrossed}
+          title="Nothing Scheduled Yet"
+          message={`No items scheduled for ${date}. Use the dropdown above to add items.`}
+        />
       ) : (
         <div className="daily-items-list">
           {dailyItems.map((item) => (
@@ -385,6 +477,26 @@ export default function DailyMenuPage() {
           </div>
         </div>
       )}
+
+      <MenuActionDialog
+        open={Boolean(actionTarget)}
+        itemName={actionTarget?.name}
+        onRetire={handleRetire}
+        onPermanentDelete={() => {
+          setPermanentDeleteTarget(actionTarget);
+          setActionTarget(null);
+        }}
+        onCancel={() => setActionTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(permanentDeleteTarget)}
+        title="Permanently delete this item?"
+        message="Are you sure you want to permanently delete this menu item? This action cannot be undone."
+        confirmLabel="Delete Permanently"
+        onCancel={() => setPermanentDeleteTarget(null)}
+        onConfirm={handlePermanentDelete}
+      />
     </div>
   );
 }

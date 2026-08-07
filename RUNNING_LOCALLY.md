@@ -51,19 +51,20 @@ Scan the QR with Expo Go. Everything works except real push (needs a dev build).
 this version of Expo Go"*, install the matching build:
 <https://github.com/expo/expo-go-releases/releases/download/Expo-Go-54.0.8/Expo-Go-54.0.8.apk>
 
-## Test accounts (created on a fresh DB)
+## Test accounts
+
+With `APP_SEED_ENABLED=true`, `DataSeeder` creates one bootstrap account on first boot
+(idempotent — skipped if the email already exists):
 
 | Role | Email | Password |
 |---|---|---|
-| Canteen Admin | admin@school.local | Admin@12345 |
-| Parent | parent@school.local | Parent@123 |
-| Student | student@school.local | Student@123 |
-| Teacher | teacher@school.local | Teacher@123 |
+| Canteen Admin | canteenadmin@school.local | Admin@12345 |
 
-Student admission number `ADM-001`, parent mobile `9876500001` — use these on the
-parent's "Link a Child" screen.
+(Override via `CANTEEN_ADMIN_EMAIL` / `CANTEEN_ADMIN_PASSWORD` in `backend/.env`.)
 
-Register more via the app, or the admin invite code `CANTEEN-SETUP-2026`.
+There is no auto-seeded parent, student, or teacher — register them yourself through the
+app, or the admin invite code `CANTEEN-SETUP-2026`. `backend/demo-seed.sql` seeds the menu
+catalogue only (run it with `psql ... -f backend/demo-seed.sql`), not user accounts.
 
 ## Where do OTPs and emails go?
 

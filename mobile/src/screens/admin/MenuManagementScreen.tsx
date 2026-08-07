@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Plus, Pencil, Trash2, Power } from 'lucide-react-native';
+import { Plus, Pencil, Trash2, Power, UtensilsCrossed, Archive, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
@@ -75,6 +75,10 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItemResponse | null>(null);
+  const [showRetired, setShowRetired] = useState(false);
+  const [actionTarget, setActionTarget] = useState<MenuItemResponse | null>(null);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<MenuItemResponse | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -174,26 +178,46 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
     }
   }
 
-  function confirmDeactivate(item: MenuItemResponse) {
-    Alert.alert('Retire this item?', `${item.name} will no longer appear in future menus.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Retire',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await adminApi.deactivateMenuItem(item.id);
-            Toast.show({ type: 'success', text1: 'Item retired' });
-            load();
-          } catch (error) {
-            Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not retire item') });
-          }
-        },
-      },
-    ]);
+  async function handleRetire(item: MenuItemResponse) {
+    setActionTarget(null);
+    try {
+      await adminApi.deactivateMenuItem(item.id);
+      Toast.show({ type: 'success', text1: 'Item retired', text2: 'Hidden from students; find it under Retired Items.' });
+      load();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not retire item') });
+    }
+  }
+
+  async function handleRestore(item: MenuItemResponse) {
+    try {
+      await adminApi.activateMenuItem(item.id);
+      Toast.show({ type: 'success', text1: 'Item restored to Active' });
+      load();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not restore item') });
+    }
+  }
+
+  async function handlePermanentDelete() {
+    if (!permanentDeleteTarget) return;
+    setDeleting(true);
+    try {
+      await adminApi.permanentlyDeleteMenuItem(permanentDeleteTarget.id);
+      Toast.show({ type: 'success', text1: 'Item permanently deleted' });
+      setPermanentDeleteTarget(null);
+      load();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not permanently delete item') });
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (loading) return <LoadingView />;
+
+  const activeItems = items.filter((item) => item.active);
+  const retiredItems = items.filter((item) => !item.active);
 
   return (
     <>
@@ -205,26 +229,30 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
         style={{ marginBottom: 0, marginTop: spacing.md }}
       />
 
-      {items.length === 0 ? (
-        <EmptyState icon={<Plus color={colors.primaryDark} size={26} />} title="No catalog items yet" />
+      {activeItems.length === 0 ? (
+        <EmptyState
+          icon={<UtensilsCrossed color={colors.primaryDark} size={26} />}
+          title="No Menu Available"
+          message="No menu items have been added yet."
+          action={<Button label="Add Menu" icon={<Plus size={18} color={colors.textOnPrimary} />} onPress={openCreate} />}
+        />
       ) : (
         <View style={{ gap: spacing.md, marginTop: spacing.lg }}>
-          {items.map((item) => (
-            <Card key={item.id} style={[styles.itemCard, !item.active && styles.itemCardInactive]}>
+          {activeItems.map((item) => (
+            <Card key={item.id} style={styles.itemCard}>
               {menuType === 'FIXED' && (
                 <View style={[styles.dot, { backgroundColor: item.available ? colors.success : colors.danger }]} />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={typography.h3}>{item.name}</Text>
                 <Text style={typography.caption}>{formatCurrency(item.price)}</Text>
-                {!item.active && <Text style={styles.inactiveLabel}>Retired</Text>}
-                {menuType === 'FIXED' && item.active && (
+                {menuType === 'FIXED' && (
                   <Text style={[styles.inactiveLabel, { color: item.available ? colors.success : colors.danger }]}>
                     {item.available ? 'Available' : 'Out of Stock'}
                   </Text>
                 )}
               </View>
-              {menuType === 'FIXED' && item.active && (
+              {menuType === 'FIXED' && (
                 <Pressable onPress={() => toggleAvailable(item)} hitSlop={8} style={styles.iconButton}>
                   <Power size={16} color={colors.textSecondary} />
                 </Pressable>
@@ -232,13 +260,49 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
               <Pressable onPress={() => openEdit(item)} hitSlop={8} style={styles.iconButton}>
                 <Pencil size={16} color={colors.textSecondary} />
               </Pressable>
-              {item.active && canRetire && (
-                <Pressable onPress={() => confirmDeactivate(item)} hitSlop={8} style={styles.iconButton}>
+              {canRetire && (
+                <Pressable onPress={() => setActionTarget(item)} hitSlop={8} style={styles.iconButton}>
                   <Trash2 size={16} color={colors.danger} />
                 </Pressable>
               )}
             </Card>
           ))}
+        </View>
+      )}
+
+      {canRetire && retiredItems.length > 0 && (
+        <View style={styles.retiredSection}>
+          <Pressable style={styles.retiredHeader} onPress={() => setShowRetired((prev) => !prev)}>
+            {showRetired ? (
+              <ChevronDown size={18} color={colors.textSecondary} />
+            ) : (
+              <ChevronRight size={18} color={colors.textSecondary} />
+            )}
+            <Text style={typography.h3}>Retired Items ({retiredItems.length})</Text>
+          </Pressable>
+
+          {showRetired && (
+            <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+              {retiredItems.map((item) => (
+                <Card key={item.id} style={[styles.itemCard, styles.itemCardInactive]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={typography.h3}>{item.name}</Text>
+                    <Text style={typography.caption}>{formatCurrency(item.price)}</Text>
+                    <Text style={styles.inactiveLabel}>Retired</Text>
+                  </View>
+                  <Pressable onPress={() => openEdit(item)} hitSlop={8} style={styles.iconButton}>
+                    <Pencil size={16} color={colors.textSecondary} />
+                  </Pressable>
+                  <Pressable onPress={() => handleRestore(item)} hitSlop={8} style={styles.iconButton}>
+                    <RotateCcw size={16} color={colors.primary} />
+                  </Pressable>
+                  <Pressable onPress={() => setPermanentDeleteTarget(item)} hitSlop={8} style={styles.iconButton}>
+                    <Trash2 size={16} color={colors.danger} />
+                  </Pressable>
+                </Card>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -259,6 +323,52 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
         </View>
         <Input label="Image URL" value={imageUrl} onChangeText={setImageUrl} autoCapitalize="none" />
         <Button label={editingItem ? 'Save Changes' : 'Create Item'} onPress={handleSave} loading={saving} style={{ marginTop: spacing.md }} />
+      </FormModal>
+
+      <FormModal
+        visible={actionTarget !== null}
+        title="What would you like to do with this menu item?"
+        onClose={() => setActionTarget(null)}
+      >
+        <Text style={styles.dialogItemName}>{actionTarget?.name}</Text>
+        <Button
+          label="Retire"
+          variant="secondary"
+          icon={<Archive size={18} color={colors.warning} />}
+          onPress={() => actionTarget && handleRetire(actionTarget)}
+          style={styles.dialogButton}
+        />
+        <Button
+          label="Permanently Delete"
+          variant="danger"
+          icon={<Trash2 size={18} color={colors.textOnPrimary} />}
+          onPress={() => {
+            setPermanentDeleteTarget(actionTarget);
+            setActionTarget(null);
+          }}
+          style={styles.dialogButton}
+        />
+        <Button label="Cancel" variant="ghost" onPress={() => setActionTarget(null)} />
+      </FormModal>
+
+      <FormModal
+        visible={permanentDeleteTarget !== null}
+        title="Permanently delete this item?"
+        onClose={() => setPermanentDeleteTarget(null)}
+      >
+        <Text style={styles.dialogBody}>
+          Are you sure you want to permanently delete{' '}
+          <Text style={{ fontWeight: '700' }}>{permanentDeleteTarget?.name}</Text>? This action
+          cannot be undone.
+        </Text>
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <Button label="Cancel" variant="secondary" onPress={() => setPermanentDeleteTarget(null)} />
+          </View>
+          <View style={styles.half}>
+            <Button label="Delete Permanently" variant="danger" onPress={handlePermanentDelete} loading={deleting} />
+          </View>
+        </View>
       </FormModal>
     </>
   );
@@ -422,6 +532,11 @@ const styles = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5 },
   inactiveLabel: { ...typography.caption, color: colors.danger, fontWeight: '700', marginTop: 2 },
   iconButton: { padding: spacing.xs },
+  retiredSection: { marginTop: spacing.xl },
+  retiredHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dialogItemName: { ...typography.bodyMedium, color: colors.textSecondary, marginBottom: spacing.md },
+  dialogButton: { marginBottom: spacing.sm },
+  dialogBody: { ...typography.body, marginBottom: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-end' },
   half: { flex: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },

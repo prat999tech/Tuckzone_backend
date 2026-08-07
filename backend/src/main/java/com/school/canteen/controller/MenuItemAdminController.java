@@ -70,4 +70,19 @@ public class MenuItemAdminController {
     public void deactivate(@PathVariable UUID id) {
         menuItemService.deactivate(id);
     }
+
+    /** Brings a retired item back to Active. */
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
+    public MenuItemResponse activate(@PathVariable UUID id) {
+        return menuItemService.activate(id);
+    }
+
+    /** Hard delete — only succeeds for an item with no order history. */
+    @DeleteMapping("/{id}/permanent")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
+    public void permanentlyDelete(@PathVariable UUID id) {
+        menuItemService.permanentlyDelete(id);
+    }
 }

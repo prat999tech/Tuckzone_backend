@@ -40,7 +40,6 @@ import com.school.canteen.service.OrderingWindowService;
 import com.school.canteen.service.WalletService;
 import com.school.canteen.util.PageRequests;
 import java.math.BigDecimal;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -85,9 +84,6 @@ public class OrderServiceImpl implements OrderService {
     /** How many times to look for the winning order before giving up on a duplicate race. */
     private static final int DUPLICATE_LOOKUP_ATTEMPTS = 5;
     private static final long DUPLICATE_LOOKUP_BACKOFF_MS = 40L;
-
-    /** SecureRandom so pickup codes cannot be guessed to collect someone else's food. */
-    private static final SecureRandom PICKUP_CODE_RANDOM = new SecureRandom();
 
     private final OrderRepository orderRepository;
     private final DailyMenuItemRepository dailyMenuItemRepository;
@@ -214,9 +210,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = new Order();
         order.setOrderNumber(orderRepository.nextOrderNumber());
         order.setPlacedBy(user);
-        // Order type must be resolved first: a takeaway order has no delivery address, so
-        // the location rules below depend on knowing which kind of order this is.
-        applyOrderType(user, request, order);
+        applyOrderType(order);
         applyRecipientAndLocation(user, request, order);
         order.setSlot(slot);
         order.setMenuDate(date);
@@ -372,12 +366,12 @@ public class OrderServiceImpl implements OrderService {
 
     // --- helpers ---------------------------------------------------------------
 
-    /** There is a single ordering slot (Recess Time) — the customer no longer picks one,
-     *  so the server resolves the one active slot instead of trusting a client-supplied id. */
+    /** There is a single ordering slot (Recess) — the customer no longer picks one, so the
+     *  server resolves the one active slot instead of trusting a client-supplied id. */
     private DeliverySlot resolveRecessSlot() {
         return deliverySlotRepository.findByActiveTrueOrderByOrderCutoffTimeAsc().stream()
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Recess Time is not configured"));
+                .orElseThrow(() -> new ResourceNotFoundException("Recess is not configured"));
     }
 
     private void validateOrderingWindow(LocalDate date, DeliverySlot slot) {
@@ -395,14 +389,13 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Sets who receives the order and where it goes.
      *
-     * For a parent the location is derived from the linked child's class and section
-     * rather than trusting the client, because the delivery staff need an actual room to
-     * walk to — a client-supplied placeholder leaves them with nothing to act on.
+     * For a parent, and for a student ordering for themselves, the location is derived from
+     * the student's class and section rather than trusting the client — delivery staff need
+     * an actual classroom to walk to, and Class is mandatory registration data anyway, so
+     * there is nothing useful a free-text field would add. A teacher has no class, so their
+     * own delivery location remains a required free-text field.
      */
     private void applyRecipientAndLocation(User user, PlaceOrderRequest request, Order order) {
-        String extraDetail = (request.deliveryLocation() == null)
-                ? "" : request.deliveryLocation().trim();
-
         if (user.getRole() == Role.PARENT) {
             if (request.beneficiaryStudentProfileId() == null) {
                 throw new BadRequestException("Select which child this order is for");
@@ -416,11 +409,8 @@ public class OrderServiceImpl implements OrderService {
             }
             order.setBeneficiaryStudentProfile(child);
             order.setRecipientName(child.getUser().getFullName());
-
-            String classroom = "Class " + child.getStudentClass() + "-" + child.getSection()
-                    + " (Roll " + child.getRollNumber() + ")";
-            order.setDeliveryLocation(
-                    extraDetail.isBlank() ? classroom : classroom + " — " + extraDetail);
+            order.setDeliveryLocation("Class " + child.getStudentClass() + "-" + child.getSection()
+                    + " (Roll " + child.getRollNumber() + ")");
             return;
         }
 
@@ -430,11 +420,17 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setRecipientName(user.getFullName());
 
-        if (order.getOrderType() == OrderType.TAKEAWAY) {
-            // Collected at the counter, so there is nothing to deliver and nowhere to ask
-            // the customer to name. applyOrderType already set the location.
+        if (user.getRole() == Role.STUDENT) {
+            StudentProfile self = studentProfileRepository.findByUser_Id(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Student profile not found"));
+            order.setDeliveryLocation("Class " + self.getStudentClass() + "-" + self.getSection()
+                    + " (Roll " + self.getRollNumber() + ")");
             return;
         }
+
+        // Teacher — no class, so their own free-text location is still required.
+        String extraDetail = (request.deliveryLocation() == null)
+                ? "" : request.deliveryLocation().trim();
         if (extraDetail.isBlank()) {
             throw new BadRequestException("Delivery location is required");
         }
@@ -492,61 +488,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Decides delivery vs takeaway.
-     *
-     * Takeaway is restricted to teachers on purpose: students are expected to stay in class
-     * during recess (avoiding the counter crowding this app exists to remove), and a parent
-     * ordering remotely cannot walk up to collect it.
+     * Every order is delivered — takeaway (counter pickup, teacher-only) was removed along
+     * with the admin's pickup-code collection screen. {@code request.orderType()} is
+     * ignored rather than validated: an old client sending TAKEAWAY should not error, it
+     * should just be treated as a delivery. {@link OrderType#TAKEAWAY} itself stays in the
+     * enum only so historical orders placed before this change keep deserializing.
      */
-    private void applyOrderType(User user, PlaceOrderRequest request, Order order) {
-        OrderType type = (request.orderType() == null) ? OrderType.DELIVERY : request.orderType();
-        if (type == OrderType.TAKEAWAY && user.getRole() != Role.TEACHER) {
-            throw new BadRequestException("Only teachers can place takeaway orders");
-        }
-        order.setOrderType(type);
-        if (type == OrderType.TAKEAWAY) {
-            order.setPickupCode(generatePickupCode());
-            // The counter is the collection point; there is nowhere to deliver to.
-            order.setDeliveryLocation("Counter pickup");
-        }
-    }
-
-    /**
-     * Short, unambiguous collection code.
-     *
-     * Excludes characters that are easily misread aloud or on a printed slip (0/O, 1/I),
-     * because staff key these in by hand at a busy counter.
-     */
-    private String generatePickupCode() {
-        final String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        StringBuilder code = new StringBuilder(6);
-        for (int i = 0; i < 6; i++) {
-            code.append(alphabet.charAt(PICKUP_CODE_RANDOM.nextInt(alphabet.length())));
-        }
-        return code.toString();
-    }
-
-    @Override
-    @Transactional
-    public OrderResponse collectByPickupCode(LocalDate menuDate, String pickupCode) {
-        Order order = orderRepository
-                .findByMenuDateAndPickupCode(menuDate, pickupCode.trim().toUpperCase(Locale.ROOT))
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "No takeaway order found for that pickup code"));
-
-        if (order.getStatus() == OrderStatus.DELIVERED) {
-            // Idempotent: staff re-scanning a slip should not be an error, and it must not
-            // look like a second collection.
-            return orderMapper.toResponse(order);
-        }
-        if (order.getStatus() != OrderStatus.PACKED
-                && order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
-            throw new InvalidOrderStateException(
-                    "This order is not ready for collection yet (" + order.getStatus() + ")");
-        }
-        order.setStatus(OrderStatus.DELIVERED);
-        notifyStatus(order, OrderStatus.DELIVERED);
-        return orderMapper.toResponse(order);
+    private void applyOrderType(Order order) {
+        order.setOrderType(OrderType.DELIVERY);
     }
 
     /** Sends the order's owner the message matching its new status. */

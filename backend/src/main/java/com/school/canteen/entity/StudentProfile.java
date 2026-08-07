@@ -35,8 +35,9 @@ public class StudentProfile extends BaseEntity {
     @Column(name = "seat_number")
     private String seatNumber;
 
-    /** The number the student records for their parent; a parent link must match it. */
-    @Column(name = "parent_mobile", nullable = false)
+    /** The number the student records for their parent; a parent link must match it.
+     *  Optional — a student registered without one simply cannot be linked until it is added. */
+    @Column(name = "parent_mobile")
     private String parentMobile;
 
     @Column(name = "student_mobile")

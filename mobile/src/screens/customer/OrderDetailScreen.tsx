@@ -11,7 +11,7 @@ import { Button } from '../../components/Button';
 import { LoadingView } from '../../components/LoadingView';
 import { ordersApi } from '../../api/orders';
 import { apiErrorMessage } from '../../api/client';
-import { formatCurrency, formatDateTime } from '../../utils/format';
+import { classLabel, formatCurrency, formatDateTime, orderStatusLabel } from '../../utils/format';
 import { colors, spacing, typography } from '../../theme';
 import type { OrderResponse } from '../../api/types';
 import type { CustomerStackParamList } from '../../navigation/types';
@@ -67,7 +67,7 @@ export function OrderDetailScreen({ route }: Props) {
     <ScreenContainer>
       <View style={styles.headerRow}>
         <Text style={typography.h1}>{order.orderNumber}</Text>
-        <Badge label={order.status} />
+        <Badge label={order.status} displayText={orderStatusLabel(order.status)} />
       </View>
       <Text style={styles.date}>{formatDateTime(order.createdAt)}</Text>
 
@@ -90,7 +90,10 @@ export function OrderDetailScreen({ route }: Props) {
 
       <Card style={styles.detailsCard}>
         <DetailRow label="Recipient" value={order.recipientName} />
-        <DetailRow label="Recess Time" value={order.slotName} />
+        {order.recipientClass ? (
+          <DetailRow label="Class" value={classLabel(order.recipientClass, order.recipientSection)} />
+        ) : null}
+        <DetailRow label="Recess" value={order.slotName} />
         <DetailRow
           label={order.orderType === 'TAKEAWAY' ? 'Collection' : 'Location'}
           value={order.orderType === 'TAKEAWAY' ? 'Counter pickup' : order.deliveryLocation}

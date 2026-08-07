@@ -7,7 +7,6 @@ import {
   Receipt,
   Users,
   CalendarClock,
-  KeyRound,
   ShieldPlus,
   LogOut,
   ChevronRight,
@@ -25,7 +24,6 @@ const LINKS: { screen: keyof AdminStackParamList; label: string; description: st
   { screen: 'Reports', label: 'Sales Reports', description: 'Revenue, profit, peak hours', icon: <BarChart3 size={20} color={colors.primaryDark} /> },
   { screen: 'Expenses', label: 'Expenses', description: 'Track overheads for accurate profit', icon: <Receipt size={20} color={colors.primaryDark} /> },
   { screen: 'OrderingWindows', label: 'Advance Ordering', description: 'Open/close ordering, view demand', icon: <CalendarClock size={20} color={colors.primaryDark} /> },
-  { screen: 'TakeawayCollect', label: 'Collect Takeaway', description: 'Hand over orders by pickup code', icon: <KeyRound size={20} color={colors.primaryDark} /> },
   { screen: 'Users', label: 'Accounts', description: 'Enable or disable user accounts', icon: <Users size={20} color={colors.primaryDark} /> },
   { screen: 'SubAdmins', label: 'Sub Admins', description: 'Create and manage sub admin accounts', icon: <ShieldPlus size={20} color={colors.primaryDark} /> },
 ];

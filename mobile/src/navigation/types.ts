@@ -38,7 +38,6 @@ export type AdminStackParamList = {
   Expenses: undefined;
   Users: undefined;
   OrderingWindows: undefined;
-  TakeawayCollect: undefined;
   Notifications: undefined;
   SubAdmins: undefined;
 };

@@ -27,6 +27,14 @@ export function classLabel(studentClass?: string | null, section?: string | null
   return section ? `${studentClass}-${section}` : studentClass;
 }
 
+/** Collapses the full order lifecycle (PLACED/ACCEPTED/PREPARING/PACKED/OUT_FOR_DELIVERY/
+ *  REJECTED/CANCELLED/DELIVERED) down to the two words customers and admins actually see.
+ *  The real status still drives every business rule (Accept/Reject, filters, action
+ *  buttons) — this only simplifies what gets printed on screen. */
+export function orderStatusLabel(status: string): 'Placed' | 'Delivered' {
+  return status === 'DELIVERED' ? 'Delivered' : 'Placed';
+}
+
 export function initials(fullName?: string | null): string {
   if (!fullName) return '?';
   return fullName

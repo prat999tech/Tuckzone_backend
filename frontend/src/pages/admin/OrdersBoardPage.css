@@ -127,6 +127,29 @@
   color: var(--gray-900);
 }
 
+.kc-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.status-badge-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.status-badge-pill.status-delivered {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
 .slot-badge {
   font-size: 0.7rem;
   font-weight: 600;

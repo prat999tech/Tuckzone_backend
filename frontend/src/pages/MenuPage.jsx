@@ -3,6 +3,7 @@ import { getTodayMenu, getFixedMenu } from '../api/menu';
 import { getChildren } from '../api/parent';
 import { placeOrder } from '../api/orders';
 import { useAuth } from '../context/AuthContext';
+import { classLabel } from '../utils/format';
 import { ShoppingCart, Plus, Minus, AlertCircle, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './MenuPage.css';
@@ -86,7 +87,7 @@ export default function MenuPage() {
       if (!selectedChild) {
         errs.child = 'Please select a child for this order';
       }
-    } else {
+    } else if (user?.role === 'TEACHER') {
       if (!deliveryLocation.trim()) {
         errs.location = 'Delivery location is required';
       }
@@ -107,7 +108,7 @@ export default function MenuPage() {
     try {
       const orderPayload = {
         menuDate: selectedDate,
-        deliveryLocation: user?.role === 'PARENT' ? 'Child Classroom' : deliveryLocation.trim(),
+        deliveryLocation: user?.role === 'TEACHER' ? deliveryLocation.trim() : undefined,
         items: cart.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
         idempotencyKey: crypto.randomUUID(),
         ...(user?.role === 'PARENT' && { beneficiaryStudentProfileId: selectedChild }),
@@ -305,8 +306,8 @@ export default function MenuPage() {
 
             <div className="order-details-form">
               <div className="form-group">
-                <label>Recess Time</label>
-                <p className="recess-note">Your order will be ready for Recess Time.</p>
+                <label>Recess</label>
+                <p className="recess-note">Your order will be ready for Recess.</p>
               </div>
 
               {user?.role === 'PARENT' ? (
@@ -333,9 +334,20 @@ export default function MenuPage() {
                     </span>
                   )}
                 </div>
+              ) : user?.role === 'STUDENT' ? (
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Student Name</label>
+                    <input type="text" value={user.fullName} disabled />
+                  </div>
+                  <div className="form-group">
+                    <label>Class</label>
+                    <input type="text" value={classLabel(user.studentClass, user.section)} disabled />
+                  </div>
+                </div>
               ) : (
                 <div className="form-group">
-                  <label>Delivery Location (Class/Dept)</label>
+                  <label>Delivery Location</label>
                   <input
                     type="text"
                     value={deliveryLocation}
@@ -343,7 +355,7 @@ export default function MenuPage() {
                       setDeliveryLocation(e.target.value);
                       if (errors.location) setErrors({ ...errors, location: null });
                     }}
-                    placeholder={user?.role === 'TEACHER' ? 'e.g. Staff Room / Science Dept' : 'e.g. Class 10A'}
+                    placeholder="e.g. Staff Room / Science Dept"
                     className={errors.location ? 'input-error' : ''}
                   />
                   {errors.location && (

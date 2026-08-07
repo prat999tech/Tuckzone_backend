@@ -41,7 +41,11 @@ public class ParentChildServiceImpl implements ParentChildService {
     public ChildResponse linkChild(UUID parentUserId, LinkChildRequest request) {
         StudentProfile profile = studentProfileRepository
                 .findByAdmissionNumber(request.admissionNumber())
-                .filter(p -> p.getParentMobile().equals(request.parentMobile()))
+                // Called on request.parentMobile() (always non-blank, enforced by
+                // LinkChildRequest) rather than the student's stored value, which can now be
+                // null for a student who registered without one — that must fail the match,
+                // not throw.
+                .filter(p -> request.parentMobile().equals(p.getParentMobile()))
                 // Same generic message whether the admission number is wrong or the mobile
                 // doesn't match, so an attacker can't probe which admission numbers exist.
                 .orElseThrow(() -> new BadRequestException(

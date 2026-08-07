@@ -24,6 +24,10 @@ public interface DailyMenuItemRepository extends JpaRepository<DailyMenuItem, UU
 
     Optional<DailyMenuItem> findByMenuDateAndMenuItem_Id(LocalDate menuDate, UUID menuItemId);
 
+    /** Scheduling entries are disposable (unlike order history), so a permanent catalog
+     *  delete clears every date this item was ever scheduled for first. */
+    void deleteByMenuItem_Id(UUID menuItemId);
+
     /**
      * Race-safe stock decrement in a single statement: the row is only updated if it is
      * available and still has enough stock. Returns the number of rows changed (1 = the

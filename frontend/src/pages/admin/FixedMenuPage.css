@@ -10,6 +10,24 @@
   gap: 1.25rem;
 }
 
+.retired-section { margin-top: 2rem; }
+
+.retired-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--gray-700);
+  cursor: pointer;
+}
+.retired-header:hover { color: var(--gray-900); }
+
 /* ─── Catalog Card ─── */
 .catalog-card {
   background: var(--white);

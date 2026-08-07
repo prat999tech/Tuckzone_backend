@@ -9,7 +9,6 @@ import { Card } from '../../components/Card';
 import { Chip } from '../../components/Chip';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { SegmentedControl } from '../../components/SegmentedControl';
 import { QuantityStepper } from '../../components/QuantityStepper';
 import { EmptyState } from '../../components/EmptyState';
 import { menuApi } from '../../api/menu';
@@ -18,9 +17,9 @@ import { parentApi } from '../../api/parent';
 import { apiErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import { formatCurrency, formatDate } from '../../utils/format';
+import { classLabel, formatCurrency, formatDate } from '../../utils/format';
 import { colors, radius, shadowFloating, spacing, typography } from '../../theme';
-import type { DeliverySlotResponse, ChildResponse, OrderingWindowResponse, OrderType } from '../../api/types';
+import type { DeliverySlotResponse, ChildResponse, OrderingWindowResponse } from '../../api/types';
 import type { CustomerStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<CustomerStackParamList, 'Checkout'>;
@@ -43,7 +42,6 @@ export function CheckoutScreen({ navigation }: Props) {
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
   const [orderingStatus, setOrderingStatus] = useState<OrderingWindowResponse | null>(null);
 
-  const [orderType, setOrderType] = useState<OrderType>('DELIVERY');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [children, setChildren] = useState<ChildResponse[]>([]);
   const [selectedChildId, setSelectedChildId] = useState('');
@@ -53,6 +51,7 @@ export function CheckoutScreen({ navigation }: Props) {
 
   const isParent = user?.role === 'PARENT';
   const isTeacher = user?.role === 'TEACHER';
+  const isStudent = user?.role === 'STUDENT';
 
   useEffect(() => {
     menuApi.getDeliverySlots().then((data) => {
@@ -79,9 +78,9 @@ export function CheckoutScreen({ navigation }: Props) {
 
   function validate(): boolean {
     const next: Record<string, string> = {};
-    if (!selectedSlotId) next.slot = 'Recess Time is unavailable right now — please try again';
+    if (!selectedSlotId) next.slot = 'Recess is unavailable right now — please try again';
     if (isParent && !selectedChildId) next.child = 'Please select which child this order is for';
-    if (!isParent && orderType === 'DELIVERY' && !deliveryLocation.trim()) {
+    if (isTeacher && !deliveryLocation.trim()) {
       next.location = 'Delivery location is required';
     }
     setErrors(next);
@@ -99,10 +98,9 @@ export function CheckoutScreen({ navigation }: Props) {
     setPlacing(true);
     try {
       const order = await ordersApi.place({
-        orderType: isTeacher ? orderType : 'DELIVERY',
         menuDate,
         beneficiaryStudentProfileId: isParent ? selectedChildId : undefined,
-        deliveryLocation: isParent ? undefined : deliveryLocation.trim(),
+        deliveryLocation: isTeacher ? deliveryLocation.trim() : undefined,
         items: lines.map((line) => ({ menuItemId: line.dayItem.menuItem.id, quantity: line.quantity })),
         idempotencyKey: idempotencyKeyRef.current,
       });
@@ -223,10 +221,10 @@ export function CheckoutScreen({ navigation }: Props) {
           <View style={styles.infoBox}>
             <Info size={20} color={colors.textSecondary} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.infoTitle}>Delivery: Recess Time</Text>
+              <Text style={styles.infoTitle}>Delivery: Recess</Text>
               <Text style={styles.infoBody}>
-                Your order will be prepared and ready for pickup or delivery during the
-                standard recess period.
+                Your order will be prepared and ready for delivery during the standard
+                recess period.
               </Text>
             </View>
           </View>
@@ -237,23 +235,9 @@ export function CheckoutScreen({ navigation }: Props) {
             <View style={styles.warningBox}>
               <AlertTriangle size={18} color={colors.warning} />
               <Text style={styles.warningText}>
-                Ordering for {selectedSlot?.name ?? 'Recess Time'} on {formatDate(menuDate)} is
+                Ordering for {selectedSlot?.name ?? 'Recess'} on {formatDate(menuDate)} is
                 currently closed{orderingStatus?.reason ? ` (${orderingStatus.reason})` : ''}.
               </Text>
-            </View>
-          )}
-
-          {isTeacher && (
-            <View>
-              <Text style={styles.fieldLabel}>How will you get it?</Text>
-              <SegmentedControl
-                options={[
-                  { value: 'DELIVERY', label: 'Delivery' },
-                  { value: 'TAKEAWAY', label: 'Takeaway' },
-                ]}
-                value={orderType}
-                onChange={setOrderType}
-              />
             </View>
           )}
 
@@ -272,22 +256,24 @@ export function CheckoutScreen({ navigation }: Props) {
               </View>
               {errors.child ? <Text style={styles.errorText}>{errors.child}</Text> : null}
             </View>
-          ) : orderType === 'DELIVERY' ? (
+          ) : isStudent ? (
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <Input label="Student Name" value={user?.fullName ?? ''} editable={false} />
+              </View>
+              <View style={styles.half}>
+                <Input label="Class" value={classLabel(user?.studentClass, user?.section)} editable={false} />
+              </View>
+            </View>
+          ) : (
             <Input
-              label="Student Name / Class"
+              label="Delivery Location"
               required
-              placeholder={isTeacher ? 'e.g. Staff Room / Science Dept' : 'e.g. John Doe – Class 4A'}
+              placeholder="e.g. Staff Room / Science Dept"
               value={deliveryLocation}
               onChangeText={setDeliveryLocation}
               error={errors.location}
             />
-          ) : (
-            <View style={styles.infoBox}>
-              <Info size={20} color={colors.textSecondary} />
-              <Text style={[styles.infoBody, { flex: 1 }]}>
-                Show your pickup code at the canteen counter once your order is packed.
-              </Text>
-            </View>
           )}
         </Card>
       </ScrollView>
@@ -372,6 +358,8 @@ const styles = StyleSheet.create({
   warningText: { ...typography.bodySmall, color: colors.textPrimary, flex: 1 },
 
   fieldLabel: { ...typography.label, marginBottom: spacing.sm },
+  row: { flexDirection: 'row', gap: spacing.md },
+  half: { flex: 1 },
   childRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   errorText: { ...typography.caption, color: colors.danger },
 

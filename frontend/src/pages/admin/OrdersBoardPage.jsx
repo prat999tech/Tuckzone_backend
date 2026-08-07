@@ -1,8 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, RefreshCw } from 'lucide-react';
 import { getAdminOrders, updateOrderStatus } from '../../api/admin';
+import { classLabel, orderStatusLabel } from '../../utils/format';
 import toast from 'react-hot-toast';
 import './OrdersBoardPage.css';
+
+/** The board only shows "Placed"/"Delivered", so the filter mirrors that: 'PLACED' here
+ *  means "not yet delivered" (every status up to and including REJECTED/CANCELLED), not
+ *  literally the PLACED enum value. The real per-order status still drives which action
+ *  buttons render - this filter only narrows which cards are visible. */
+const STATUS_FILTERS = ['ALL', 'PLACED', 'DELIVERED'];
+
+function matchesFilter(order, filter) {
+  if (filter === 'ALL') return true;
+  return orderStatusLabel(order.status) === (filter === 'PLACED' ? 'Placed' : 'Delivered');
+}
 
 export default function OrdersBoardPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -44,7 +56,7 @@ export default function OrdersBoardPage() {
     }
   };
 
-  const filteredOrders = orders.filter((order) => statusFilter === 'ALL' || order.status === statusFilter);
+  const filteredOrders = orders.filter((order) => matchesFilter(order, statusFilter));
 
   const renderActionButtons = (order) => {
     switch (order.status) {
@@ -105,15 +117,16 @@ export default function OrdersBoardPage() {
         </div>
 
         <div className="status-filters-pills">
-          {['ALL', 'PLACED', 'ACCEPTED', 'PREPARING', 'PACKED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'REJECTED', 'CANCELLED'].map((status) => {
-            const count = status === 'ALL' ? orders.length : orders.filter((order) => order.status === status).length;
+          {STATUS_FILTERS.map((status) => {
+            const count = orders.filter((order) => matchesFilter(order, status)).length;
+            const label = status === 'ALL' ? 'All' : orderStatusLabel(status === 'PLACED' ? 'PLACED' : 'DELIVERED');
             return (
               <button
                 key={status}
                 className={`pill-btn ${statusFilter === status ? 'active' : ''}`}
                 onClick={() => setStatusFilter(status)}
               >
-                {status.replace(/_/g, ' ')} <span className="count">{count}</span>
+                {label} <span className="count">{count}</span>
               </button>
             );
           })}
@@ -128,12 +141,21 @@ export default function OrdersBoardPage() {
             <div className={`kitchen-card status-${order.status.toLowerCase()}`} key={order.id}>
               <div className="kc-header">
                 <h3>{order.orderNumber}</h3>
-                <span className="slot-badge">{order.slotName}</span>
+                <div className="kc-header-badges">
+                  <span className={`status-badge-pill status-${order.status.toLowerCase()}`}>{orderStatusLabel(order.status)}</span>
+                  <span className="slot-badge">{order.slotName}</span>
+                </div>
               </div>
 
               <div className="kc-body">
                 <div className="recipient-info">
                   <strong>To:</strong> {order.recipientName}
+                  {order.studentClass && (
+                    <>
+                      <br />
+                      <strong>Class:</strong> {classLabel(order.studentClass, order.studentSection)}
+                    </>
+                  )}
                   <br />
                   <strong>Loc:</strong> {order.deliveryLocation}
                 </div>

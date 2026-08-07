@@ -13,30 +13,31 @@ import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
 import { adminApi } from '../../api/admin';
 import { apiErrorMessage } from '../../api/client';
+import { classLabel, orderStatusLabel } from '../../utils/format';
 import { colors, radius, statusColor, spacing, typography } from '../../theme';
-import type { OrderResponse, OrderStatus } from '../../api/types';
+import type { AdminOrderResponse, OrderStatus } from '../../api/types';
 
 function todayIso(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-const STATUS_FILTERS: (OrderStatus | 'ALL')[] = [
-  'ALL',
-  'PLACED',
-  'ACCEPTED',
-  'PREPARING',
-  'PACKED',
-  'OUT_FOR_DELIVERY',
-  'DELIVERED',
-  'REJECTED',
-  'CANCELLED',
-];
+/** The board only ever shows "Placed"/"Delivered", so the filter mirrors that: 'PLACED'
+ *  here means "not yet delivered" (every status up to and including REJECTED/CANCELLED),
+ *  not literally the PLACED enum value. The real per-order status still drives which
+ *  action buttons render — this filter only narrows which cards are visible. */
+type StatusFilter = 'ALL' | 'PLACED' | 'DELIVERED';
+const STATUS_FILTERS: StatusFilter[] = ['ALL', 'PLACED', 'DELIVERED'];
+
+function matchesFilter(order: AdminOrderResponse, filter: StatusFilter): boolean {
+  if (filter === 'ALL') return true;
+  return orderStatusLabel(order.status) === (filter === 'PLACED' ? 'Placed' : 'Delivered');
+}
 
 export function OrdersBoardScreen() {
   const [date, setDate] = useState(todayIso());
-  const [orders, setOrders] = useState<OrderResponse[]>([]);
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
+  const [orders, setOrders] = useState<AdminOrderResponse[]>([]);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [deliveryPersonByOrder, setDeliveryPersonByOrder] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export function OrdersBoardScreen() {
     }, [load]),
   );
 
-  async function updateStatus(order: OrderResponse, status: OrderStatus) {
+  async function updateStatus(order: AdminOrderResponse, status: OrderStatus) {
     if (status === 'OUT_FOR_DELIVERY' && !deliveryPersonByOrder[order.id]?.trim()) {
       Toast.show({ type: 'error', text1: 'Enter a delivery person name first' });
       return;
@@ -83,9 +84,9 @@ export function OrdersBoardScreen() {
     }
   }
 
-  const filteredOrders = orders.filter((order) => statusFilter === 'ALL' || order.status === statusFilter);
+  const filteredOrders = orders.filter((order) => matchesFilter(order, statusFilter));
 
-  function renderActions(order: OrderResponse) {
+  function renderActions(order: AdminOrderResponse) {
     const busy = updatingId === order.id;
     switch (order.status) {
       case 'PLACED':
@@ -139,12 +140,12 @@ export function OrdersBoardScreen() {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterRowContent}>
-        {STATUS_FILTERS.map((status) => (
+        {STATUS_FILTERS.map((filter) => (
           <Chip
-            key={status}
-            label={`${status.replace(/_/g, ' ')} (${status === 'ALL' ? orders.length : orders.filter((o) => o.status === status).length})`}
-            active={statusFilter === status}
-            onPress={() => setStatusFilter(status)}
+            key={filter}
+            label={`${filter === 'ALL' ? 'All' : orderStatusLabel(filter === 'PLACED' ? 'PLACED' : 'DELIVERED')} (${orders.filter((o) => matchesFilter(o, filter)).length})`}
+            active={statusFilter === filter}
+            onPress={() => setStatusFilter(filter)}
           />
         ))}
       </ScrollView>
@@ -163,22 +164,22 @@ export function OrdersBoardScreen() {
                   <Text style={styles.orderNumber}>ORDER #{order.orderNumber}</Text>
                   <View style={[styles.statusChip, { backgroundColor: statusColor(order.status).bg }]}>
                     <Text style={[styles.statusChipText, { color: statusColor(order.status).fg }]}>
-                      {order.status.replace(/_/g, ' ')}
+                      {orderStatusLabel(order.status)}
                     </Text>
                   </View>
                 </View>
                 <Text style={styles.studentName} numberOfLines={2}>
                   {order.recipientName}
                 </Text>
+                {order.studentClass ? (
+                  <Text style={styles.classText}>Class {classLabel(order.studentClass, order.studentSection)}</Text>
+                ) : null}
               </View>
 
               <View style={styles.orderBody}>
                 <View style={styles.slotRow}>
                   <Clock size={18} color={colors.primary} />
-                  <Text style={styles.slotText}>
-                    {order.slotName}
-                    {order.deliveryTime ? `: ${order.deliveryTime}` : ''}
-                  </Text>
+                  <Text style={styles.slotText}>{order.slotName}</Text>
                 </View>
                 <Text style={styles.location}>
                   {order.orderType === 'TAKEAWAY' ? `Takeaway · Code ${order.pickupCode}` : order.deliveryLocation}
@@ -231,6 +232,7 @@ const styles = StyleSheet.create({
   statusChip: { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.full },
   statusChipText: { ...typography.caption, letterSpacing: 0.4 },
   studentName: { ...typography.h2 },
+  classText: { ...typography.bodySmall, color: colors.textSecondary },
 
   orderBody: { padding: spacing.lg, gap: spacing.sm },
   slotRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

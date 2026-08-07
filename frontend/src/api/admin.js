@@ -30,8 +30,21 @@ export const updateMenuItem = async (id, data) => {
   return response.data;
 };
 
+// Soft delete (Retire): hides the item from students, keeps it under the Retired filter.
 export const deleteMenuItem = async (id) => {
   const response = await client.delete(`/admin/menu-items/${id}`);
+  return response.data;
+};
+
+// Brings a retired item back to Active.
+export const activateMenuItem = async (id) => {
+  const response = await client.post(`/admin/menu-items/${id}/activate`);
+  return response.data;
+};
+
+// Hard delete — rejected server-side if the item has any order history.
+export const permanentlyDeleteMenuItem = async (id) => {
+  const response = await client.delete(`/admin/menu-items/${id}/permanent`);
   return response.data;
 };
 

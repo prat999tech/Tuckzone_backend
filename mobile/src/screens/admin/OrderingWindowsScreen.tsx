@@ -97,7 +97,7 @@ export function OrderingWindowsScreen() {
     <ScreenContainer>
       <DateField label="Menu date" value={date} onChange={setDate} minimumDate={new Date()} />
 
-      <Text style={[typography.h2, styles.sectionTitle]}>Recess Time</Text>
+      <Text style={[typography.h2, styles.sectionTitle]}>Recess</Text>
       <View style={{ gap: spacing.md }}>
         {windows.map((window) => (
           <Card key={window.slotId}>
