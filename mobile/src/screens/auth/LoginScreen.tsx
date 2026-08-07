@@ -37,6 +37,16 @@ export function LoginScreen({ navigation }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // One interval for the whole screen, cleared on unmount so it cannot keep ticking (and
+  // setting state) after the user has navigated away. Clamped at 0 when idle.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCooldown((seconds) => (seconds > 0 ? seconds - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     // otpDevCodeReturned tells us the backend has no mail server configured yet — in that
@@ -88,6 +98,7 @@ export function LoginScreen({ navigation }: Props) {
     try {
       const response = await authApi.requestOtp(otpEmail.trim(), 'LOGIN');
       setCodeSent(true);
+      setCooldown(response.resendAfterSeconds ?? 30);
       if (devHint && response.devCode) {
         setCode(response.devCode);
         Toast.show({ type: 'success', text1: 'Dev mode', text2: `Code: ${response.devCode}` });
@@ -200,7 +211,14 @@ export function LoginScreen({ navigation }: Props) {
                     error={errors.code}
                   />
                   <Button label="Verify & Sign In" onPress={handleOtpLogin} loading={loading} style={styles.actionSpacing} />
-                  <Button label="Resend code" variant="ghost" fullWidth={false} onPress={handleSendCode} disabled={sendingCode} />
+                  <Button
+                    label={cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                    variant="ghost"
+                    fullWidth={false}
+                    onPress={handleSendCode}
+                    loading={sendingCode}
+                    disabled={cooldown > 0}
+                  />
                 </>
               )}
             </>

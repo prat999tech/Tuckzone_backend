@@ -87,12 +87,15 @@ app:
   # One-time passcodes for registration, OTP sign-in and password reset — delivered by
   # email. delivery=log writes the code to the application log and returns it in the API
   # response so the flow is demonstrable without a mail server; delivery=email sends for
-  # real via the SMTP settings under spring.mail.* above.
+  # real via whichever app.notification.email-provider is active below (smtp or ses).
   otp:
     delivery: ${APP_OTP_DELIVERY:log}
     length: 6
     ttl-minutes: 5
     max-attempts: 5
+    # Minimum gap between two codes issued to the same address, independent of the
+    # otp-requests-per-window budget below (that caps volume; this caps burst speed).
+    resend-cooldown-seconds: ${APP_OTP_RESEND_COOLDOWN_SECONDS:30}
 
   # Notification delivery.
   # push-provider=log writes pushes to the application log so the whole outbox pipeline is
@@ -105,12 +108,16 @@ app:
     retry-backoff-seconds: 30
     sweep-interval-ms: 2000
     firebase-credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
-    # email-provider=smtp sends for real using the spring.mail.* settings above.
-    # Plain SMTP on purpose: any provider (Gmail, Zoho, your own domain, SES) works with
-    # the same code — there is no vendor SDK to swap out.
+    # email-provider=smtp sends for real using the spring.mail.* settings above (works with
+    # any SMTP-speaking provider — Gmail, Zoho, your own domain, or SES's own SMTP
+    # interface). email-provider=ses instead calls the Amazon SES HTTPS API directly via
+    # the AWS SDK — no SMTP credentials needed, just an AWS account with SES set up.
     email-provider: ${APP_EMAIL_PROVIDER:log}
     email-from-address: ${EMAIL_FROM_ADDRESS:noreply@tuckzone.local}
     email-from-name: ${EMAIL_FROM_NAME:TuckZone Canteen}
+    # Only read when email-provider=ses. Leave blank to let the AWS SDK's own region chain
+    # (the AWS_REGION env var, ~/.aws/config) decide instead.
+    ses-region: ${AWS_REGION:}
 
   # Canteen admins cannot self-register freely: registering with role CANTEEN_ADMIN
   # requires this invite code. Without it anyone could take over the canteen.

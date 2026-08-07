@@ -5,6 +5,7 @@ import com.school.canteen.config.RateLimitProperties;
 import com.school.canteen.entity.OtpCode;
 import com.school.canteen.enums.OtpPurpose;
 import com.school.canteen.exception.BadRequestException;
+import com.school.canteen.exception.TooManyRequestsException;
 import com.school.canteen.notification.OtpSender;
 import com.school.canteen.repository.OtpCodeRepository;
 import com.school.canteen.security.RateLimiterService;
@@ -57,6 +58,7 @@ public class OtpServiceImpl implements OtpService {
                 "Too many passcode requests. Please wait before trying again.");
 
         Instant now = Instant.now();
+        enforceResendCooldown(key, purpose, now);
         // Retire outstanding codes so only the newest is valid; otherwise every code ever
         // sent would remain usable until its own expiry.
         otpCodeRepository.consumeOutstanding(key, purpose, now);
@@ -103,6 +105,26 @@ public class OtpServiceImpl implements OtpService {
         // replayed a second time.
         otp.setConsumedAt(Instant.now());
         rateLimiter.reset("otp-verify:" + purpose + ":" + key);
+    }
+
+    /**
+     * Rejects a new code if one was issued too recently.
+     *
+     * The sliding-window rate limit above caps total volume (N per 15 minutes) but says
+     * nothing about spacing — a user could otherwise burn that whole budget by tapping
+     * "Resend" five times in a second. This is what makes the frontend's countdown timer a
+     * real guarantee rather than a UI suggestion the API doesn't enforce.
+     */
+    private void enforceResendCooldown(String key, OtpPurpose purpose, Instant now) {
+        Duration cooldown = Duration.ofSeconds(otpProperties.resendCooldownSeconds());
+        otpCodeRepository.latestIssuedAt(key, purpose).ifPresent(lastIssuedAt -> {
+            Duration elapsed = Duration.between(lastIssuedAt, now);
+            if (elapsed.compareTo(cooldown) < 0) {
+                long waitSeconds = cooldown.minus(elapsed).toSeconds() + 1;
+                throw new TooManyRequestsException(
+                        "Please wait " + waitSeconds + "s before requesting another code.");
+            }
+        });
     }
 
     /** Email is case-insensitive in practice, so store and look up one canonical form —

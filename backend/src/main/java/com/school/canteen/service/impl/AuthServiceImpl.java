@@ -195,7 +195,8 @@ public class AuthServiceImpl implements AuthService {
         return new OtpIssuedResponse(
                 "If that email address has an account, a passcode has been sent to it.",
                 otpProperties.ttlMinutes(),
-                devCode);
+                devCode,
+                otpProperties.resendCooldownSeconds());
     }
 
     @Override

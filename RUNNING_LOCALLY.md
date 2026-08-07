@@ -99,6 +99,22 @@ deliberate, so a misconfiguration can't silently swallow every email.
 Any SMTP provider works (Zoho `smtp.zoho.in`, AWS SES, your own domain) — only these
 four values change.
 
+**Or use Amazon SES directly**, without SMTP at all — the backend calls the SES API via
+the AWS SDK instead:
+
+```bash
+APP_OTP_DELIVERY=email
+APP_EMAIL_PROVIDER=ses
+AWS_REGION=ap-south-1
+AWS_ACCESS_KEY_ID=<your access key>
+AWS_SECRET_ACCESS_KEY=<your secret key>
+EMAIL_FROM_ADDRESS=you@yourdomain.com
+```
+
+`EMAIL_FROM_ADDRESS` must be a verified SES identity (verify it, or its whole domain, in
+the SES console first). While the SES account is in the sandbox, the recipient address
+needs to be verified too — request production access to email arbitrary addresses.
+
 ## Payments (wallet recharge & order checkout)
 
 Default (`APP_PAYMENT_PROVIDER=mock`) needs no setup — wallet top-ups and gateway/split
