@@ -100,7 +100,10 @@ public class OrderMapper {
 
     public OrderItemResponse toItemResponse(OrderItem item) {
         return new OrderItemResponse(
-                item.getMenuItem().getId(),
+                // Null once the catalog row has been permanently deleted — every other
+                // field here is a snapshot taken at order time, so the response stays
+                // complete and accurate regardless.
+                item.getMenuItem() == null ? null : item.getMenuItem().getId(),
                 item.getItemName(),
                 item.getUnitPrice(),
                 item.getQuantity(),

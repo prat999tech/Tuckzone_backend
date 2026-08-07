@@ -1,7 +1,10 @@
 package com.school.canteen.entity;
 
+import com.school.canteen.enums.MenuType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -9,9 +12,11 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 /**
- * A single line in an order. item_name and unit_price are snapshots taken at order time,
- * so historical orders are unaffected by later catalog edits. menu_item is kept for
- * reporting (e.g. most-popular item).
+ * A single line in an order. item_name/unit_price/costPrice/menuType are snapshots taken
+ * at order time, so historical orders are completely unaffected by later catalog edits —
+ * including the catalog row being permanently deleted. menu_item is kept only as a live
+ * pointer for as long as the catalog row exists (nullable, {@code ON DELETE SET NULL}); no
+ * historical display or report may depend on it being non-null.
  */
 @Entity
 @Table(name = "order_items")
@@ -21,8 +26,8 @@ public class OrderItem extends BaseEntity {
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "menu_item_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "menu_item_id")
     private MenuItem menuItem;
 
     @Column(name = "item_name", nullable = false)
@@ -30,6 +35,17 @@ public class OrderItem extends BaseEntity {
 
     @Column(name = "unit_price", nullable = false, precision = 8, scale = 2)
     private BigDecimal unitPrice;
+
+    /** Snapshot of {@link MenuItem#getCostPrice()} at order time — used by the cost-of-goods
+     *  report so it stays accurate after the item is deleted. */
+    @Column(name = "cost_price", precision = 8, scale = 2)
+    private BigDecimal costPrice;
+
+    /** Snapshot of {@link MenuItem#getMenuType()} at order time — used by the top-items
+     *  report so it stays accurate after the item is deleted. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "menu_type")
+    private MenuType menuType;
 
     @Column(name = "quantity", nullable = false)
     private int quantity;
@@ -67,6 +83,22 @@ public class OrderItem extends BaseEntity {
 
     public void setUnitPrice(BigDecimal unitPrice) {
         this.unitPrice = unitPrice;
+    }
+
+    public BigDecimal getCostPrice() {
+        return costPrice;
+    }
+
+    public void setCostPrice(BigDecimal costPrice) {
+        this.costPrice = costPrice;
+    }
+
+    public MenuType getMenuType() {
+        return menuType;
+    }
+
+    public void setMenuType(MenuType menuType) {
+        this.menuType = menuType;
     }
 
     public int getQuantity() {

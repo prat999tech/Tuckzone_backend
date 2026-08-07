@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Plus, Edit2, Trash2, RotateCcw, ChevronDown, ChevronRight, AlertCircle, X, UtensilsCrossed } from 'lucide-react';
+import { Calendar, Clock, Plus, Edit2, Trash2, RotateCcw, ChevronDown, ChevronRight, AlertCircle, X, UtensilsCrossed } from 'lucide-react';
 import {
   activateMenuItem,
   addDailyMenu,
@@ -8,9 +8,11 @@ import {
   getDailyMenu,
   getMenuItems,
   permanentlyDeleteMenuItem,
+  updateCutoffTime,
   updateDailyMenu,
   updateMenuItem,
 } from '../../api/admin';
+import { getDeliverySlots } from '../../api/menu';
 import toast from 'react-hot-toast';
 import EmptyState from '../../components/EmptyState';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -39,11 +41,46 @@ export default function DailyMenuPage() {
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null);
   const [showRetired, setShowRetired] = useState(false);
 
+  // Order cut-off time (standing default for the delivery slot, takes effect immediately)
+  const [slots, setSlots] = useState([]);
+  const [cutoffDraft, setCutoffDraft] = useState('');
+  const [savingCutoff, setSavingCutoff] = useState(false);
+
   useEffect(() => {
     fetchDailyMenu();
     fetchCatalog();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
+
+  useEffect(() => {
+    fetchSlots();
+  }, []);
+
+  const fetchSlots = async () => {
+    try {
+      const data = await getDeliverySlots();
+      setSlots(data);
+      // Only seed the draft on first load so an in-progress edit isn't clobbered on refresh.
+      setCutoffDraft((prev) => (prev === '' && data.length > 0 ? data[0].orderCutoffTime.slice(0, 5) : prev));
+    } catch (err) {
+      toast.error('Failed to load ordering slot');
+    }
+  };
+
+  const handleSaveCutoff = async () => {
+    if (slots.length === 0) return;
+    setSavingCutoff(true);
+    try {
+      const updated = await updateCutoffTime(slots[0].id, cutoffDraft);
+      setSlots([updated]);
+      setCutoffDraft(updated.orderCutoffTime.slice(0, 5));
+      toast.success('Cut-off time updated — takes effect immediately');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not update cut-off time');
+    } finally {
+      setSavingCutoff(false);
+    }
+  };
 
   const fetchDailyMenu = async () => {
     setLoading(true);
@@ -286,6 +323,31 @@ export default function DailyMenuPage() {
           )}
         </div>
       )}
+
+      <div className="cutoff-card">
+        <div className="cutoff-header">
+          <Clock size={18} className="text-amber" />
+          <h2 className="section-title">Order Cut-off Time</h2>
+        </div>
+        <p className="cutoff-hint">
+          Students can place orders only before this time each day. Changes take effect immediately.
+        </p>
+        <div className="cutoff-row">
+          <input
+            type="time"
+            value={cutoffDraft}
+            onChange={(e) => setCutoffDraft(e.target.value)}
+            className="cutoff-input"
+          />
+          <button
+            className="btn-primary"
+            onClick={handleSaveCutoff}
+            disabled={slots.length === 0 || savingCutoff || cutoffDraft === slots[0]?.orderCutoffTime.slice(0, 5)}
+          >
+            {savingCutoff ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
 
       <div className="page-header">
         <h2 className="section-title">Today&apos;s Schedule</h2>

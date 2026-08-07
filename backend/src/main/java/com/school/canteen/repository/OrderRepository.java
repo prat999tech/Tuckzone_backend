@@ -64,9 +64,11 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     /**
      * Cost of goods sold. An item with no recorded cost price contributes zero, so the
      * report understates cost rather than refusing to run — the dashboard flags it instead.
+     * Reads oi.costPrice (a snapshot taken at order time) rather than joining menu_items,
+     * so a permanently deleted item's past cost still counts.
      */
     @Query("""
-            select coalesce(sum(oi.quantity * coalesce(oi.menuItem.costPrice, 0)), 0)
+            select coalesce(sum(oi.quantity * coalesce(oi.costPrice, 0)), 0)
               from OrderItem oi
              where oi.order.menuDate between :from and :to
                and oi.order.paymentStatus = com.school.canteen.enums.PaymentStatus.PAID
@@ -89,14 +91,16 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             """)
     List<Object[]> dailySalesBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    // Groups by the snapshotted oi.menuType (taken at order time) rather than joining
+    // menu_items, so a permanently deleted item still appears in historical "top items".
     @Query("""
-            select oi.itemName, oi.menuItem.menuType, sum(oi.quantity), coalesce(sum(oi.lineTotal), 0)
+            select oi.itemName, oi.menuType, sum(oi.quantity), coalesce(sum(oi.lineTotal), 0)
               from OrderItem oi
              where oi.order.menuDate between :from and :to
                and oi.order.status not in (
                    com.school.canteen.enums.OrderStatus.CANCELLED,
                    com.school.canteen.enums.OrderStatus.REJECTED)
-             group by oi.itemName, oi.menuItem.menuType
+             group by oi.itemName, oi.menuType
              order by sum(oi.quantity) desc
             """)
     List<Object[]> topItemsBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);

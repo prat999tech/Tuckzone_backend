@@ -105,7 +105,7 @@ export function OrderDetailScreen({ route }: Props) {
       <Card>
         {order.items.map((item, index) => (
           <View
-            key={item.menuItemId}
+            key={`${item.menuItemId}-${index}`}
             style={[styles.itemRow, index < order.items.length - 1 && styles.itemRowBorder]}
           >
             <Text style={styles.itemName}>

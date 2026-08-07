@@ -105,8 +105,8 @@ export default function OrdersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {order.items.map((item) => (
-                      <tr key={item.menuItemId}>
+                    {order.items.map((item, index) => (
+                      <tr key={`${item.menuItemId}-${index}`}>
                         <td>{item.itemName}</td>
                         <td>{item.quantity}</td>
                         <td>₹{item.unitPrice}</td>

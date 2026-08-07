@@ -161,8 +161,8 @@ export default function OrdersBoardPage() {
                 </div>
 
                 <ul className="kc-items">
-                  {order.items.map((item) => (
-                    <li key={item.menuItemId}>
+                  {order.items.map((item, index) => (
+                    <li key={`${item.menuItemId}-${index}`}>
                       <span className="qty">{item.quantity}x</span> {item.itemName}
                     </li>
                   ))}

@@ -1,11 +1,14 @@
 package com.school.canteen.service;
 
 import com.school.canteen.dto.order.DemandRow;
+import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderingWindowRequest;
 import com.school.canteen.dto.order.OrderingWindowResponse;
 import com.school.canteen.entity.DeliverySlot;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * The canteen's control over advance ordering: when orders are accepted for a future date
@@ -29,4 +32,12 @@ public interface OrderingWindowService {
      * manual open/closed switch with the effective cutoff time.
      */
     void assertAcceptingOrders(LocalDate menuDate, DeliverySlot slot);
+
+    /**
+     * Changes the slot's standing (every-day) order cutoff time. This is the default the
+     * whole app falls back to; a per-date {@link #open} override still takes precedence for
+     * the day it targets. Takes effect immediately — the next order placed for any date
+     * without its own override is checked against the new time.
+     */
+    DeliverySlotResponse updateCutoffTime(UUID slotId, LocalTime cutoffTime);
 }

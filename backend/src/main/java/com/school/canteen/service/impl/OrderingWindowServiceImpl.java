@@ -1,6 +1,7 @@
 package com.school.canteen.service.impl;
 
 import com.school.canteen.dto.order.DemandRow;
+import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderingWindowRequest;
 import com.school.canteen.dto.order.OrderingWindowResponse;
 import com.school.canteen.entity.DailyMenuItem;
@@ -149,8 +150,18 @@ public class OrderingWindowServiceImpl implements OrderingWindowService {
         LocalTime cutoff = effectiveCutoff(window, slot);
         if (LocalDateTime.now(clock).isAfter(LocalDateTime.of(menuDate, cutoff))) {
             throw new BadRequestException(
-                    "Ordering for the " + slot.getName() + " slot has closed");
+                    "Ordering has closed for today. Please place your order before the "
+                            + "cut-off time.");
         }
+    }
+
+    @Override
+    @Transactional
+    public DeliverySlotResponse updateCutoffTime(UUID slotId, LocalTime cutoffTime) {
+        DeliverySlot slot = findSlot(slotId);
+        slot.setOrderCutoffTime(cutoffTime);
+        return new DeliverySlotResponse(slot.getId(), slot.getName(), slot.getOrderCutoffTime(),
+                slot.getDeliveryTime());
     }
 
     // --- helpers ---------------------------------------------------------------

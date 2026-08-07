@@ -1,16 +1,21 @@
 package com.school.canteen.controller;
 
 import com.school.canteen.dto.order.DemandRow;
+import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderingWindowRequest;
 import com.school.canteen.dto.order.OrderingWindowResponse;
+import com.school.canteen.dto.order.UpdateCutoffTimeRequest;
 import com.school.canteen.service.OrderingWindowService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,5 +62,14 @@ public class OrderingWindowController {
     public List<DemandRow> demand(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return orderingWindowService.demandFor(date);
+    }
+
+    /** Changes the slot's standing daily cutoff time — the default every date falls back to
+     *  unless that date has its own {@link #open} override. Takes effect immediately. */
+    @PutMapping("/admin/delivery-slots/{id}/cutoff-time")
+    @PreAuthorize("hasRole('CANTEEN_ADMIN')")
+    public DeliverySlotResponse updateCutoffTime(@PathVariable UUID id,
+                                                 @Valid @RequestBody UpdateCutoffTimeRequest request) {
+        return orderingWindowService.updateCutoffTime(id, request.orderCutoffTime());
     }
 }

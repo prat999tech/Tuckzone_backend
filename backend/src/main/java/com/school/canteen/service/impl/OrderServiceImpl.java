@@ -478,6 +478,11 @@ public class OrderServiceImpl implements OrderService {
             item.setMenuItem(menuItem);
             item.setItemName(menuItem.getName());
             item.setUnitPrice(unitPrice);
+            // Snapshots, same reasoning as itemName/unitPrice above: if this item is later
+            // permanently deleted, reports must still read the values as they were when the
+            // order was placed rather than losing them along with the catalog row.
+            item.setCostPrice(menuItem.getCostPrice());
+            item.setMenuType(menuItem.getMenuType());
             item.setQuantity(line.quantity());
             item.setLineTotal(lineTotal);
             order.addItem(item);
@@ -515,8 +520,13 @@ public class OrderServiceImpl implements OrderService {
     /** Puts stock back and refunds the wallet (if paid), then moves to a terminal status. */
     private void refundAndRestore(Order order, OrderStatus terminalStatus) {
         for (OrderItem item : order.getItems()) {
-            dailyMenuItemRepository.restore(order.getMenuDate(),
-                    item.getMenuItem().getId(), item.getQuantity());
+            // menuItem can be null if the catalog row was permanently deleted after this
+            // order was placed — nothing to restore stock against in that case, so skip it
+            // rather than NPE and leave the whole refund half-done.
+            if (item.getMenuItem() != null) {
+                dailyMenuItemRepository.restore(order.getMenuDate(),
+                        item.getMenuItem().getId(), item.getQuantity());
+            }
         }
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
             walletService.credit(order.getPlacedBy().getId(), order.getTotalAmount(),

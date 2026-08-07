@@ -66,6 +66,58 @@
   flex: none;
 }
 
+/* ─── Order Cut-off Time ─── */
+.cutoff-card {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.cutoff-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.cutoff-hint {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  margin-bottom: 1rem;
+}
+
+.cutoff-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cutoff-input {
+  padding: 0.5rem 0.875rem;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  color: var(--gray-700);
+  font-family: var(--font);
+  width: auto;
+  min-width: 140px;
+  background: var(--white);
+}
+
+.cutoff-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.12);
+}
+
+.cutoff-row .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ─── Daily Items List ─── */
 .daily-items-list {
   display: flex;

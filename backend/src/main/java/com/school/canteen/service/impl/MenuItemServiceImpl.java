@@ -4,12 +4,10 @@ import com.school.canteen.dto.menu.MenuItemRequest;
 import com.school.canteen.dto.menu.MenuItemResponse;
 import com.school.canteen.entity.MenuItem;
 import com.school.canteen.enums.MenuType;
-import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.mapper.MenuItemMapper;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.MenuItemRepository;
-import com.school.canteen.repository.OrderItemRepository;
 import com.school.canteen.service.MenuItemService;
 import java.util.List;
 import java.util.Locale;
@@ -22,15 +20,12 @@ public class MenuItemServiceImpl implements MenuItemService {
 
     private final MenuItemRepository menuItemRepository;
     private final MenuItemMapper menuItemMapper;
-    private final OrderItemRepository orderItemRepository;
     private final DailyMenuItemRepository dailyMenuItemRepository;
 
     public MenuItemServiceImpl(MenuItemRepository menuItemRepository, MenuItemMapper menuItemMapper,
-                               OrderItemRepository orderItemRepository,
                                DailyMenuItemRepository dailyMenuItemRepository) {
         this.menuItemRepository = menuItemRepository;
         this.menuItemMapper = menuItemMapper;
-        this.orderItemRepository = orderItemRepository;
         this.dailyMenuItemRepository = dailyMenuItemRepository;
     }
 
@@ -69,12 +64,12 @@ public class MenuItemServiceImpl implements MenuItemService {
     @Transactional
     public void permanentlyDelete(UUID id) {
         MenuItem item = findOrThrow(id);
-        if (orderItemRepository.existsByMenuItem_Id(id)) {
-            throw new BadRequestException(
-                    "This item has been ordered before and cannot be permanently deleted "
-                            + "— its order history would be lost. Retire it instead.");
-        }
+        // Scheduling entries are disposable, unlike order history — remove them so nothing
+        // references the row before it goes.
         dailyMenuItemRepository.deleteByMenuItem_Id(id);
+        // order_items.menu_item_id is nullable with ON DELETE SET NULL (see V14): any past
+        // order keeps its own snapshot of the name/price/quantity/etc., so deleting the
+        // catalog row here cannot lose or corrupt order history.
         menuItemRepository.delete(item);
     }
 

@@ -21,10 +21,12 @@ public interface MenuItemService {
     MenuItemResponse activate(UUID id);
 
     /**
-     * Hard delete: permanently removes the row. Rejected if any order has ever contained
-     * this item — that history must never be destroyed — so this only succeeds for an item
-     * nobody has ordered yet. Any daily-menu scheduling entries for it are cleaned up first
-     * since those are disposable, unlike order history.
+     * Hard delete: permanently removes the row, even if the item has order history. Safe
+     * because every order_item already snapshots the name/price/quantity/etc. it needs at
+     * order time (see {@code OrderItem}) and its FK to this row is nullable with
+     * {@code ON DELETE SET NULL} — so past orders keep displaying exactly as they did
+     * before, independent of the catalog. Daily-menu scheduling entries for the item are
+     * cleaned up first since those, unlike order history, are disposable.
      */
     void permanentlyDelete(UUID id);
 

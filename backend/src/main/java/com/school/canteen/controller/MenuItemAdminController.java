@@ -78,7 +78,8 @@ public class MenuItemAdminController {
         return menuItemService.activate(id);
     }
 
-    /** Hard delete — only succeeds for an item with no order history. */
+    /** Hard delete. Past orders are unaffected — each keeps its own snapshot of the item's
+     *  name/price/etc., independent of this catalog row. */
     @DeleteMapping("/{id}/permanent")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('CANTEEN_ADMIN')")

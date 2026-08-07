@@ -31,6 +31,11 @@ interface CartContextValue {
   startNewCartWith: (dayItem: DailyMenuItemResponse) => void;
   /** Decrements by one, dropping the line when it reaches zero. */
   removeFromCart: (dayItemId: string) => void;
+  /** Sets an exact quantity (e.g. from typing into the quantity field) rather than
+   *  stepping by one. Clamped to [0, remainingQuantity]; 0 removes the line. Assumes the
+   *  item is already on the cart's date — the +/- buttons and addToCart still own the
+   *  date-conflict prompt for adding a first, different-date item. */
+  setQuantity: (dayItem: DailyMenuItemResponse, quantity: number) => void;
   /** Removes the whole line regardless of quantity. */
   removeLine: (dayItemId: string) => void;
   quantityOf: (dayItemId: string) => number;
@@ -89,6 +94,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setLines((prev) => prev.filter((line) => line.dayItem.id !== dayItemId));
   }, []);
 
+  const setQuantity = useCallback((dayItem: DailyMenuItemResponse, quantity: number) => {
+    const clamped = Math.max(0, Math.min(quantity, dayItem.remainingQuantity));
+    setLines((prev) => {
+      if (clamped === 0) return prev.filter((line) => line.dayItem.id !== dayItem.id);
+      const existing = prev.find((line) => line.dayItem.id === dayItem.id);
+      if (existing) {
+        return prev.map((line) =>
+          line.dayItem.id === dayItem.id ? { ...line, quantity: clamped } : line,
+        );
+      }
+      return [...prev, { dayItem, quantity: clamped }];
+    });
+  }, []);
+
   const quantityOf = useCallback(
     (dayItemId: string) => lines.find((line) => line.dayItem.id === dayItemId)?.quantity ?? 0,
     [lines],
@@ -108,10 +127,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       startNewCartWith,
       removeFromCart,
       removeLine,
+      setQuantity,
       quantityOf,
       clearCart,
     };
-  }, [lines, cartDate, addToCart, startNewCartWith, removeFromCart, removeLine, quantityOf, clearCart]);
+  }, [lines, cartDate, addToCart, startNewCartWith, removeFromCart, removeLine, setQuantity, quantityOf, clearCart]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
