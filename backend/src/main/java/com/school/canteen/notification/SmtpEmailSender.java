@@ -51,10 +51,13 @@ public class SmtpEmailSender implements EmailSender {
     public boolean send(EmailMessage message) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, "UTF-8");
+            // multipart=true is required for the two-argument setText(plain, html) below —
+            // it produces a multipart/alternative message so mail clients that cannot (or
+            // choose not to) render HTML still show something readable.
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setTo(message.to());
             helper.setSubject(message.subject());
-            helper.setText(message.htmlBody(), true); // true = send as HTML
+            helper.setText(message.textBody(), message.htmlBody());
             setFrom(helper);
             mailSender.send(mimeMessage);
             return true;

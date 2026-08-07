@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   UtensilsCrossed,
@@ -10,19 +10,51 @@ import {
   ChefHat,
   ShoppingBag,
   Clock,
+  ShieldCheck,
+  KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
 import './LoginPage.css';
 
+/** Used only until the first "send code" response tells us the server's real policy. */
+const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
+
 export default function LoginPage() {
+  const [mode, setMode]         = useState('password'); // 'password' | 'otp'
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors]     = useState({});
   const [loading, setLoading]   = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, requestOtp, loginWithOtp } = useAuth();
+
+  // ── OTP mode state ──
+  const [otpEmail, setOtpEmail]       = useState('');
+  const [otpCode, setOtpCode]         = useState('');
+  const [otpStage, setOtpStage]       = useState('request'); // 'request' | 'verify'
+  const [sendingOtp, setSendingOtp]   = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [resendingOtp, setResendingOtp] = useState(false);
+  const [cooldown, setCooldown]       = useState(0);
+  const cooldownRef = useRef(null);
+
+  useEffect(() => () => clearInterval(cooldownRef.current), []);
+
+  const startCooldown = (seconds) => {
+    clearInterval(cooldownRef.current);
+    setCooldown(seconds);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((s) => {
+        if (s <= 1) {
+          clearInterval(cooldownRef.current);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
 
   const validate = () => {
     const errs = {};
@@ -40,20 +72,19 @@ export default function LoginPage() {
     return Object.keys(errs).length === 0;
   };
 
+  const routeForRole = (role) => {
+    if (role === 'CANTEEN_ADMIN') return '/admin/orders';
+    if (role === 'SUB_ADMIN') return '/subadmin/orders';
+    if (role === 'SCHOOL_ADMIN') return '/admin/users';
+    return '/menu';
+  };
+
   const handleLoginSubmit = async (loginEmail, loginPassword) => {
     try {
       setLoading(true);
       const res = await login(loginEmail, loginPassword);
       toast.success(`Welcome back, ${res.user.fullName?.split(' ')[0]}!`);
-      if (res.user.role === 'CANTEEN_ADMIN') {
-        navigate('/admin/orders');
-      } else if (res.user.role === 'SUB_ADMIN') {
-        navigate('/subadmin/orders');
-      } else if (res.user.role === 'SCHOOL_ADMIN') {
-        navigate('/admin/users');
-      } else {
-        navigate('/menu');
-      }
+      navigate(routeForRole(res.user.role));
     } catch (error) {
       toast.error(error.response?.data?.message || 'Invalid email or password');
     } finally {
@@ -69,6 +100,71 @@ export default function LoginPage() {
 
   const handleQuickCanteenAdminLogin = () => {
     handleLoginSubmit('canteenadmin@school.local', 'Admin@12345');
+  };
+
+  const validateOtpEmail = () => {
+    if (!otpEmail.trim()) {
+      setErrors((e) => ({ ...e, otpEmail: 'Email address is required' }));
+      return false;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(otpEmail)) {
+      setErrors((e) => ({ ...e, otpEmail: 'Enter a valid email address' }));
+      return false;
+    }
+    setErrors((e) => ({ ...e, otpEmail: null }));
+    return true;
+  };
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    if (!validateOtpEmail()) return;
+    try {
+      setSendingOtp(true);
+      const res = await requestOtp(otpEmail.trim(), 'LOGIN');
+      setOtpStage('verify');
+      startCooldown(res.resendAfterSeconds ?? DEFAULT_RESEND_COOLDOWN_SECONDS);
+      toast.success('Check your inbox for the 6-digit code.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not send the code. Try again.');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      setResendingOtp(true);
+      const res = await requestOtp(otpEmail.trim(), 'LOGIN');
+      startCooldown(res.resendAfterSeconds ?? DEFAULT_RESEND_COOLDOWN_SECONDS);
+      toast.success('A new code is on its way.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not resend the code.');
+    } finally {
+      setResendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.trim().length < 4) {
+      setErrors((err) => ({ ...err, otpCode: 'Enter the code from your email' }));
+      return;
+    }
+    try {
+      setVerifyingOtp(true);
+      const res = await loginWithOtp(otpEmail.trim(), otpCode.trim());
+      toast.success(`Welcome back, ${res.user.fullName?.split(' ')[0]}!`);
+      navigate(routeForRole(res.user.role));
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Incorrect or expired code');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    setErrors({});
   };
 
   return (
@@ -105,75 +201,205 @@ export default function LoginPage() {
               <UtensilsCrossed size={28} className="text-amber" />
             </div>
             <h1>Sign In</h1>
-            <p>Enter your credentials to access TuckZone</p>
+            <p>
+              {mode === 'password'
+                ? 'Enter your credentials to access TuckZone'
+                : "We'll email you a one-time code — no password needed"}
+            </p>
           </div>
 
-          <form className="login-form" onSubmit={handleSubmit} noValidate>
-            <div className="form-group">
-              <label htmlFor="login-email">Email Address</label>
-              <div className="input-with-icon">
-                <Mail className="input-icon" size={18} />
-                <input
-                  id="login-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (errors.email) setErrors({ ...errors, email: null });
-                  }}
-                  className={errors.email ? 'input-error' : ''}
-                  autoComplete="email"
-                />
+          <div className="login-mode-toggle" role="tablist" aria-label="Sign-in method">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'password'}
+              className={mode === 'password' ? 'active' : ''}
+              onClick={() => switchMode('password')}
+            >
+              <Lock size={14} /> Password
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'otp'}
+              className={mode === 'otp' ? 'active' : ''}
+              onClick={() => switchMode('otp')}
+            >
+              <KeyRound size={14} /> Email OTP
+            </button>
+          </div>
+
+          {mode === 'password' ? (
+            <form className="login-form" onSubmit={handleSubmit} noValidate>
+              <div className="form-group">
+                <label htmlFor="login-email">Email Address</label>
+                <div className="input-with-icon">
+                  <Mail className="input-icon" size={18} />
+                  <input
+                    id="login-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errors.email) setErrors({ ...errors, email: null });
+                    }}
+                    className={errors.email ? 'input-error' : ''}
+                    autoComplete="email"
+                  />
+                </div>
+                {errors.email && (
+                  <span className="field-error-text">
+                    <AlertCircle size={13} /> {errors.email}
+                  </span>
+                )}
               </div>
-              {errors.email && (
-                <span className="field-error-text">
-                  <AlertCircle size={13} /> {errors.email}
-                </span>
-              )}
-            </div>
 
-            <div className="form-group">
-              <label htmlFor="login-password">Password</label>
-              <PasswordInput
-                id="login-password"
-                icon={Lock}
-                iconSize={18}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errors.password) setErrors({ ...errors, password: null });
-                }}
-                className={errors.password ? 'input-error' : ''}
-                autoComplete="current-password"
-              />
-              {errors.password && (
-                <span className="field-error-text">
-                  <AlertCircle size={13} /> {errors.password}
-                </span>
-              )}
-            </div>
+              <div className="form-group">
+                <label htmlFor="login-password">Password</label>
+                <PasswordInput
+                  id="login-password"
+                  icon={Lock}
+                  iconSize={18}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) setErrors({ ...errors, password: null });
+                  }}
+                  className={errors.password ? 'input-error' : ''}
+                  autoComplete="current-password"
+                />
+                {errors.password && (
+                  <span className="field-error-text">
+                    <AlertCircle size={13} /> {errors.password}
+                  </span>
+                )}
+              </div>
 
-            <div className="form-actions">
-              <button type="submit" className="btn-primary login-btn" disabled={loading}>
-                {loading ? <Loader2 className="spinner" size={18} /> : <LogIn size={18} />}
-                <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+              <div className="form-actions">
+                <button type="submit" className="btn-primary login-btn" disabled={loading}>
+                  {loading ? <Loader2 className="spinner" size={18} /> : <LogIn size={18} />}
+                  <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+                </button>
+              </div>
+            </form>
+          ) : otpStage === 'request' ? (
+            <form className="login-form" onSubmit={handleSendOtp} noValidate>
+              <div className="form-group">
+                <label htmlFor="otp-email">Email Address</label>
+                <div className="input-with-icon">
+                  <Mail className="input-icon" size={18} />
+                  <input
+                    id="otp-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={otpEmail}
+                    onChange={(e) => {
+                      setOtpEmail(e.target.value);
+                      if (errors.otpEmail) setErrors({ ...errors, otpEmail: null });
+                    }}
+                    className={errors.otpEmail ? 'input-error' : ''}
+                    autoComplete="email"
+                  />
+                </div>
+                {errors.otpEmail && (
+                  <span className="field-error-text">
+                    <AlertCircle size={13} /> {errors.otpEmail}
+                  </span>
+                )}
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="btn-primary login-btn" disabled={sendingOtp}>
+                  {sendingOtp ? <Loader2 className="spinner" size={18} /> : <ShieldCheck size={18} />}
+                  <span>{sendingOtp ? 'Sending code...' : 'Send code'}</span>
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form className="login-form" onSubmit={handleVerifyOtp} noValidate>
+              <p className="otp-sent-to">
+                Code sent to <strong>{otpEmail}</strong>
+              </p>
+
+              <div className="form-group">
+                <label htmlFor="otp-code">Verification Code</label>
+                <div className="input-with-icon">
+                  <ShieldCheck className="input-icon" size={18} />
+                  <input
+                    id="otp-code"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="6-digit code"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => {
+                      setOtpCode(e.target.value.replace(/\D/g, ''));
+                      if (errors.otpCode) setErrors({ ...errors, otpCode: null });
+                    }}
+                    className={errors.otpCode ? 'input-error' : ''}
+                    autoComplete="one-time-code"
+                    autoFocus
+                  />
+                </div>
+                {errors.otpCode && (
+                  <span className="field-error-text">
+                    <AlertCircle size={13} /> {errors.otpCode}
+                  </span>
+                )}
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="btn-primary login-btn" disabled={verifyingOtp}>
+                  {verifyingOtp ? <Loader2 className="spinner" size={18} /> : <LogIn size={18} />}
+                  <span>{verifyingOtp ? 'Verifying...' : 'Verify & Sign In'}</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="btn-resend"
+                onClick={handleResendOtp}
+                disabled={cooldown > 0 || resendingOtp}
+              >
+                {resendingOtp
+                  ? 'Resending...'
+                  : cooldown > 0
+                    ? `Resend code in ${cooldown}s`
+                    : 'Resend code'}
               </button>
-            </div>
-          </form>
 
-          <div className="login-divider">OR</div>
+              <button
+                type="button"
+                className="btn-otp-back"
+                onClick={() => {
+                  setOtpStage('request');
+                  setOtpCode('');
+                  clearInterval(cooldownRef.current);
+                  setCooldown(0);
+                }}
+              >
+                Use a different email
+              </button>
+            </form>
+          )}
 
-          <button
-            type="button"
-            className="btn-admin-quick"
-            onClick={handleQuickCanteenAdminLogin}
-            disabled={loading}
-          >
-            <ChefHat size={18} />
-            <span>Login as Canteen Admin</span>
-          </button>
+          {mode === 'password' && (
+            <>
+              <div className="login-divider">OR</div>
+
+              <button
+                type="button"
+                className="btn-admin-quick"
+                onClick={handleQuickCanteenAdminLogin}
+                disabled={loading}
+              >
+                <ChefHat size={18} />
+                <span>Login as Canteen Admin</span>
+              </button>
+            </>
+          )}
 
           <div className="login-footer">
             <p>

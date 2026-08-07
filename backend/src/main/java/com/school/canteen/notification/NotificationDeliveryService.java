@@ -184,7 +184,7 @@ public class NotificationDeliveryService {
         for (NotificationOutbox row : rows) {
             String to = row.getUser().getEmail();
             EmailMessage message = new EmailMessage(
-                    to, row.getTitle(), toHtml(row.getTitle(), row.getBody()));
+                    to, row.getTitle(), toHtml(row.getTitle(), row.getBody()), row.getBody());
             boolean delivered = safeSendEmail(message);
             if (delivered) {
                 markSent(row, now);
