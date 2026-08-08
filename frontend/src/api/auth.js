@@ -15,6 +15,16 @@ export const registerParent = async (data) => {
   return response.data;
 };
 
+export const registerAdmin = async (data) => {
+  const response = await client.post('/auth/register/admin', data);
+  return response.data;
+};
+
+export const verifyEmail = async (email, code) => {
+  const response = await client.post('/auth/verify-email', { email, code });
+  return response.data;
+};
+
 export const login = async (data) => {
   const response = await client.post('/auth/login', data);
   return response.data;

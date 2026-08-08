@@ -9,11 +9,12 @@ import {
   BookOpen,
   Layers,
   Users,
+  KeyRound,
   Loader2,
   UserPlus,
   AlertCircle,
 } from 'lucide-react';
-import { registerParent, registerStudent, registerTeacher } from '../api/auth';
+import { registerAdmin, registerParent, registerStudent, registerTeacher } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
@@ -50,6 +51,7 @@ export default function RegisterPage() {
     studentMobile: '',
     employeeId: '',
     department: '',
+    signupCode: '',
   });
 
   const handleChange = (e) => {
@@ -127,6 +129,12 @@ export default function RegisterPage() {
       }
     }
 
+    if (role === 'ADMIN') {
+      if (!formData.signupCode.trim()) {
+        errs.signupCode = 'Canteen signup code is required';
+      }
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -191,6 +199,14 @@ export default function RegisterPage() {
           employeeId: formData.employeeId,
           department: formData.department,
         });
+      } else if (role === 'ADMIN') {
+        await registerAdmin({
+          fullName: formData.fullName,
+          email: formData.email,
+          mobile: formData.mobile,
+          password: formData.password,
+          signupCode: formData.signupCode,
+        });
       } else {
         await registerParent({
           fullName: formData.fullName,
@@ -200,8 +216,8 @@ export default function RegisterPage() {
         });
       }
 
-      toast.success('Registration successful! You can now sign in.');
-      navigate('/login');
+      toast.success('Account created! Enter the code we emailed you to finish.');
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');
     } finally {
@@ -254,6 +270,16 @@ export default function RegisterPage() {
             type="button"
           >
             Parent
+          </button>
+          <button
+            className={`role-tab ${role === 'ADMIN' ? 'active' : ''}`}
+            onClick={() => {
+              setRole('ADMIN');
+              setErrors({});
+            }}
+            type="button"
+          >
+            Canteen
           </button>
         </div>
 
@@ -524,6 +550,35 @@ export default function RegisterPage() {
                     <AlertCircle size={14} /> {errors.department}
                   </span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {role === 'ADMIN' && (
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Canteen Signup Code</label>
+                <div className="input-with-icon">
+                  <KeyRound className="input-icon" size={20} />
+                  <input
+                    type="text"
+                    name="signupCode"
+                    placeholder="Ask whoever set up TuckZone"
+                    value={formData.signupCode}
+                    onChange={handleChange}
+                    className={errors.signupCode ? 'input-error' : ''}
+                  />
+                </div>
+                {errors.signupCode && (
+                  <span className="field-error-text">
+                    <AlertCircle size={14} /> {errors.signupCode}
+                  </span>
+                )}
+                <span className="field-hint">
+                  Whoever set up TuckZone for your school chose this code when installing
+                  the server. Ask them for it — it is what stops anyone from giving
+                  themselves canteen access.
+                </span>
               </div>
             </div>
           )}
