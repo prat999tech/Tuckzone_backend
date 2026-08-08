@@ -16,9 +16,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param retryBackoffSeconds base delay between retries, multiplied by the attempt count
  * @param firebaseCredentialsJson service-account JSON (or base64 of it) for FCM
  * @param emailProvider  which {@link com.school.canteen.notification.EmailSender} is active
- *                       ("log" for development, "smtp" for SMTP delivery)
+ *                       ("log" for development, "smtp" for SMTP delivery, "brevo" for
+ *                       Brevo's HTTPS transactional API — needed on Railway plans below
+ *                       Pro, where outbound SMTP is blocked)
  * @param emailFromAddress the address recipients see as the sender
  * @param emailFromName    the display name recipients see as the sender
+ * @param brevoApiKey    API key for {@link com.school.canteen.notification.BrevoEmailSender},
+ *                       only read when emailProvider=brevo
  */
 @ConfigurationProperties(prefix = "app.notification")
 public record NotificationProperties(
@@ -29,5 +33,6 @@ public record NotificationProperties(
         String firebaseCredentialsJson,
         String emailProvider,
         String emailFromAddress,
-        String emailFromName) {
+        String emailFromName,
+        String brevoApiKey) {
 }
