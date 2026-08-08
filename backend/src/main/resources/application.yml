@@ -111,10 +111,15 @@ app:
     # (FirebaseAdminConfig) — one Firebase project/service-account serves both push and auth.
     firebase-credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
     # email-provider=smtp sends for real using the spring.mail.* settings above (works with
-    # any SMTP-speaking provider — Gmail, Zoho, your own domain, etc).
+    # any SMTP-speaking provider — Gmail, Zoho, your own domain, etc), but outbound SMTP is
+    # blocked on Railway plans below Pro. email-provider=brevo uses Brevo's HTTPS API
+    # instead, which works on any plan.
     email-provider: ${APP_EMAIL_PROVIDER:log}
     email-from-address: ${EMAIL_FROM_ADDRESS:noreply@tuckzone.local}
     email-from-name: ${EMAIL_FROM_NAME:TuckZone Canteen}
+    # Only read when email-provider=brevo. Generate under Brevo dashboard -> SMTP & API ->
+    # API Keys (a different key from the SMTP key/password used by email-provider=smtp).
+    brevo-api-key: ${BREVO_API_KEY:}
 
   # Canteen admins cannot self-register freely: registering with role CANTEEN_ADMIN
   # requires this invite code. Without it anyone could take over the canteen.
