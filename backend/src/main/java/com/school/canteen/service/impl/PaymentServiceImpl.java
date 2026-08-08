@@ -407,8 +407,14 @@ public class PaymentServiceImpl implements PaymentService {
         return amount.movePointRight(2).longValueExact();
     }
 
+    /** Razorpay caps receipt at 40 chars — a UUID alone is 36, so the use-case tag must be short. */
     private static String receiptFor(Payment payment) {
-        return payment.getUseCase().name().toLowerCase() + "_" + payment.getId();
+        String prefix = switch (payment.getUseCase()) {
+            case WALLET_RECHARGE -> "wr";
+            case CHECKOUT -> "co";
+            case SUBSCRIPTION -> "sub";
+        };
+        return prefix + "_" + payment.getId();
     }
 
     private static String describeWalletDebit(PaymentUseCase useCase) {
