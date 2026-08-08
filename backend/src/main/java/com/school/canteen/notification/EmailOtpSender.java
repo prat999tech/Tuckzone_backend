@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  *
  * Deliberately delegates to {@link EmailSender} rather than talking to a mail server
  * itself: OTP and notifications then share one transport, so configuring email once makes
- * both work, and neither is tied to a particular vendor (SMTP or SES, see
+ * both work, and neither is tied to a particular vendor (see
  * {@code app.notification.email-provider}).
  *
  * Active when {@code app.otp.delivery=email}.

@@ -1,5 +1,11 @@
 # Enabling real push notifications
 
+> **Also covers Firebase Phone Authentication.** The mobile app's "Phone" sign-in tab uses
+> the exact same `mobile/google-services.json` + backend `FIREBASE_CREDENTIALS_JSON` this
+> guide sets up for push — one Firebase project serves both. The only extra step is
+> enabling it: Firebase console → **Authentication** → **Sign-in method** → enable **Phone**.
+> No separate setup, no additional env vars.
+
 Push needs three things wired together:
 
 ```

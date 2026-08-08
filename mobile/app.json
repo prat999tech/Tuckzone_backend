@@ -33,7 +33,9 @@
           "color": "#F59E0B"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ],
     "extra": {
       "eas": {

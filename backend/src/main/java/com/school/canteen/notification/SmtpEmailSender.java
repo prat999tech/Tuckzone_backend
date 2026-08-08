@@ -15,9 +15,9 @@ import org.springframework.stereotype.Component;
  * Real email delivery over plain SMTP.
  *
  * SMTP is chosen deliberately over a vendor SDK (SendGrid, Resend, Mailgun...): it is a
- * standard protocol every mail provider speaks, so moving between Gmail, Zoho, a
- * self-hosted server or AWS SES is a matter of changing host/port/username/password — no
- * dependency swap, no code change, no lock-in.
+ * standard protocol every mail provider speaks, so moving between Gmail, Zoho, or a
+ * self-hosted server is a matter of changing host/port/username/password — no dependency
+ * swap, no code change, no lock-in.
  *
  * Connection settings come from Spring Boot's standard {@code spring.mail.*} properties.
  * Active when {@code app.notification.email-provider=smtp}.

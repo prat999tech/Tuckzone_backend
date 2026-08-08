@@ -20,6 +20,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
 
+    Optional<User> findByFirebaseUid(String firebaseUid);
+
+    /** Used to auto-link an existing password-registered account on its first Firebase
+     *  phone sign-in. mobile has no unique constraint, so this can return more than one row
+     *  — FirebaseAccountService only auto-links when it comes back with exactly one. */
+    List<User> findAllByMobile(String mobile);
+
     List<User> findByStatus(UserStatus status, Pageable pageable);
 
     List<User> findByRole(Role role, Pageable pageable);

@@ -26,9 +26,16 @@ public class User extends BaseEntity {
     @Column(name = "mobile", nullable = false)
     private String mobile;
 
-    /** BCrypt hash — never the raw password. */
-    @Column(name = "password_hash", nullable = false)
+    /** BCrypt hash — never the raw password. Null for a user who only ever authenticated
+     *  via Firebase (phone or email), which verifies identity itself and needs no local
+     *  secret. */
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    /** Firebase Auth UID, set once this account is linked to a Firebase identity (phone or
+     *  email sign-in). Null for a user who has only ever used the legacy password/OTP login. */
+    @Column(name = "firebase_uid", unique = true)
+    private String firebaseUid;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
@@ -72,6 +79,14 @@ public class User extends BaseEntity {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getFirebaseUid() {
+        return firebaseUid;
+    }
+
+    public void setFirebaseUid(String firebaseUid) {
+        this.firebaseUid = firebaseUid;
     }
 
     public Role getRole() {

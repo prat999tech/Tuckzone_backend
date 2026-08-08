@@ -330,13 +330,11 @@ a complete working demo — the APK is polish, not a dependency.
 - [ ] `APP_PAYMENT_PROVIDER=razorpay` with real `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/
       `RAZORPAY_WEBHOOK_SECRET` — see `docs/payments/` for sandbox setup and the webhook
       URL to register (`/api/payments/webhooks/razorpay`)
-- [ ] `APP_OTP_DELIVERY=email`, and either:
-      - `APP_EMAIL_PROVIDER=smtp` with real SMTP credentials, or
-      - `APP_EMAIL_PROVIDER=ses` with `AWS_REGION` + `AWS_ACCESS_KEY_ID` +
-        `AWS_SECRET_ACCESS_KEY` (prefer an attached IAM role over keys where the host
-        supports one) and SES moved out of the sandbox in that region
-      — either way, `EMAIL_FROM_ADDRESS` on a domain you own with SPF + DKIM (and, for
-      SES, verified as a sending identity)
+- [ ] `APP_OTP_DELIVERY=email` with `APP_EMAIL_PROVIDER=smtp` and real SMTP credentials
+      (works with Gmail, Zoho, Amazon SES's own SMTP interface, or any other provider) —
+      `EMAIL_FROM_ADDRESS` on a domain you own with SPF + DKIM configured
+- [ ] `FIREBASE_CREDENTIALS_JSON` (Admin SDK service-account key) if using Firebase
+      Authentication (phone OTP / email) or Firebase push — see `RUNNING_LOCALLY.md`
 - [ ] Rotate `JWT_SECRET` and `ADMIN_SIGNUP_CODE`
 - [ ] Paid Render instance, so uptime doesn't depend on a pinger
 - [ ] Neon backups enabled

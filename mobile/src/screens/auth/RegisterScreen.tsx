@@ -9,6 +9,7 @@ import { PasswordInput } from '../../components/PasswordInput';
 import { Button } from '../../components/Button';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { authApi } from '../../api/auth';
+import { useAuth } from '../../context/AuthContext';
 import { apiErrorMessage } from '../../api/client';
 import {
   validateEmail,
@@ -22,13 +23,22 @@ import type { AuthStackParamList } from '../../navigation/types';
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 type Role = 'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN';
 
-export function RegisterScreen({ navigation }: Props) {
+export function RegisterScreen({ navigation, route }: Props) {
+  const { registerStudentWithFirebase, registerTeacherWithFirebase, registerParentWithFirebase } = useAuth();
+  // Arrives here from LoginScreen's Email tab when a verified Firebase identity has no
+  // matching account yet — that identity already proved ownership of the email, so no
+  // password is collected and Canteen/admin self-registration isn't offered (it stays on
+  // the invite-code + password path only). The email itself can't be changed here: it IS
+  // the verified identity, and the backend rejects a mismatch (see
+  // FirebaseAccountService.newFirebaseUser on the backend).
+  const firebaseIdToken = route.params?.firebaseIdToken;
+
   const [role, setRole] = useState<Role>('STUDENT');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route.params?.email ?? '');
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
 
@@ -58,7 +68,9 @@ export function RegisterScreen({ navigation }: Props) {
     set('fullName', validateRequired(fullName, 'Full name'));
     set('email', validateEmail(email));
     set('mobile', validateMobile(mobile));
-    set('password', validatePassword(password));
+    if (!firebaseIdToken) {
+      set('password', validatePassword(password));
+    }
 
     if (role === 'STUDENT') {
       set('admissionNumber', validateRequired(admissionNumber, 'Admission number'));
@@ -89,6 +101,30 @@ export function RegisterScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
+      if (firebaseIdToken) {
+        // Identity already verified by Firebase — this creates the account and signs the
+        // user in immediately, so there's no separate email-verification step to route to.
+        const base = { idToken: firebaseIdToken, fullName, email: email.trim(), mobile: mobile.trim() };
+        if (role === 'STUDENT') {
+          await registerStudentWithFirebase({
+            ...base,
+            admissionNumber,
+            studentClass,
+            section,
+            rollNumber,
+            seatNumber: seatNumber || undefined,
+            parentMobile: parentMobile.trim() || undefined,
+            studentMobile: studentMobile.trim() || undefined,
+          });
+        } else if (role === 'TEACHER') {
+          await registerTeacherWithFirebase({ ...base, employeeId, department });
+        } else {
+          await registerParentWithFirebase(base);
+        }
+        Toast.show({ type: 'success', text1: `Welcome, ${fullName.split(' ')[0]}!` });
+        return;
+      }
+
       if (role === 'STUDENT') {
         await authApi.registerStudent({
           fullName,
@@ -146,7 +182,9 @@ export function RegisterScreen({ navigation }: Props) {
             { value: 'STUDENT', label: 'Student' },
             { value: 'TEACHER', label: 'Teacher' },
             { value: 'PARENT', label: 'Parent' },
-            { value: 'ADMIN', label: 'Canteen' },
+            // Canteen/admin self-registration stays on the invite-code + password path
+            // only — a Firebase-verified phone number isn't sufficient for admin access.
+            ...(firebaseIdToken ? [] : [{ value: 'ADMIN' as const, label: 'Canteen' }]),
           ]}
           value={role}
           onChange={(next) => {
@@ -154,6 +192,11 @@ export function RegisterScreen({ navigation }: Props) {
             setErrors({});
           }}
         />
+        {firebaseIdToken && (
+          <Text style={styles.firebaseHint}>
+            Your email is verified — just a few more details to finish setting up your account.
+          </Text>
+        )}
 
         <View style={styles.form}>
           <Input
@@ -172,6 +215,7 @@ export function RegisterScreen({ navigation }: Props) {
             autoCapitalize="none"
             keyboardType="email-address"
             error={errors.email}
+            editable={!firebaseIdToken}
             leftIcon={<Mail size={18} color={colors.textTertiary} />}
           />
           <Input
@@ -184,14 +228,16 @@ export function RegisterScreen({ navigation }: Props) {
             error={errors.mobile}
             leftIcon={<Phone size={18} color={colors.textTertiary} />}
           />
-          <PasswordInput
-            label="Password"
-            required
-            value={password}
-            onChangeText={setPassword}
-            error={errors.password}
-            leftIcon={<Lock size={18} color={colors.textTertiary} />}
-          />
+          {!firebaseIdToken && (
+            <PasswordInput
+              label="Password"
+              required
+              value={password}
+              onChangeText={setPassword}
+              error={errors.password}
+              leftIcon={<Lock size={18} color={colors.textTertiary} />}
+            />
+          )}
 
           {role === 'STUDENT' && (
             <>
@@ -319,5 +365,6 @@ const styles = StyleSheet.create({
   half: { flex: 1 },
   third: { flex: 1 },
   adminHint: { ...typography.caption, marginTop: -spacing.xs, marginBottom: spacing.md },
+  firebaseHint: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' },
   submit: { marginTop: spacing.sm },
 });

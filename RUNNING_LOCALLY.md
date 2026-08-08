@@ -96,24 +96,22 @@ Verification → App passwords), not your normal password. Restart the backend.
 Wrong/missing credentials make the app refuse to start with a clear message — that is
 deliberate, so a misconfiguration can't silently swallow every email.
 
-Any SMTP provider works (Zoho `smtp.zoho.in`, AWS SES, your own domain) — only these
-four values change.
+Any SMTP provider works (Zoho `smtp.zoho.in`, Amazon SES's own SMTP interface, your own
+domain) — only these four values change.
 
-**Or use Amazon SES directly**, without SMTP at all — the backend calls the SES API via
-the AWS SDK instead:
+## Firebase Authentication (phone OTP + email sign-in)
 
-```bash
-APP_OTP_DELIVERY=email
-APP_EMAIL_PROVIDER=ses
-AWS_REGION=ap-south-1
-AWS_ACCESS_KEY_ID=<your access key>
-AWS_SECRET_ACCESS_KEY=<your secret key>
-EMAIL_FROM_ADDRESS=you@yourdomain.com
-```
+Additive alongside the password/OTP login above — existing accounts are unaffected. Needs
+a Firebase project (free tier is enough):
 
-`EMAIL_FROM_ADDRESS` must be a verified SES identity (verify it, or its whole domain, in
-the SES console first). While the SES account is in the sandbox, the recipient address
-needs to be verified too — request production access to email arbitrary addresses.
+1. [Firebase Console](https://console.firebase.google.com) → Create project.
+2. **Authentication → Sign-in method** → enable **Phone** and **Email/Password**.
+3. **Project Settings → Service Accounts → Generate new private key** — downloads a JSON
+   file. Set its contents as `FIREBASE_CREDENTIALS_JSON` (paste directly; base64 it first
+   only if your host mangles multi-line env vars).
+4. **Project Settings → General → Your apps → Web app** (add one if none exists) — copy the
+   config values into `frontend/.env` / `mobile/.env` as `VITE_FIREBASE_*` /
+   `EXPO_PUBLIC_FIREBASE_*` (see those apps' own `.env.example`).
 
 ## Payments (wallet recharge & order checkout)
 

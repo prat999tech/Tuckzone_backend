@@ -16,6 +16,13 @@ import {
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
+import {
+  signInWithFirebaseEmail,
+  createFirebaseEmailAccount,
+  sendFirebasePasswordReset,
+  firebaseAuthErrorMessage,
+} from '../auth/firebase/emailAuth';
+import { isFirebaseConfigured } from '../auth/firebase/config';
 import './LoginPage.css';
 
 /** Used only until the first "send code" response tells us the server's real policy. */
@@ -28,7 +35,7 @@ export default function LoginPage() {
   const [errors, setErrors]     = useState({});
   const [loading, setLoading]   = useState(false);
   const navigate = useNavigate();
-  const { login, requestOtp, loginWithOtp } = useAuth();
+  const { login, requestOtp, loginWithOtp, loginWithFirebase } = useAuth();
 
   // ── OTP mode state ──
   const [otpEmail, setOtpEmail]       = useState('');
@@ -39,6 +46,11 @@ export default function LoginPage() {
   const [resendingOtp, setResendingOtp] = useState(false);
   const [cooldown, setCooldown]       = useState(0);
   const cooldownRef = useRef(null);
+
+  // ── Firebase email mode state ──
+  const [fbEmail, setFbEmail]       = useState('');
+  const [fbPassword, setFbPassword] = useState('');
+  const [fbBusy, setFbBusy]         = useState(null); // null | 'signin' | 'create' | 'reset'
 
   useEffect(() => () => clearInterval(cooldownRef.current), []);
 
@@ -167,6 +179,77 @@ export default function LoginPage() {
     setErrors({});
   };
 
+  /** Shared by sign-in and create-account: exchange the Firebase ID token for our own
+   *  session, and if this identity has no linked account yet, hand off to Register with
+   *  the token instead of failing outright — covers "create account" for a brand-new
+   *  email, and also the edge case where sign-in succeeds against Firebase but the
+   *  account here was somehow never linked. */
+  const completeFirebaseEmailAuth = async (idToken) => {
+    try {
+      const res = await loginWithFirebase(idToken);
+      toast.success(`Welcome back, ${res.user.fullName?.split(' ')[0]}!`);
+      navigate(routeForRole(res.user.role));
+    } catch (exchangeError) {
+      if (exchangeError.response?.data?.code === 'FIREBASE_USER_NOT_REGISTERED') {
+        toast('Almost there — let\'s finish setting up your account.');
+        navigate('/register', { state: { firebaseIdToken: idToken, email: fbEmail.trim(), emailLocked: true } });
+      } else {
+        throw exchangeError;
+      }
+    }
+  };
+
+  const validateFbFields = () => {
+    const errs = {};
+    if (!fbEmail.trim() || !/^\S+@\S+\.\S+$/.test(fbEmail)) errs.fbEmail = 'Enter a valid email address';
+    if (!fbPassword || fbPassword.length < 6) errs.fbPassword = 'Password must be at least 6 characters';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleFirebaseSignIn = async () => {
+    if (!validateFbFields()) return;
+    try {
+      setFbBusy('signin');
+      const idToken = await signInWithFirebaseEmail(fbEmail.trim(), fbPassword);
+      await completeFirebaseEmailAuth(idToken);
+    } catch (error) {
+      toast.error(firebaseAuthErrorMessage(error));
+    } finally {
+      setFbBusy(null);
+    }
+  };
+
+  const handleFirebaseCreateAccount = async () => {
+    if (!validateFbFields()) return;
+    try {
+      setFbBusy('create');
+      const idToken = await createFirebaseEmailAccount(fbEmail.trim(), fbPassword);
+      toast.success('Verification email sent — check your inbox.');
+      await completeFirebaseEmailAuth(idToken);
+    } catch (error) {
+      toast.error(firebaseAuthErrorMessage(error));
+    } finally {
+      setFbBusy(null);
+    }
+  };
+
+  const handleFirebasePasswordReset = async () => {
+    if (!fbEmail.trim() || !/^\S+@\S+\.\S+$/.test(fbEmail)) {
+      setErrors((e) => ({ ...e, fbEmail: 'Enter your email address first' }));
+      return;
+    }
+    try {
+      setFbBusy('reset');
+      await sendFirebasePasswordReset(fbEmail.trim());
+      toast.success('Password reset email sent — check your inbox.');
+    } catch (error) {
+      toast.error(firebaseAuthErrorMessage(error));
+    } finally {
+      setFbBusy(null);
+    }
+  };
+
   return (
     <div className="login-container">
       {/* Left Branding Panel */}
@@ -227,6 +310,17 @@ export default function LoginPage() {
             >
               <KeyRound size={14} /> Email OTP
             </button>
+            {isFirebaseConfigured && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'fbEmail'}
+                className={mode === 'fbEmail' ? 'active' : ''}
+                onClick={() => switchMode('fbEmail')}
+              >
+                <Mail size={14} /> Email
+              </button>
+            )}
           </div>
 
           {mode === 'password' ? (
@@ -284,7 +378,8 @@ export default function LoginPage() {
                 </button>
               </div>
             </form>
-          ) : otpStage === 'request' ? (
+          ) : mode === 'otp' ? (
+            otpStage === 'request' ? (
             <form className="login-form" onSubmit={handleSendOtp} noValidate>
               <div className="form-group">
                 <label htmlFor="otp-email">Email Address</label>
@@ -383,6 +478,85 @@ export default function LoginPage() {
                 Use a different email
               </button>
             </form>
+            )
+          ) : (
+            <div className="login-form">
+              <div className="form-group">
+                <label htmlFor="fb-email">Email Address</label>
+                <div className="input-with-icon">
+                  <Mail className="input-icon" size={18} />
+                  <input
+                    id="fb-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={fbEmail}
+                    onChange={(e) => {
+                      setFbEmail(e.target.value);
+                      if (errors.fbEmail) setErrors({ ...errors, fbEmail: null });
+                    }}
+                    className={errors.fbEmail ? 'input-error' : ''}
+                    autoComplete="email"
+                  />
+                </div>
+                {errors.fbEmail && (
+                  <span className="field-error-text">
+                    <AlertCircle size={13} /> {errors.fbEmail}
+                  </span>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="fb-password">Password</label>
+                <PasswordInput
+                  id="fb-password"
+                  icon={Lock}
+                  iconSize={18}
+                  placeholder="••••••••"
+                  value={fbPassword}
+                  onChange={(e) => {
+                    setFbPassword(e.target.value);
+                    if (errors.fbPassword) setErrors({ ...errors, fbPassword: null });
+                  }}
+                  className={errors.fbPassword ? 'input-error' : ''}
+                  autoComplete="current-password"
+                />
+                {errors.fbPassword && (
+                  <span className="field-error-text">
+                    <AlertCircle size={13} /> {errors.fbPassword}
+                  </span>
+                )}
+              </div>
+
+              <div className="form-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn-primary login-btn"
+                  disabled={fbBusy !== null}
+                  onClick={handleFirebaseSignIn}
+                >
+                  {fbBusy === 'signin' ? <Loader2 className="spinner" size={18} /> : <LogIn size={18} />}
+                  <span>Sign In</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary login-btn"
+                  disabled={fbBusy !== null}
+                  onClick={handleFirebaseCreateAccount}
+                >
+                  {fbBusy === 'create' ? <Loader2 className="spinner" size={18} /> : <ShieldCheck size={18} />}
+                  <span>Create Account</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="btn-resend"
+                onClick={handleFirebasePasswordReset}
+                disabled={fbBusy !== null}
+              >
+                {fbBusy === 'reset' ? 'Sending...' : 'Forgot password?'}
+              </button>
+            </div>
           )}
 
           {mode === 'password' && (

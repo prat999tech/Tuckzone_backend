@@ -42,6 +42,13 @@ public class GlobalExceptionHandler {
                 EmailNotVerifiedException.CODE);
     }
 
+    @ExceptionHandler(FirebaseUserNotRegisteredException.class)
+    public ResponseEntity<ApiError> handleFirebaseUserNotRegistered(FirebaseUserNotRegisteredException ex,
+                                                          HttpServletRequest request) {
+        return build(ex.getStatus(), ex.getMessage(), List.of(), request,
+                FirebaseUserNotRegisteredException.CODE);
+    }
+
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest request) {
         return build(ex.getStatus(), ex.getMessage(), List.of(), request);
