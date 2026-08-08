@@ -110,10 +110,6 @@ export default function LoginPage() {
     handleLoginSubmit(email, password);
   };
 
-  const handleQuickCanteenAdminLogin = () => {
-    handleLoginSubmit('canteenadmin@school.local', 'Admin@12345');
-  };
-
   const validateOtpEmail = () => {
     if (!otpEmail.trim()) {
       setErrors((e) => ({ ...e, otpEmail: 'Email address is required' }));
@@ -557,22 +553,6 @@ export default function LoginPage() {
                 {fbBusy === 'reset' ? 'Sending...' : 'Forgot password?'}
               </button>
             </div>
-          )}
-
-          {mode === 'password' && (
-            <>
-              <div className="login-divider">OR</div>
-
-              <button
-                type="button"
-                className="btn-admin-quick"
-                onClick={handleQuickCanteenAdminLogin}
-                disabled={loading}
-              >
-                <ChefHat size={18} />
-                <span>Login as Canteen Admin</span>
-              </button>
-            </>
           )}
 
           <div className="login-footer">
