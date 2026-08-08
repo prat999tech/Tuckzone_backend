@@ -11,7 +11,7 @@
       "bundleIdentifier": "com.schoolbite.canteen"
     },
     "android": {
-      "package": "com.schoolbite.canteen",
+      "package": "com.tuckzone.canteen",
       "adaptiveIcon": {
         "backgroundColor": "#FEF3C7",
         "foregroundImage": "./assets/android-icon-foreground.png",

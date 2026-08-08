@@ -28,7 +28,7 @@ that need your own Google and Expo accounts.
 2. On the project dashboard click the **Android** icon to add an Android app.
 3. **Android package name** — must be exactly:
    ```
-   com.schoolbite.canteen
+   com.tuckzone.canteen
    ```
    This has to match `expo.android.package` in `mobile/app.json`, or push silently fails.
 4. Register the app, then **Download `google-services.json`**.
