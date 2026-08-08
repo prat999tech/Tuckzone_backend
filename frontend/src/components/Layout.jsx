@@ -13,6 +13,7 @@ import {
   FileDown,
   ShieldPlus,
   CreditCard,
+  LayoutDashboard,
   LogOut,
   Menu,
   X
@@ -48,6 +49,7 @@ const Layout = () => {
         return [{ to: '/admin/users', icon: UserCheck, label: 'User Approvals' }];
       case 'CANTEEN_ADMIN':
         return [
+          { to: '/admin/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
           { to: '/admin/daily-menu', icon: Calendar,        label: 'Meal of the Day' },
           { to: '/admin/fixed-menu', icon: ChefHat,         label: 'Daily Delights' },
           { to: '/admin/orders',     icon: ClipboardList,   label: 'Orders Board' },

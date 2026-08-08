@@ -172,7 +172,7 @@ export default function RegisterPage() {
             : await registerParentWithFirebase(base);
 
         toast.success(`Welcome, ${res.user.fullName?.split(' ')[0]}!`);
-        navigate(res.user.role === 'CANTEEN_ADMIN' ? '/admin/orders'
+        navigate(res.user.role === 'CANTEEN_ADMIN' ? '/admin/dashboard'
           : res.user.role === 'SUB_ADMIN' ? '/subadmin/orders' : '/menu');
         return;
       }

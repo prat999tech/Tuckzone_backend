@@ -1,5 +1,10 @@
 import client from './client';
 
+export const getDashboard = async (date) => {
+  const response = await client.get('/admin/dashboard', { params: { date } });
+  return response.data;
+};
+
 export const listUsers = async (status) => {
   const response = await client.get('/admin/users', { params: { status } });
   return response.data;

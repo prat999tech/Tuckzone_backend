@@ -85,7 +85,7 @@ export default function LoginPage() {
   };
 
   const routeForRole = (role) => {
-    if (role === 'CANTEEN_ADMIN') return '/admin/orders';
+    if (role === 'CANTEEN_ADMIN') return '/admin/dashboard';
     if (role === 'SUB_ADMIN') return '/subadmin/orders';
     if (role === 'SCHOOL_ADMIN') return '/admin/users';
     return '/menu';
