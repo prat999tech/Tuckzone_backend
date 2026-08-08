@@ -271,16 +271,20 @@ export default function RegisterPage() {
           >
             Parent
           </button>
-          <button
-            className={`role-tab ${role === 'ADMIN' ? 'active' : ''}`}
-            onClick={() => {
-              setRole('ADMIN');
-              setErrors({});
-            }}
-            type="button"
-          >
-            Canteen
-          </button>
+          {/* Canteen/admin self-registration stays on the invite-code + password path
+              only — a Firebase-verified identity isn't sufficient for admin access. */}
+          {!firebaseIdToken && (
+            <button
+              className={`role-tab ${role === 'ADMIN' ? 'active' : ''}`}
+              onClick={() => {
+                setRole('ADMIN');
+                setErrors({});
+              }}
+              type="button"
+            >
+              Canteen
+            </button>
+          )}
         </div>
 
         <form className="register-form" onSubmit={handleSubmit} noValidate>
