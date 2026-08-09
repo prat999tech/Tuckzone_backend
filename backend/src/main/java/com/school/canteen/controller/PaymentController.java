@@ -87,6 +87,17 @@ public class PaymentController {
         return paymentService.getPaymentStatus(principal.getUser().getId(), id);
     }
 
+    /**
+     * Called by the client the moment it knows checkout won't complete — the gateway
+     * widget was dismissed, or the widget failed to load — so a payment (and any order it
+     * started) doesn't sit around looking "placed" until PaymentExpirySweeper's 15-minute
+     * sweep gets to it. Ownership-checked and idempotent, same as verify.
+     */
+    @PostMapping("/{id}/cancel")
+    public PaymentStatusResponse cancel(@AuthenticationPrincipal AppUserDetails principal, @PathVariable UUID id) {
+        return paymentService.cancelPayment(principal.getUser().getId(), id);
+    }
+
     @PostMapping("/{id}/refund")
     @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
     public RefundResponse refund(@PathVariable UUID id, @Valid @RequestBody RefundRequest request) {

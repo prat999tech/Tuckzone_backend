@@ -64,7 +64,13 @@ export function OrdersScreen() {
         <View style={styles.list}>
           {orders.map((order) => {
             const voided = isVoided(order.status);
-            const tone = statusColor(order.status);
+            // A gateway/split checkout that hasn't settled yet is still visible here (it's
+            // the customer's own order) but must never read as an ordinary placed order —
+            // see web's OrdersPage.jsx for the same distinction and why it matters.
+            const paymentPending = order.status === 'PLACED' && order.paymentStatus === 'PENDING';
+            // 'ACCEPTED' is just a lookup key into the warning tone here, not a claim
+            // about the order's actual status — statusColor has no dedicated PENDING case.
+            const tone = paymentPending ? statusColor('ACCEPTED') : statusColor(order.status);
             const delivered = order.status === 'DELIVERED';
 
             return (
@@ -74,7 +80,9 @@ export function OrdersScreen() {
                   <View style={styles.headerTop}>
                     <Text style={styles.orderNumber}>ORDER #{order.orderNumber}</Text>
                     <View style={[styles.statusChip, { backgroundColor: tone.bg }]}>
-                      <Text style={[styles.statusText, { color: tone.fg }]}>{orderStatusLabel(order.status)}</Text>
+                      <Text style={[styles.statusText, { color: tone.fg }]}>
+                        {paymentPending ? 'Payment pending' : orderStatusLabel(order.status)}
+                      </Text>
                     </View>
                     <Text style={[styles.total, voided && styles.totalVoided]}>
                       {formatCurrency(order.totalAmount)}

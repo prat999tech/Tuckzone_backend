@@ -4,7 +4,7 @@ import { getChildren } from '../api/parent';
 import { placeOrder } from '../api/orders';
 import { getWallet } from '../api/wallet';
 import { getConfig } from '../api/config';
-import { mockCompletePayment, verifyPayment } from '../api/payments';
+import { cancelPayment, mockCompletePayment, verifyPayment } from '../api/payments';
 import { openRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
 import { classLabel } from '../utils/format';
@@ -154,24 +154,41 @@ export default function MenuPage() {
 
       if (order.payment) {
         // Wallet alone didn't cover it — finish the gateway leg PaymentService created.
-        if (mockPaymentsEnabled) {
-          toast.loading('Processing payment...', { id: 'order-payment' });
-          await mockCompletePayment(order.payment.paymentId);
-        } else {
-          toast.loading('Opening payment...', { id: 'order-payment' });
-          const result = await openRazorpayCheckout({
-            providerOrderId: order.payment.providerOrderId,
-            providerKeyId: order.payment.providerKeyId,
-            description: `TuckZone order ${order.orderNumber}`,
-          });
-          toast.loading('Confirming payment...', { id: 'order-payment' });
-          await verifyPayment(order.payment.paymentId, {
-            providerOrderId: result.providerOrderId,
-            providerPaymentId: result.providerPaymentId,
-            signature: result.signature,
-          });
+        try {
+          if (mockPaymentsEnabled) {
+            toast.loading('Processing payment...', { id: 'order-payment' });
+            await mockCompletePayment(order.payment.paymentId);
+          } else {
+            toast.loading('Opening payment...', { id: 'order-payment' });
+            const result = await openRazorpayCheckout({
+              providerOrderId: order.payment.providerOrderId,
+              providerKeyId: order.payment.providerKeyId,
+              description: `TuckZone order ${order.orderNumber}`,
+            });
+            toast.loading('Confirming payment...', { id: 'order-payment' });
+            await verifyPayment(order.payment.paymentId, {
+              providerOrderId: result.providerOrderId,
+              providerPaymentId: result.providerPaymentId,
+              signature: result.signature,
+            });
+          }
+          toast.success('Order placed and paid successfully!', { id: 'order-payment' });
+        } catch (paymentErr) {
+          // The order row already exists (PLACED/PENDING) — dismissing the widget, closing
+          // it, or a failed verify all land here. Void it now instead of leaving it to sit
+          // for up to 15 minutes looking like a real placed order (see PaymentExpirySweeper).
+          await cancelPayment(order.payment.paymentId).catch(() => undefined);
+          fetchInitialData();
+          getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
+          toast.error(
+            paymentErr.message === 'Payment was cancelled'
+              ? 'Payment cancelled — your order was not placed'
+              : (paymentErr.response?.data?.message || paymentErr.message
+                  || 'Payment failed — your order was not placed'),
+            { id: 'order-payment' },
+          );
+          return; // keep the cart intact so the customer can retry
         }
-        toast.success('Order placed and paid successfully!', { id: 'order-payment' });
       } else {
         toast.success('Order placed successfully!');
       }

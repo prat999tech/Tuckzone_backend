@@ -36,6 +36,18 @@ public interface PaymentService {
 
     PaymentStatusResponse getPaymentStatus(UUID userId, UUID paymentId);
 
+    /**
+     * User-initiated cancellation of a payment still awaiting completion — e.g. the
+     * customer dismissed the gateway checkout widget instead of finishing it. Marks the
+     * payment FAILED, reverses any eager wallet debit, and (for a CHECKOUT payment)
+     * restores stock and cancels the linked order immediately, instead of leaving it
+     * dangling as a visible, actionable order until {@code PaymentExpirySweeper}'s
+     * 15-minute sweep catches it. Idempotent (re-cancelling an already-FAILED payment is a
+     * no-op) and safe to race against a verify/webhook that settles the payment first — row
+     * locking on the same {@code Payment} makes the two mutually exclusive.
+     */
+    PaymentStatusResponse cancelPayment(UUID userId, UUID paymentId);
+
     /** Admin-only; not ownership-scoped to a single user. */
     RefundResponse refundPayment(UUID paymentId, RefundRequest request);
 

@@ -15,6 +15,7 @@ import com.school.canteen.payment.ProviderRefundCommand;
 import com.school.canteen.payment.ProviderRefundResult;
 import com.school.canteen.payment.ProviderVerificationResult;
 import com.school.canteen.payment.ProviderVerifyPaymentCommand;
+import com.school.canteen.payment.WebhookOutcome;
 import com.school.canteen.payment.WebhookVerificationResult;
 import jakarta.annotation.PostConstruct;
 import org.json.JSONObject;
@@ -137,11 +138,33 @@ public class RazorpayProvider implements PaymentProvider {
                     .optJSONObject("entity");
             String providerPaymentId = paymentEntity != null ? paymentEntity.optString("id", null) : null;
             String providerOrderId = paymentEntity != null ? paymentEntity.optString("order_id", null) : null;
-            return new WebhookVerificationResult(true, eventType, providerOrderId, providerPaymentId);
+            return new WebhookVerificationResult(true, outcomeFor(eventType), providerOrderId, providerPaymentId);
         } catch (Exception ex) {
             log.warn("Razorpay webhook signature was valid but the payload could not be parsed", ex);
             return WebhookVerificationResult.invalid();
         }
+    }
+
+    /**
+     * Razorpay's own event catalogue, narrowed to the two outcomes {@code PaymentService}
+     * acts on. {@code payment.captured} is the only event treated as success — deliberately
+     * NOT {@code order.paid}, which fires from the order's own payment entity payload
+     * (different shape) and NOT {@code payment.authorized}, which (outside auto-capture)
+     * means money is only held, not actually captured yet. {@code payment.failed} is the
+     * gateway explicitly telling us an attempt did not go through — e.g. a customer who
+     * picked UPI, got as far as an intent/collect request, then backed out or had it
+     * declined. Everything else (refund events, disputes, etc.) is ignored here; this
+     * webhook only ever settles or voids a checkout/recharge payment.
+     */
+    private static WebhookOutcome outcomeFor(String eventType) {
+        if (eventType == null) {
+            return WebhookOutcome.IGNORE;
+        }
+        return switch (eventType) {
+            case "payment.captured" -> WebhookOutcome.SUCCESS;
+            case "payment.failed" -> WebhookOutcome.FAILURE;
+            default -> WebhookOutcome.IGNORE;
+        };
     }
 
     private static boolean isBlank(String value) {
