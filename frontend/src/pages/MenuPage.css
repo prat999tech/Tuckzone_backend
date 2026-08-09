@@ -25,6 +25,11 @@
   margin-top: 0.25rem;
 }
 
+.menu-header .ordering-for-label {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .date-picker input[type="date"] {
   padding: 0.5rem 0.875rem;
   border: 1.5px solid var(--gray-200);

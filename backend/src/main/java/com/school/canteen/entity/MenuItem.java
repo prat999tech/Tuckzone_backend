@@ -33,8 +33,23 @@ public class MenuItem extends BaseEntity {
     @Column(name = "menu_type", nullable = false)
     private MenuType menuType;
 
+    /** Legacy: an admin-entered external image URL. Superseded by {@link #imageData} for
+     *  every new upload, but never cleared or migrated — see V17's migration comment. */
     @Column(name = "image_url")
     private String imageUrl;
+
+    /** The uploaded photo's bytes, stored directly in Postgres — this app's only durable
+     *  storage that survives a Render redeploy (see docs on why: no object storage account
+     *  exists for this project). Null until an admin uploads one via
+     *  {@code MenuItemService#uploadImage}. */
+    @Column(name = "image_data")
+    private byte[] imageData;
+
+    /** The uploaded photo's MIME type (image/jpeg, image/png or image/webp), needed to set
+     *  the right Content-Type when serving {@link #imageData} back out. Null exactly when
+     *  {@link #imageData} is null. */
+    @Column(name = "image_content_type")
+    private String imageContentType;
 
     @Column(name = "allergens")
     private String allergens;
@@ -96,6 +111,28 @@ public class MenuItem extends BaseEntity {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public byte[] getImageData() {
+        return imageData;
+    }
+
+    public void setImageData(byte[] imageData) {
+        this.imageData = imageData;
+    }
+
+    public String getImageContentType() {
+        return imageContentType;
+    }
+
+    public void setImageContentType(String imageContentType) {
+        this.imageContentType = imageContentType;
+    }
+
+    /** Whichever image a client should actually use — an uploaded photo if one exists,
+     *  otherwise the legacy external URL, otherwise null (no image at all). */
+    public boolean hasUploadedImage() {
+        return imageData != null;
     }
 
     public String getAllergens() {

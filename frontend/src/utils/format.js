@@ -15,10 +15,14 @@ export function classLabel(studentClass, section) {
   return section ? `${studentClass}-${section}` : studentClass;
 }
 
-/** Short, readable date (e.g. "9 Aug 2026"), matching mobile's formatDate exactly so a
- *  date reads the same wherever a user might see both apps. Accepts an ISO date/datetime
- *  string (a plain YYYY-MM-DD parses as UTC midnight, which is fine for en-IN display). */
+/**
+ * "10 August 2026" from a Y-M-D date string (as every `<input type="date">` and API date
+ * field in this app already is). Deliberately does NOT go through `new Date(iso)` — that
+ * constructor parses an ISO date-only string as UTC midnight, which renders as the previous
+ * day in any browser west of UTC. Parsing the components directly avoids that entirely.
+ */
 export function formatDate(iso) {
-  const date = new Date(iso);
-  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }

@@ -9,8 +9,8 @@ import com.school.canteen.dto.UserSummary;
 import com.school.canteen.dto.menu.MenuItemResponse;
 import com.school.canteen.dto.order.OrderLineRequest;
 import com.school.canteen.dto.order.OrderResponse;
-import com.school.canteen.dto.order.OrderStatusUpdateRequest;
 import com.school.canteen.dto.order.PlaceOrderRequest;
+import com.school.canteen.dto.payment.RefundRequest;
 import com.school.canteen.dto.payment.VerifyPaymentRequest;
 import com.school.canteen.dto.wallet.MockTopupCompleteRequest;
 import com.school.canteen.dto.wallet.TopupInitResponse;
@@ -181,9 +181,10 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("rejecting a paid split order refunds the wallet share and the gateway share separately, "
+    @DisplayName("refunding a paid split order (via the standalone admin refund endpoint — order-level "
+            + "rejection no longer exists) splits the wallet share and the gateway share separately, "
             + "not the full total to the wallet")
-    void rejectingSplitPaidOrderRefundsProportionally() {
+    void refundingSplitPaidOrderRefundsProportionally() {
         UUID userId = teacherWithWallet(BigDecimal.valueOf(100));
         UUID itemId = publishItem(BigDecimal.valueOf(30), 10); // total 150: wallet 100 + gateway 50
         OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null, null,
@@ -195,7 +196,11 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
         paymentService.mockComplete(userId, order.payment().paymentId());
         assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("0.00");
 
-        orderService.adminTransition(order.id(), new OrderStatusUpdateRequest(OrderStatus.REJECTED, null));
+        // Order-level rejection is gone entirely (see OrderConcurrencyIntegrationTest) — the
+        // Order<->Payment link this test protects is still exercised through the standalone
+        // admin refund endpoint (PaymentController#refund), which remains for genuine
+        // adjustments even though no order-status action can reach it automatically anymore.
+        paymentService.refundPayment(order.payment().paymentId(), new RefundRequest(null, "test refund"));
 
         // Without the Order<->Payment link, this used to credit the wallet the FULL 150
         // (order.totalAmount) while never refunding the 50 actually charged through the

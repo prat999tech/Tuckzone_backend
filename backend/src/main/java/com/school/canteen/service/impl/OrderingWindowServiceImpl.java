@@ -1,5 +1,6 @@
 package com.school.canteen.service.impl;
 
+import com.school.canteen.dto.order.DefaultOrderingDateResponse;
 import com.school.canteen.dto.order.DemandRow;
 import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderingWindowRequest;
@@ -10,6 +11,7 @@ import com.school.canteen.entity.OrderingWindow;
 import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.OrderingStatus;
 import com.school.canteen.exception.BadRequestException;
+import com.school.canteen.exception.OrderingClosedException;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.DeliverySlotRepository;
@@ -21,6 +23,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,20 +142,31 @@ public class OrderingWindowServiceImpl implements OrderingWindowService {
     @Override
     @Transactional(readOnly = true)
     public void assertAcceptingOrders(LocalDate menuDate, DeliverySlot slot) {
+        if (isAccepting(menuDate, slot)) {
+            return;
+        }
         OrderingWindow window = windowRepository
                 .findByMenuDateAndSlot_Id(menuDate, slot.getId()).orElse(null);
+        LocalDate nextAvailable = findNextAcceptingDate(menuDate.plusDays(1), slot);
 
         if (window != null && window.getStatus() == OrderingStatus.CLOSED) {
-            throw new BadRequestException("The canteen has stopped taking orders for "
-                    + slot.getName() + " on " + menuDate + "." + suffix(window.getReason()));
+            throw new OrderingClosedException("The canteen has stopped taking orders for "
+                    + slot.getName() + " on " + friendly(menuDate) + "." + suffix(window.getReason())
+                    + " Orders are currently being accepted for " + friendly(nextAvailable) + ".");
         }
+        throw new OrderingClosedException("Today's cutoff time has passed. Orders are now being "
+                + "accepted for " + friendly(nextAvailable) + ".");
+    }
 
-        LocalTime cutoff = effectiveCutoff(window, slot);
-        if (LocalDateTime.now(clock).isAfter(LocalDateTime.of(menuDate, cutoff))) {
-            throw new BadRequestException(
-                    "Ordering has closed for today. Please place your order before the "
-                            + "cut-off time.");
-        }
+    @Override
+    @Transactional(readOnly = true)
+    public DefaultOrderingDateResponse resolveDefaultOrderingDate() {
+        DeliverySlot slot = activeSlot();
+        LocalDate defaultDate = findNextAcceptingDate(LocalDate.now(clock).plusDays(1), slot);
+        OrderingWindow window = windowRepository
+                .findByMenuDateAndSlot_Id(defaultDate, slot.getId()).orElse(null);
+        return new DefaultOrderingDateResponse(defaultDate, slot.getId(), slot.getName(),
+                effectiveCutoff(window, slot));
     }
 
     @Override
@@ -166,9 +180,52 @@ public class OrderingWindowServiceImpl implements OrderingWindowService {
 
     // --- helpers ---------------------------------------------------------------
 
+    /** How many days ahead to search for the next open date before giving up — generous
+     *  enough to survive a multi-day closure (e.g. a school holiday week) without an
+     *  unbounded loop. */
+    private static final int MAX_LOOKAHEAD_DAYS = 14;
+    private static final DateTimeFormatter FRIENDLY_DATE = DateTimeFormatter.ofPattern("d MMMM yyyy");
+
     private DeliverySlot findSlot(UUID slotId) {
         return slotRepository.findById(slotId)
                 .orElseThrow(() -> new ResourceNotFoundException("Delivery slot not found"));
+    }
+
+    /** The one active ordering slot ("Recess") — same resolution OrderServiceImpl uses. */
+    private DeliverySlot activeSlot() {
+        return slotRepository.findByActiveTrueOrderByOrderCutoffTimeAsc().stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Recess is not configured"));
+    }
+
+    private boolean isAccepting(LocalDate menuDate, DeliverySlot slot) {
+        OrderingWindow window = windowRepository
+                .findByMenuDateAndSlot_Id(menuDate, slot.getId()).orElse(null);
+        if (window != null && window.getStatus() == OrderingStatus.CLOSED) {
+            return false;
+        }
+        LocalTime cutoff = effectiveCutoff(window, slot);
+        return !LocalDateTime.now(clock).isAfter(LocalDateTime.of(menuDate, cutoff));
+    }
+
+    /** Walks forward from {@code searchFrom} for the earliest date still accepting orders —
+     *  backs both the default-date endpoint and the "orders are now being accepted for X"
+     *  message on a cutoff rejection, so the two always agree with each other. */
+    private LocalDate findNextAcceptingDate(LocalDate searchFrom, DeliverySlot slot) {
+        LocalDate candidate = searchFrom;
+        for (int i = 0; i < MAX_LOOKAHEAD_DAYS; i++) {
+            if (isAccepting(candidate, slot)) {
+                return candidate;
+            }
+            candidate = candidate.plusDays(1);
+        }
+        // Nothing open in the entire lookahead window — vanishingly unlikely (a two-week
+        // closure) but still returns a coherent date rather than throwing.
+        return candidate;
+    }
+
+    private static String friendly(LocalDate date) {
+        return date.format(FRIENDLY_DATE);
     }
 
     private OrderingWindow findOrCreate(LocalDate menuDate, DeliverySlot slot) {

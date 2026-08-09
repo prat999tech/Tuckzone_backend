@@ -4,19 +4,29 @@ import com.school.canteen.dto.menu.MenuItemRequest;
 import com.school.canteen.dto.menu.MenuItemResponse;
 import com.school.canteen.entity.MenuItem;
 import com.school.canteen.enums.MenuType;
+import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.mapper.MenuItemMapper;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.MenuItemRepository;
 import com.school.canteen.service.MenuItemService;
+import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class MenuItemServiceImpl implements MenuItemService {
+
+    /** JPG/JPEG, PNG and WEBP only — matches what every mainstream phone camera and the web
+     *  file picker actually produce, without opening this up to SVG (XSS risk via inline
+     *  scripts) or arbitrary file types. */
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+    private static final long MAX_IMAGE_BYTES = 3L * 1024 * 1024; // 3 MB
 
     private final MenuItemRepository menuItemRepository;
     private final MenuItemMapper menuItemMapper;
@@ -107,6 +117,55 @@ public class MenuItemServiceImpl implements MenuItemService {
                         || item.getName().toLowerCase(Locale.ROOT).contains(normalizedQuery))
                 .map(menuItemMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public MenuItemResponse uploadImage(UUID id, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Choose an image to upload");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new BadRequestException("Please upload a JPG, PNG, or WEBP image.");
+        }
+        if (file.getSize() > MAX_IMAGE_BYTES) {
+            throw new BadRequestException("Image size must be less than 3 MB.");
+        }
+
+        MenuItem item = findOrThrow(id);
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException ex) {
+            throw new BadRequestException("Could not read the uploaded image");
+        }
+        // Set together, and only after every validation above has passed — the item never
+        // has one without the other, and a rejected upload leaves whatever image it had
+        // (uploaded or legacy URL) completely untouched.
+        item.setImageData(bytes);
+        item.setImageContentType(contentType);
+        return menuItemMapper.toResponse(item);
+    }
+
+    @Override
+    @Transactional
+    public MenuItemResponse removeImage(UUID id) {
+        MenuItem item = findOrThrow(id);
+        item.setImageData(null);
+        item.setImageContentType(null);
+        item.setImageUrl(null);
+        return menuItemMapper.toResponse(item);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MenuItemImage getImage(UUID id) {
+        MenuItem item = findOrThrow(id);
+        if (!item.hasUploadedImage()) {
+            throw new ResourceNotFoundException("This item has no uploaded image");
+        }
+        return new MenuItemImage(item.getImageData(), item.getImageContentType());
     }
 
     private MenuItem findOrThrow(UUID id) {

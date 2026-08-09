@@ -54,6 +54,25 @@ export const permanentlyDeleteMenuItem = async (id) => {
   return response.data;
 };
 
+// Uploads (or replaces) a menu item's photo. The backend validates type/size for real —
+// this only ever gets called after the same checks already passed client-side in
+// ImageUploadField, so a rejection here means something bypassed that (or the size/type
+// rules changed server-side), not a normal path.
+export const uploadMenuItemImage = async (id, file) => {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await client.post(`/admin/menu-items/${id}/image`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+// Reverts to the ordering screen's default placeholder.
+export const removeMenuItemImage = async (id) => {
+  const response = await client.delete(`/admin/menu-items/${id}/image`);
+  return response.data;
+};
+
 // Changes the slot's standing daily cutoff time — the default every date falls back to
 // unless that date has its own open() override on the mobile Advance Ordering screen.
 // Takes effect immediately.

@@ -89,17 +89,12 @@ export function OrdersBoardScreen() {
   function renderActions(order: AdminOrderResponse) {
     const busy = updatingId === order.id;
     switch (order.status) {
+      // No Accept/Reject step: a PLACED order is already confirmed and paid, so kitchen
+      // staff go straight to preparing it rather than approving something already real.
       case 'PLACED':
-        return (
-          <View style={styles.actionRow}>
-            <View style={{ flex: 1 }}>
-              <Button label="Accept" variant="primary" loading={busy} onPress={() => updateStatus(order, 'ACCEPTED')} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button label="Reject" variant="danger" loading={busy} onPress={() => updateStatus(order, 'REJECTED')} />
-            </View>
-          </View>
-        );
+        return <Button label="Start Preparing" loading={busy} onPress={() => updateStatus(order, 'PREPARING')} />;
+      // No order can newly reach ACCEPTED anymore, but this stays so any order already
+      // sitting in it from before this change still has a way forward.
       case 'ACCEPTED':
         return <Button label="Start Preparing" loading={busy} onPress={() => updateStatus(order, 'PREPARING')} />;
       case 'PREPARING':
@@ -252,6 +247,5 @@ const styles = StyleSheet.create({
   itemName: { ...typography.body, flex: 1 },
   itemQtyBadge: { ...typography.label, color: colors.textSecondary },
   actionsWrap: { marginTop: spacing.md },
-  actionRow: { flexDirection: 'row', gap: spacing.sm },
   noActions: { ...typography.caption, textAlign: 'center', paddingVertical: spacing.sm },
 });

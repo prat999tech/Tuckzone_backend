@@ -17,8 +17,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Canteen-admin CRUD over the permanent catalog.
@@ -85,5 +87,20 @@ public class MenuItemAdminController {
     @PreAuthorize("hasRole('CANTEEN_ADMIN')")
     public void permanentlyDelete(@PathVariable UUID id) {
         menuItemService.permanentlyDelete(id);
+    }
+
+    /** Uploads (or replaces) this item's photo. See MenuItemImageController for the public
+     *  endpoint that actually serves it back out. */
+    @PostMapping("/{id}/image")
+    @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
+    public MenuItemResponse uploadImage(@PathVariable UUID id, @RequestPart("file") MultipartFile file) {
+        return menuItemService.uploadImage(id, file);
+    }
+
+    /** Reverts to the ordering screen's default placeholder. */
+    @DeleteMapping("/{id}/image")
+    @PreAuthorize("hasAnyRole('CANTEEN_ADMIN','SUB_ADMIN')")
+    public MenuItemResponse removeImage(@PathVariable UUID id) {
+        return menuItemService.removeImage(id);
     }
 }

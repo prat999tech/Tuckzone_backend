@@ -8,9 +8,11 @@ import {
   getDailyMenu,
   getMenuItems,
   permanentlyDeleteMenuItem,
+  removeMenuItemImage,
   updateCutoffTime,
   updateDailyMenu,
   updateMenuItem,
+  uploadMenuItemImage,
 } from '../../api/admin';
 import { getDeliverySlots } from '../../api/menu';
 import { formatDate } from '../../utils/format';
@@ -18,9 +20,10 @@ import toast from 'react-hot-toast';
 import EmptyState from '../../components/EmptyState';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import MenuActionDialog from '../../components/MenuActionDialog';
+import ImageUploadField from '../../components/ImageUploadField';
 import './DailyMenuPage.css';
 
-const EMPTY_FORM = { name: '', description: '', price: '', imageUrl: '', allergens: '' };
+const EMPTY_FORM = { name: '', description: '', price: '', allergens: '' };
 
 export default function DailyMenuPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -36,6 +39,11 @@ export default function DailyMenuPage() {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
+  // The item's existing photo (edit mode only), plus whatever's staged in this modal
+  // session — none of it touches the server until Save. See ImageUploadField.
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   // Catalog delete flow: choice dialog first, then a second confirm for permanent delete
   const [actionTarget, setActionTarget] = useState(null);
@@ -188,13 +196,21 @@ export default function DailyMenuPage() {
         menuType: 'DAILY',
         available: true,
       };
-      if (editingId) {
-        await updateMenuItem(editingId, payload);
-        toast.success('Item updated');
-      } else {
-        await createMenuItem(payload);
-        toast.success('Item added to the daily catalog');
+      const saved = editingId ? await updateMenuItem(editingId, payload) : await createMenuItem(payload);
+
+      // The item itself is saved at this point regardless of what happens to its image —
+      // an image upload/removal failure below must not look like the whole save failed.
+      if (imageFile) {
+        try {
+          await uploadMenuItemImage(saved.id, imageFile);
+        } catch (imageErr) {
+          toast.error(imageErr.response?.data?.message || 'Item saved, but the image upload failed');
+        }
+      } else if (imageRemoved) {
+        await removeMenuItemImage(saved.id).catch(() => undefined);
       }
+
+      toast.success(editingId ? 'Item updated' : 'Item added to the daily catalog');
       setIsModalOpen(false);
       setFormErrors({});
       fetchCatalog();
@@ -239,18 +255,21 @@ export default function DailyMenuPage() {
 
   const openModal = (item = null) => {
     setFormErrors({});
+    setImageFile(null);
+    setImageRemoved(false);
     if (item) {
       setEditingId(item.id);
       setFormData({
         name: item.name,
         description: item.description || '',
         price: item.price,
-        imageUrl: item.imageUrl || '',
         allergens: item.allergens || '',
       });
+      setCurrentImageUrl(item.imageUrl || null);
     } else {
       setEditingId(null);
       setFormData(EMPTY_FORM);
+      setCurrentImageUrl(null);
     }
     setIsModalOpen(true);
   };
@@ -497,36 +516,34 @@ export default function DailyMenuPage() {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Price (₹)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => {
-                      setFormData({ ...formData, price: e.target.value });
-                      if (formErrors.price) setFormErrors({ ...formErrors, price: null });
-                    }}
-                    className={formErrors.price ? 'input-error' : ''}
-                  />
-                  {formErrors.price && (
-                    <span className="field-error-text">
-                      <AlertCircle size={14} /> {formErrors.price}
-                    </span>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label>Image URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  />
-                </div>
+              <div className="form-group">
+                <label>Price (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => {
+                    setFormData({ ...formData, price: e.target.value });
+                    if (formErrors.price) setFormErrors({ ...formErrors, price: null });
+                  }}
+                  className={formErrors.price ? 'input-error' : ''}
+                />
+                {formErrors.price && (
+                  <span className="field-error-text">
+                    <AlertCircle size={14} /> {formErrors.price}
+                  </span>
+                )}
               </div>
+
+              <ImageUploadField
+                currentImageUrl={currentImageUrl}
+                file={imageFile}
+                removed={imageRemoved}
+                onFileChange={(file, removed) => {
+                  setImageFile(file);
+                  setImageRemoved(removed);
+                }}
+              />
 
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
