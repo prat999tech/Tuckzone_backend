@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -36,10 +36,17 @@ function toIso(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function todayIso(): string {
-  return toIso(new Date());
+/** Parses a Y-M-D string as local calendar-date components — never through Date's own
+ *  ISO-string constructor, which parses as UTC and can shift the day in a browser/device
+ *  west of UTC. */
+function parseIso(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
 
+/** Safe placeholder used only for the instant before the backend's resolved default
+ *  arrives — same-day ordering is never valid, so "tomorrow" is always a safe floor even
+ *  though the real default (which accounts for cutoffs/closures) may land later than this. */
 function tomorrowIso(): string {
   const date = new Date();
   date.setDate(date.getDate() + 1);
@@ -64,14 +71,29 @@ export function MenuScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
   const { addToCart, startNewCartWith, removeFromCart, setQuantity, quantityOf, itemCount, total } = useCart();
 
-  const [date, setDate] = useState(todayIso());
+  // Placeholder until resolveDefaultOrderingDate() answers on mount below — never today,
+  // since same-day ordering is never valid regardless of what the real default turns out
+  // to be (it may land even later than tomorrow if tomorrow's own cutoff already passed).
+  const [date, setDate] = useState(tomorrowIso());
+  const [minDate, setMinDate] = useState(parseIso(tomorrowIso()));
   const [dailyItems, setDailyItems] = useState<DailyMenuItemResponse[]>([]);
   const [fixedItems, setFixedItems] = useState<MenuItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [windows, setWindows] = useState<OrderingWindowResponse[] | null>(null);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const [suggestedDate, setSuggestedDate] = useState<string | null>(null);
 
-  const isToday = date === todayIso();
+  // Resolved once on mount (this screen only renders once logged in, so this also covers
+  // "on login") — always asks fresh rather than trusting anything cached, so a different
+  // user signing in right after sees their own correct default, not a stale one.
+  useEffect(() => {
+    menuApi.getDefaultOrderingDate()
+      .then((resolved) => {
+        setDate(resolved.menuDate);
+        setMinDate(parseIso(resolved.menuDate));
+      })
+      .catch(() => undefined);
+  }, []);
 
   /**
    * Closed only when the canteen has published slots and none of them is still accepting.
@@ -80,6 +102,17 @@ export function MenuScreen() {
    */
   const orderingClosed = windows !== null && windows.length > 0
     && !windows.some((window) => window.acceptingOrders);
+
+  // The selected date's own cutoff has passed (or it was closed manually) while this
+  // screen was open — find out what date IS currently open so the banner can offer it.
+  // Not a naive "+1 day" guess: if tomorrow is also closed, this correctly skips further.
+  useEffect(() => {
+    if (!orderingClosed) {
+      setSuggestedDate(null);
+      return;
+    }
+    menuApi.getDefaultOrderingDate().then((resolved) => setSuggestedDate(resolved.menuDate)).catch(() => undefined);
+  }, [orderingClosed]);
 
   const loadMenu = useCallback(async () => {
     setLoading(true);
@@ -163,7 +196,8 @@ export function MenuScreen() {
       </View>
 
       <View style={styles.controls}>
-        <DateField label="Menu date" value={date} onChange={setDate} minimumDate={new Date()} />
+        <Text style={styles.orderingForLabel}>Ordering for {formatDate(date)}</Text>
+        <DateField label="Menu date" value={date} onChange={setDate} minimumDate={minDate} />
       </View>
 
       {!loading && orderingClosed && (
@@ -172,21 +206,19 @@ export function MenuScreen() {
             <CalendarClock size={20} color={colors.warning} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.closedTitle}>
-              {isToday ? 'Canteen is closed for today' : `Ordering closed for ${formatDate(date)}`}
-            </Text>
+            <Text style={styles.closedTitle}>Ordering closed for {formatDate(date)}</Text>
             <Text style={styles.closedMessage}>
-              {isToday
-                ? 'School hours are over and today’s slots have stopped taking orders. You can pre-order for tomorrow.'
+              {suggestedDate
+                ? `The cutoff for this date has passed. Orders are now being accepted for ${formatDate(suggestedDate)}.`
                 : 'All slots for this date have stopped taking orders.'}
             </Text>
-            {isToday && (
+            {suggestedDate && (
               <Button
-                label="Pre-order for tomorrow"
+                label={`Order for ${formatDate(suggestedDate)}`}
                 size="md"
                 variant="secondary"
                 style={styles.closedButton}
-                onPress={() => setDate(tomorrowIso())}
+                onPress={() => setDate(suggestedDate)}
               />
             )}
           </View>
@@ -366,6 +398,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   controls: { paddingHorizontal: spacing.lg, marginTop: spacing.md },
+  orderingForLabel: { ...typography.bodySmall, color: colors.primaryDark, fontWeight: '700', marginBottom: spacing.xs },
   closedCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -13,10 +13,11 @@ import { FormModal } from '../../components/FormModal';
 import { DateField } from '../../components/DateField';
 import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
-import { adminApi, MenuItemRequest } from '../../api/admin';
+import { adminApi, MenuItemRequest, PickedImage } from '../../api/admin';
 import { apiErrorMessage } from '../../api/client';
+import { ImagePickerField } from '../../components/ImagePickerField';
 import { useAuth } from '../../context/AuthContext';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 import { colors, spacing, typography } from '../../theme';
 import type { DailyMenuItemResponse, MenuItemResponse, MenuType } from '../../api/types';
 
@@ -84,9 +85,13 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [costPrice, setCostPrice] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  // The item's existing photo (edit mode only), plus whatever's staged in this modal
+  // session — none of it touches the server until Save. See ImagePickerField.
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,7 +112,9 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
     setDescription('');
     setPrice('');
     setCostPrice('');
-    setImageUrl('');
+    setCurrentImageUrl(null);
+    setPickedImage(null);
+    setImageRemoved(false);
     setErrors({});
     setModalVisible(true);
   }
@@ -118,7 +125,9 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
     setDescription(item.description ?? '');
     setPrice(String(item.price));
     setCostPrice(item.costPrice != null ? String(item.costPrice) : '');
-    setImageUrl(item.imageUrl ?? '');
+    setCurrentImageUrl(item.imageUrl ?? null);
+    setPickedImage(null);
+    setImageRemoved(false);
     setErrors({});
     setModalVisible(true);
   }
@@ -138,18 +147,27 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
       costPrice: costPrice ? parseFloat(costPrice) : undefined,
       menuType,
       available: editingItem?.available ?? true,
-      imageUrl: imageUrl.trim() || undefined,
     };
 
     setSaving(true);
     try {
-      if (editingItem) {
-        await adminApi.updateMenuItem(editingItem.id, payload);
-        Toast.show({ type: 'success', text1: 'Item updated' });
-      } else {
-        await adminApi.createMenuItem(payload);
-        Toast.show({ type: 'success', text1: 'Item created' });
+      const saved = editingItem
+        ? await adminApi.updateMenuItem(editingItem.id, payload)
+        : await adminApi.createMenuItem(payload);
+
+      // The item itself is saved at this point regardless of what happens to its image —
+      // an image upload/removal failure below must not look like the whole save failed.
+      if (pickedImage) {
+        try {
+          await adminApi.uploadMenuItemImage(saved.id, pickedImage);
+        } catch (imageError) {
+          Toast.show({ type: 'error', text1: apiErrorMessage(imageError, 'Item saved, but the image upload failed') });
+        }
+      } else if (imageRemoved) {
+        await adminApi.removeMenuItemImage(saved.id).catch(() => undefined);
       }
+
+      Toast.show({ type: 'success', text1: editingItem ? 'Item updated' : 'Item created' });
       setModalVisible(false);
       load();
     } catch (error) {
@@ -168,7 +186,6 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
         costPrice: item.costPrice ?? undefined,
         menuType: item.menuType,
         available: !item.available,
-        imageUrl: item.imageUrl ?? undefined,
         allergens: item.allergens ?? undefined,
       });
       Toast.show({ type: 'success', text1: item.available ? 'Marked out of stock' : 'Marked available' });
@@ -321,7 +338,15 @@ function CatalogSection({ menuType }: { menuType: MenuType }) {
             <Input label="Cost Price (₹)" keyboardType="decimal-pad" value={costPrice} onChangeText={setCostPrice} />
           </View>
         </View>
-        <Input label="Image URL" value={imageUrl} onChangeText={setImageUrl} autoCapitalize="none" />
+        <ImagePickerField
+          currentImageUrl={currentImageUrl}
+          image={pickedImage}
+          removed={imageRemoved}
+          onChange={(image, removed) => {
+            setPickedImage(image);
+            setImageRemoved(removed);
+          }}
+        />
         <Button label={editingItem ? 'Save Changes' : 'Create Item'} onPress={handleSave} loading={saving} style={{ marginTop: spacing.md }} />
       </FormModal>
 
@@ -449,7 +474,7 @@ function DailyScheduleView() {
 
   return (
     <>
-      <Text style={typography.h2}>Today&apos;s Schedule</Text>
+      <Text style={typography.h2}>Schedule for {formatDate(date)}</Text>
       <DateField label="Menu date" value={date} onChange={setDate} />
 
       <Card style={styles.addCard}>

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { getTodayMenu, getFixedMenu } from '../api/menu';
+import { getTodayMenu, getFixedMenu, getDefaultOrderingDate } from '../api/menu';
 import { getChildren } from '../api/parent';
 import { placeOrder } from '../api/orders';
 import { getWallet } from '../api/wallet';
 import { getConfig } from '../api/config';
+import { apiErrorCode, apiErrorMessage } from '../api/client';
 import { cancelPayment, mockCompletePayment, verifyPayment } from '../api/payments';
 import { openRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
-import { classLabel } from '../utils/format';
+import { classLabel, formatDate } from '../utils/format';
 import { ShoppingCart, AlertCircle, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QuantityInput from '../components/QuantityInput';
@@ -23,8 +24,20 @@ export default function MenuPage() {
   const [mockPaymentsEnabled, setMockPaymentsEnabled] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Empty until resolveDefaultOrderingDate() answers — never defaults to today locally.
+  // Same-day ordering is never valid (the business only takes orders for tomorrow onward),
+  // so there is no safe local guess to show before the backend is heard from.
+  const [selectedDate, setSelectedDate] = useState('');
+  const [minOrderableDate, setMinOrderableDate] = useState('');
   const [search, setSearch] = useState('');
+
+  const applyDefaultOrderingDate = () =>
+    getDefaultOrderingDate()
+      .then((d) => {
+        setSelectedDate(d.menuDate);
+        setMinOrderableDate(d.menuDate);
+      })
+      .catch(() => undefined);
 
   // Cart & Order Form State
   const [cart, setCart] = useState([]);
@@ -34,6 +47,15 @@ export default function MenuPage() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
+    // Runs once on mount (also effectively "on login", since this page only renders once
+    // authenticated) — resolves fresh every time rather than trusting anything cached, so a
+    // different user logging in right after sees their own correct default, not a stale one.
+    applyDefaultOrderingDate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDate) return; // still waiting on the default-date resolution above
     fetchInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
@@ -183,8 +205,7 @@ export default function MenuPage() {
           toast.error(
             paymentErr.message === 'Payment was cancelled'
               ? 'Payment cancelled — your order was not placed'
-              : (paymentErr.response?.data?.message || paymentErr.message
-                  || 'Payment failed — your order was not placed'),
+              : apiErrorMessage(paymentErr, 'Payment failed — your order was not placed'),
             { id: 'order-payment' },
           );
           return; // keep the cart intact so the customer can retry
@@ -199,7 +220,16 @@ export default function MenuPage() {
       fetchInitialData();
       getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Failed to place order', { id: 'order-payment' });
+      if (apiErrorCode(err) === 'ORDERING_CLOSED') {
+        // Stale page: cutoff passed for the selected date while it sat open (see
+        // OrderingWindowService). The backend already rejected it — recover by pulling the
+        // now-current default date rather than leaving the user stuck on a dead one.
+        toast.error(apiErrorMessage(err, 'Ordering has closed for the selected date.'),
+          { id: 'order-payment', duration: 6000 });
+        applyDefaultOrderingDate();
+      } else {
+        toast.error(apiErrorMessage(err, 'Failed to place order'), { id: 'order-payment' });
+      }
     } finally {
       setPlacingOrder(false);
     }
@@ -301,12 +331,14 @@ export default function MenuPage() {
         <div>
           <h1>Menu</h1>
           <p>Order fresh meals delivered right to your classroom</p>
+          {selectedDate && <p className="ordering-for-label">Ordering for {formatDate(selectedDate)}</p>}
         </div>
 
         <div className="date-picker">
           <input
             type="date"
             value={selectedDate}
+            min={minOrderableDate || undefined}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>

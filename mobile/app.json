@@ -34,6 +34,12 @@
         }
       ],
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TuckZone needs access to your photos so you can upload a food image."
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth"
     ],

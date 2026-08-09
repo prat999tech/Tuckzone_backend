@@ -1,5 +1,6 @@
 package com.school.canteen.service;
 
+import com.school.canteen.dto.order.DefaultOrderingDateResponse;
 import com.school.canteen.dto.order.DemandRow;
 import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderingWindowRequest;
@@ -23,6 +24,15 @@ public interface OrderingWindowService {
     OrderingWindowResponse open(OrderingWindowRequest request);
 
     List<OrderingWindowResponse> statusFor(LocalDate menuDate);
+
+    /**
+     * The date the ordering UI should default to right now: the earliest date, starting
+     * tomorrow, that's still accepting orders for the active slot — skipping past a date
+     * whose cutoff already elapsed or that the canteen closed manually (e.g. a holiday).
+     * The single source of truth for "what date is a customer ordering for" on login, on
+     * opening the ordering screen, and after a stale order is rejected past its cutoff.
+     */
+    DefaultOrderingDateResponse resolveDefaultOrderingDate();
 
     /** What has been ordered so far for a date, against what is stocked. */
     List<DemandRow> demandFor(LocalDate menuDate);

@@ -14,3 +14,15 @@ export function classLabel(studentClass, section) {
   if (!studentClass) return '';
   return section ? `${studentClass}-${section}` : studentClass;
 }
+
+/**
+ * "10 August 2026" from a Y-M-D date string (as every `<input type="date">` and API date
+ * field in this app already is). Deliberately does NOT go through `new Date(iso)` — that
+ * constructor parses an ISO date-only string as UTC midnight, which renders as the previous
+ * day in any browser west of UTC. Parsing the components directly avoids that entirely.
+ */
+export function formatDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}

@@ -18,6 +18,11 @@ public record MenuItemRequest(
         /** Out-of-stock toggle. Meaningful mainly for FIXED items — DAILY items are
          *  additionally gated per-date via their DailyMenuItem row regardless of this flag. */
         @NotNull Boolean available,
-        @Size(max = 500) String imageUrl,
+        /**
+         * Deliberately absent: an image is set only via {@code POST .../{id}/image}
+         * (multipart upload), never by an admin pasting a URL — see MenuItemService.
+         * uploadImage. A legacy item's existing {@code image_url} is preserved automatically
+         * (this request never touches it) until that item gets a real upload.
+         */
         @Size(max = 255) String allergens) {
 }

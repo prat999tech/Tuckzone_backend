@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { registerAdmin, registerParent, registerStudent, registerTeacher } from '../api/auth';
+import { apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
@@ -219,7 +220,10 @@ export default function RegisterPage() {
       toast.success('Account created! Enter the code we emailed you to finish.');
       navigate('/verify-email', { state: { email: formData.email } });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      // Prefers the backend's specific per-field message (e.g. "mobile: must be a valid
+      // 10-digit mobile number") over the generic "Validation failed" the top-level message
+      // carries — the specific one is what actually tells the user what to fix.
+      toast.error(apiErrorMessage(error, 'Registration failed'));
     } finally {
       setLoading(false);
     }
@@ -392,7 +396,6 @@ export default function RegisterPage() {
                     <input
                       type="text"
                       name="admissionNumber"
-                      placeholder="ADM123"
                       value={formData.admissionNumber}
                       onChange={handleChange}
                       className={errors.admissionNumber ? 'input-error' : ''}
@@ -523,7 +526,6 @@ export default function RegisterPage() {
                   <input
                     type="text"
                     name="employeeId"
-                    placeholder="EMP123"
                     value={formData.employeeId}
                     onChange={handleChange}
                     className={errors.employeeId ? 'input-error' : ''}

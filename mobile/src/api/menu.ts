@@ -1,5 +1,11 @@
 import { apiClient } from './client';
-import type { DailyMenuItemResponse, DeliverySlotResponse, MenuItemResponse, OrderingWindowResponse } from './types';
+import type {
+  DailyMenuItemResponse,
+  DefaultOrderingDateResponse,
+  DeliverySlotResponse,
+  MenuItemResponse,
+  OrderingWindowResponse,
+} from './types';
 
 export const menuApi = {
   getDailyMenu: (params: { date?: string; q?: string }) =>
@@ -13,4 +19,9 @@ export const menuApi = {
 
   getOrderingStatus: (date: string) =>
     apiClient.get<OrderingWindowResponse[]>('/ordering-status', { params: { date } }).then((r) => r.data),
+
+  /** The date the ordering screen should default to right now — always tomorrow unless
+   *  its cutoff already passed or the canteen closed it, in which case the next open date. */
+  getDefaultOrderingDate: () =>
+    apiClient.get<DefaultOrderingDateResponse>('/ordering-status/default').then((r) => r.data),
 };

@@ -24,8 +24,16 @@ export interface MenuItemRequest {
   costPrice?: number;
   menuType: MenuType;
   available: boolean;
-  imageUrl?: string;
+  // Deliberately no imageUrl — an image is set only via uploadMenuItemImage (multipart),
+  // never by pasting a URL. See MenuItemRequest's javadoc on the backend.
   allergens?: string;
+}
+
+/** What ImagePicker's launchImageLibraryAsync hands back for the one asset we care about. */
+export interface PickedImage {
+  uri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
 }
 
 export interface OrderStatusUpdateRequest {
@@ -79,6 +87,27 @@ export const adminApi = {
   /** Hard delete — rejected server-side if the item has any order history. */
   permanentlyDeleteMenuItem: (id: string) =>
     apiClient.delete<void>(`/admin/menu-items/${id}/permanent`).then((r) => r.data),
+  /** Uploads (or replaces) a menu item's photo. The backend validates type/size for real —
+   *  this only ever runs after the same checks already passed in MenuManagementScreen. */
+  uploadMenuItemImage: (id: string, image: PickedImage) => {
+    const form = new FormData();
+    // React Native's FormData accepts this {uri, name, type} shape for a file part — it is
+    // not a real Blob/File, which is why the cast is needed against the DOM FormData types
+    // TypeScript otherwise assumes.
+    form.append('file', {
+      uri: image.uri,
+      name: image.fileName ?? 'food-image.jpg',
+      type: image.mimeType ?? 'image/jpeg',
+    } as unknown as Blob);
+    return apiClient
+      .post<MenuItemResponse>(`/admin/menu-items/${id}/image`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
+  /** Reverts to the ordering screen's default placeholder. */
+  removeMenuItemImage: (id: string) =>
+    apiClient.delete<MenuItemResponse>(`/admin/menu-items/${id}/image`).then((r) => r.data),
 
   // Daily menu / stock
   listDailyMenu: (date: string) =>

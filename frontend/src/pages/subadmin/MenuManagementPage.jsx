@@ -5,13 +5,17 @@ import {
   createMenuItem,
   getDailyMenu,
   getMenuItems,
+  removeMenuItemImage,
   updateDailyMenu,
   updateMenuItem,
+  uploadMenuItemImage,
 } from '../../api/admin';
 import toast from 'react-hot-toast';
+import { formatDate } from '../../utils/format';
+import ImageUploadField from '../../components/ImageUploadField';
 import './MenuManagementPage.css';
 
-const EMPTY_FORM = { name: '', description: '', price: '', imageUrl: '', allergens: '' };
+const EMPTY_FORM = { name: '', description: '', price: '', allergens: '' };
 
 export default function MenuManagementPage() {
   const [tab, setTab] = useState('DAILY');
@@ -26,6 +30,11 @@ export default function MenuManagementPage() {
   const [editingId, setEditingId] = useState(null);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState(EMPTY_FORM);
+  // The item's existing photo (edit mode only), plus whatever the admin has staged in this
+  // modal session — none of it touches the server until Save. See ImageUploadField.
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   // Daily scheduling
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -99,13 +108,21 @@ export default function MenuManagementPage() {
         menuType: tab,
         available: editingId ? formData.available : true,
       };
-      if (editingId) {
-        await updateMenuItem(editingId, payload);
-        toast.success('Item updated');
-      } else {
-        await createMenuItem(payload);
-        toast.success('Item created');
+      const saved = editingId ? await updateMenuItem(editingId, payload) : await createMenuItem(payload);
+
+      // The item itself is saved at this point regardless of what happens to its image —
+      // an image upload/removal failure below must not look like the whole save failed.
+      if (imageFile) {
+        try {
+          await uploadMenuItemImage(saved.id, imageFile);
+        } catch (imageErr) {
+          toast.error(imageErr.response?.data?.message || 'Item saved, but the image upload failed');
+        }
+      } else if (imageRemoved) {
+        await removeMenuItemImage(saved.id).catch(() => undefined);
       }
+
+      toast.success(editingId ? 'Item updated' : 'Item created');
       setIsModalOpen(false);
       setErrors({});
       fetchCatalogs();
@@ -122,7 +139,6 @@ export default function MenuManagementPage() {
         price: item.price,
         menuType: 'FIXED',
         available: !item.available,
-        imageUrl: item.imageUrl,
         allergens: item.allergens,
       });
       toast.success(item.available ? 'Marked out of stock' : 'Marked available');
@@ -134,6 +150,8 @@ export default function MenuManagementPage() {
 
   const openModal = (item = null) => {
     setErrors({});
+    setImageFile(null);
+    setImageRemoved(false);
     if (item) {
       setEditingId(item.id);
       setFormData({
@@ -141,12 +159,13 @@ export default function MenuManagementPage() {
         description: item.description || '',
         price: item.price,
         available: item.available,
-        imageUrl: item.imageUrl || '',
         allergens: item.allergens || '',
       });
+      setCurrentImageUrl(item.imageUrl || null);
     } else {
       setEditingId(null);
       setFormData(EMPTY_FORM);
+      setCurrentImageUrl(null);
     }
     setIsModalOpen(true);
   };
@@ -239,7 +258,7 @@ export default function MenuManagementPage() {
           )}
 
           <div className="page-header">
-            <h2 className="section-title">Today&apos;s Schedule</h2>
+            <h2 className="section-title">Schedule for {formatDate(date)}</h2>
           </div>
 
           <div className="daily-menu-controls">
@@ -287,7 +306,7 @@ export default function MenuManagementPage() {
                 </div>
 
                 <button className="btn-primary" onClick={handleAddDailyItem}>
-                  <Plus size={18} /> Add to Today
+                  <Plus size={18} /> Add for {formatDate(date)}
                 </button>
               </div>
             </div>
@@ -296,7 +315,7 @@ export default function MenuManagementPage() {
           {loadingDaily ? (
             <div className="loading-state">Loading availability...</div>
           ) : dailyItems.length === 0 ? (
-            <div className="empty-state">No items scheduled for {date} yet.</div>
+            <div className="empty-state">No items scheduled for {formatDate(date)} yet.</div>
           ) : (
             <div className="daily-items-list">
               {dailyItems.map((item) => (
@@ -420,32 +439,30 @@ export default function MenuManagementPage() {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Price (₹)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => {
-                      setFormData({ ...formData, price: e.target.value });
-                      if (errors.price) setErrors({ ...errors, price: null });
-                    }}
-                    className={errors.price ? 'input-error' : ''}
-                  />
-                  {errors.price && <span className="field-error-text"><AlertCircle size={14} /> {errors.price}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label>Image URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  />
-                </div>
+              <div className="form-group">
+                <label>Price (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => {
+                    setFormData({ ...formData, price: e.target.value });
+                    if (errors.price) setErrors({ ...errors, price: null });
+                  }}
+                  className={errors.price ? 'input-error' : ''}
+                />
+                {errors.price && <span className="field-error-text"><AlertCircle size={14} /> {errors.price}</span>}
               </div>
+
+              <ImageUploadField
+                currentImageUrl={currentImageUrl}
+                file={imageFile}
+                removed={imageRemoved}
+                onFileChange={(file, removed) => {
+                  setImageFile(file);
+                  setImageRemoved(removed);
+                }}
+              />
 
               {tab === 'FIXED' && editingId && (
                 <div className="form-group">

@@ -269,6 +269,15 @@ export interface OrderingWindowResponse {
   reason?: string | null;
 }
 
+/** The date the ordering UI should default to right now — see
+ *  OrderingWindowService#resolveDefaultOrderingDate. */
+export interface DefaultOrderingDateResponse {
+  menuDate: string;
+  slotId: string;
+  slotName: string;
+  cutoffTime: string;
+}
+
 export interface DemandRow {
   menuItemId: string;
   itemName: string;
