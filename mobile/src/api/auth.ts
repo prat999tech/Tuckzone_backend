@@ -13,7 +13,6 @@ export interface StudentRegisterRequest {
   seatNumber?: string;
   /** Optional — a student can register without it and be linked to a parent later. */
   parentMobile?: string;
-  studentMobile?: string;
 }
 
 export interface TeacherRegisterRequest {

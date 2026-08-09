@@ -35,7 +35,5 @@ public record StudentRegisterRequest(
          * {@code @Pattern} by spec; only a non-blank value is checked).
          */
         @Pattern(regexp = ValidationRules.MOBILE_PATTERN, message = ValidationRules.MOBILE_MESSAGE)
-        String parentMobile,
-
-        @Size(max = 20) String studentMobile) {
+        String parentMobile) {
 }

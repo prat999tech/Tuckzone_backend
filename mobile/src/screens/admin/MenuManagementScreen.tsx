@@ -16,7 +16,7 @@ import { LoadingView } from '../../components/LoadingView';
 import { adminApi, MenuItemRequest } from '../../api/admin';
 import { apiErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 import { colors, spacing, typography } from '../../theme';
 import type { DailyMenuItemResponse, MenuItemResponse, MenuType } from '../../api/types';
 
@@ -449,7 +449,7 @@ function DailyScheduleView() {
 
   return (
     <>
-      <Text style={typography.h2}>Today&apos;s Schedule</Text>
+      <Text style={typography.h2}>Schedule for {formatDate(date)}</Text>
       <DateField label="Menu date" value={date} onChange={setDate} />
 
       <Card style={styles.addCard}>

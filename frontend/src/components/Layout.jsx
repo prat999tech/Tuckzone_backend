@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   UtensilsCrossed,
@@ -27,7 +27,15 @@ import './Layout.css';
 const Layout = () => {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const contentAreaRef = useRef(null);
+
+  useEffect(() => {
+    if (contentAreaRef.current) {
+      contentAreaRef.current.scrollTop = 0;
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -52,7 +60,7 @@ const Layout = () => {
       case 'TEACHER':
         return [...commonLinks, ...personalLinks];
       case 'PARENT':
-        return [...commonLinks, { to: '/children', icon: Users, label: 'My Children' }, ...personalLinks];
+        return [...commonLinks, { to: '/children', icon: Users, label: 'My Wards' }, ...personalLinks];
       case 'CANTEEN_ADMIN':
         return [
           { to: '/admin/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
@@ -149,7 +157,7 @@ const Layout = () => {
           </div>
         </header>
 
-        <div className="content-area">
+        <div className="content-area" ref={contentAreaRef}>
           <Outlet />
         </div>
       </main>

@@ -35,10 +35,17 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "placed_by_user_id", nullable = false)
     private User placedBy;
 
-    /** Set only when a parent orders for a child; null for self-orders. */
+    /** Set only when a parent orders for a child via the older link-an-existing-student
+     *  flow; null for self-orders and for the current ward-based flow. Kept for
+     *  historical orders — no longer reachable from either frontend's UI. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "beneficiary_student_profile_id")
     private StudentProfile beneficiaryStudentProfile;
+
+    /** Set only when a parent orders for a ward (the current flow); null otherwise. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "beneficiary_ward_id")
+    private Ward beneficiaryWard;
 
     @Column(name = "recipient_name", nullable = false)
     private String recipientName;
@@ -121,6 +128,14 @@ public class Order extends BaseEntity {
 
     public void setBeneficiaryStudentProfile(StudentProfile beneficiaryStudentProfile) {
         this.beneficiaryStudentProfile = beneficiaryStudentProfile;
+    }
+
+    public Ward getBeneficiaryWard() {
+        return beneficiaryWard;
+    }
+
+    public void setBeneficiaryWard(Ward beneficiaryWard) {
+        this.beneficiaryWard = beneficiaryWard;
     }
 
     public String getRecipientName() {

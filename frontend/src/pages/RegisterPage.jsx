@@ -48,7 +48,6 @@ export default function RegisterPage() {
     section: '',
     rollNumber: '',
     parentMobile: '',
-    studentMobile: '',
     employeeId: '',
     department: '',
     signupCode: '',
@@ -87,8 +86,8 @@ export default function RegisterPage() {
     if (!firebaseIdToken) {
       if (!formData.password) {
         errs.password = 'Password is required';
-      } else if (formData.password.length < 6) {
-        errs.password = 'Password must be at least 6 characters';
+      } else if (formData.password.length < 8) {
+        errs.password = 'Password must be at least 8 characters';
       }
     }
 
@@ -99,10 +98,6 @@ export default function RegisterPage() {
 
       if (formData.parentMobile.trim() && !/^\d{10}$/.test(formData.parentMobile.trim())) {
         errs.parentMobile = "Parent's mobile number must be exactly 10 digits";
-      }
-
-      if (formData.studentMobile.trim() && !/^\d{10}$/.test(formData.studentMobile.trim())) {
-        errs.studentMobile = 'Student mobile number must be exactly 10 digits';
       }
 
       if (!formData.studentClass.trim()) {
@@ -161,7 +156,6 @@ export default function RegisterPage() {
               section: formData.section,
               rollNumber: formData.rollNumber,
               parentMobile: formData.parentMobile.trim() || undefined,
-              studentMobile: formData.studentMobile || '',
             })
           : role === 'TEACHER'
             ? await registerTeacherWithFirebase({
@@ -188,7 +182,6 @@ export default function RegisterPage() {
           section: formData.section,
           rollNumber: formData.rollNumber,
           parentMobile: formData.parentMobile.trim() || undefined,
-          studentMobile: formData.studentMobile || '',
         });
       } else if (role === 'TEACHER') {
         await registerTeacher({
@@ -392,7 +385,7 @@ export default function RegisterPage() {
                     <input
                       type="text"
                       name="admissionNumber"
-                      placeholder="ADM123"
+                      placeholder="Admission Number"
                       value={formData.admissionNumber}
                       onChange={handleChange}
                       className={errors.admissionNumber ? 'input-error' : ''}
@@ -422,29 +415,6 @@ export default function RegisterPage() {
                   {errors.parentMobile && (
                     <span className="field-error-text">
                       <AlertCircle size={14} /> {errors.parentMobile}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Student Contact Number (Optional, 10 digits)</label>
-                  <div className="input-with-icon">
-                    <Phone className="input-icon" size={20} />
-                    <input
-                      type="tel"
-                      name="studentMobile"
-                      maxLength={10}
-                      placeholder="Optional student number"
-                      value={formData.studentMobile}
-                      onChange={handleChange}
-                      className={errors.studentMobile ? 'input-error' : ''}
-                    />
-                  </div>
-                  {errors.studentMobile && (
-                    <span className="field-error-text">
-                      <AlertCircle size={14} /> {errors.studentMobile}
                     </span>
                   )}
                 </div>
@@ -523,7 +493,7 @@ export default function RegisterPage() {
                   <input
                     type="text"
                     name="employeeId"
-                    placeholder="EMP123"
+                    placeholder="Employee ID"
                     value={formData.employeeId}
                     onChange={handleChange}
                     className={errors.employeeId ? 'input-error' : ''}

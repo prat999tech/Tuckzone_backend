@@ -9,7 +9,7 @@ export interface OrderLineRequest {
 export interface PlaceOrderRequest {
   orderType?: OrderType;
   menuDate: string;
-  beneficiaryStudentProfileId?: string;
+  beneficiaryWardId?: string;
   deliveryLocation?: string;
   items: OrderLineRequest[];
   idempotencyKey: string;

@@ -3,16 +3,20 @@ package com.school.canteen.payment;
 import com.school.canteen.entity.Order;
 import com.school.canteen.entity.OrderItem;
 import com.school.canteen.entity.Payment;
+import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.enums.PaymentStatus;
 import com.school.canteen.enums.PaymentTxnStatus;
 import com.school.canteen.enums.PaymentUseCase;
+import com.school.canteen.mapper.OrderMapper;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.OrderRepository;
 import com.school.canteen.repository.PaymentRepository;
+import com.school.canteen.service.NotificationService;
 import com.school.canteen.service.WalletService;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,13 +44,16 @@ public class PaymentExpirySweeper {
     private final OrderRepository orderRepository;
     private final DailyMenuItemRepository dailyMenuItemRepository;
     private final WalletService walletService;
+    private final NotificationService notificationService;
 
     public PaymentExpirySweeper(PaymentRepository paymentRepository, OrderRepository orderRepository,
-                                DailyMenuItemRepository dailyMenuItemRepository, WalletService walletService) {
+                                DailyMenuItemRepository dailyMenuItemRepository, WalletService walletService,
+                                NotificationService notificationService) {
         this.paymentRepository = paymentRepository;
         this.orderRepository = orderRepository;
         this.dailyMenuItemRepository = dailyMenuItemRepository;
         this.walletService = walletService;
+        this.notificationService = notificationService;
     }
 
     @Scheduled(fixedDelay = 120_000L)
@@ -96,5 +103,15 @@ public class PaymentExpirySweeper {
         }
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
+
+        // No "order placed" notification was ever sent for this order (see
+        // OrderServiceImpl.placeWithGatewayOrSplit — it's deliberately withheld until
+        // payment settles), so silently cancelling here would leave the customer with no
+        // signal at all about what happened to their checkout. Tell them explicitly.
+        String orderNumber = OrderMapper.formatOrderNumber(order.getOrderNumber());
+        notificationService.notifyUser(order.getPlacedBy(), NotificationEvent.ORDER_CANCELLED,
+                "Order cancelled",
+                "Order " + orderNumber + " was cancelled — payment was not received in time.",
+                Map.of("orderId", order.getId().toString(), "orderNumber", orderNumber));
     }
 }

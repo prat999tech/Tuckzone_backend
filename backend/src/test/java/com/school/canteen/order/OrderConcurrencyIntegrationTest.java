@@ -73,7 +73,7 @@ class OrderConcurrencyIntegrationTest extends IntegrationTestBase {
     }
 
     private PlaceOrderRequest order(UUID itemId, int qty, String key) {
-        return new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        return new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, qty)), key, null);
     }
 

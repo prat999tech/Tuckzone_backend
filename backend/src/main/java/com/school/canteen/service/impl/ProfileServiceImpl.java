@@ -70,7 +70,6 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setSection(request.section().trim());
         profile.setRollNumber(request.rollNumber().trim());
         profile.setSeatNumber(blankToNull(request.seatNumber()));
-        profile.setStudentMobile(blankToNull(request.studentMobile()));
     }
 
     private void updateTeacherFields(UUID userId, ProfileUpdateRequest request) {

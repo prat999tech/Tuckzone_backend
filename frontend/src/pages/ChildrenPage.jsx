@@ -1,28 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Link as LinkIcon, Trash2, GraduationCap, AlertCircle } from 'lucide-react';
-import { getChildren, linkChild, unlinkChild } from '../api/parent';
+import { Users, UserPlus, Pencil, Trash2, GraduationCap, AlertCircle } from 'lucide-react';
+import { listWards, createWard, updateWard, deleteWard } from '../api/wards';
 import toast from 'react-hot-toast';
 import './ChildrenPage.css';
 
+const EMPTY_FORM = { name: '', studentClass: '', section: '' };
+
 export default function ChildrenPage() {
-  const [children, setChildren] = useState([]);
+  const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
-  const [linkForm, setLinkForm] = useState({
-    admissionNumber: '',
-    parentMobile: '',
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingWardId, setEditingWardId] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchChildren();
+    fetchWards();
   }, []);
 
-  const fetchChildren = async () => {
+  const fetchWards = async () => {
     try {
-      const data = await getChildren();
-      setChildren(data);
+      const data = await listWards();
+      setWards(data);
     } catch (err) {
-      toast.error('Failed to load linked children');
+      toast.error('Failed to load your wards');
     } finally {
       setLoading(false);
     }
@@ -30,136 +31,184 @@ export default function ChildrenPage() {
 
   const validate = () => {
     const errs = {};
-    if (!linkForm.admissionNumber.trim()) {
-      errs.admissionNumber = 'Admission number is required';
-    }
-
-    if (!linkForm.parentMobile.trim()) {
-      errs.parentMobile = 'Parent mobile number is required';
-    } else if (!/^\d{10}$/.test(linkForm.parentMobile.trim())) {
-      errs.parentMobile = 'Parent mobile number must be exactly 10 digits';
-    }
-
+    if (!form.name.trim()) errs.name = 'Ward name is required';
+    if (!form.studentClass.trim()) errs.studentClass = 'Class is required';
+    if (!form.section.trim()) errs.section = 'Section is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleLink = async (e) => {
+  const startEdit = (ward) => {
+    setEditingWardId(ward.id);
+    setForm({ name: ward.name, studentClass: ward.studentClass, section: ward.section });
+    setErrors({});
+  };
+
+  const cancelEdit = () => {
+    setEditingWardId(null);
+    setForm(EMPTY_FORM);
+    setErrors({});
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) {
       toast.error('Please fix fields highlighted in red');
       return;
     }
 
+    const payload = {
+      name: form.name.trim(),
+      studentClass: form.studentClass.trim(),
+      section: form.section.trim(),
+    };
+
+    setSaving(true);
     try {
-      await linkChild(linkForm);
-      toast.success('Child linked successfully');
-      setLinkForm({ admissionNumber: '', parentMobile: '' });
-      setErrors({});
-      fetchChildren();
+      if (editingWardId) {
+        await updateWard(editingWardId, payload);
+        toast.success('Ward updated');
+      } else {
+        await createWard(payload);
+        toast.success('Ward added');
+      }
+      cancelEdit();
+      fetchWards();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to link child');
+      toast.error(err.response?.data?.message || 'Failed to save ward');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleUnlink = async (linkId) => {
-    if (!window.confirm('Are you sure you want to unlink this child account?')) return;
+  const handleDelete = async (ward) => {
+    if (!window.confirm(`Remove ${ward.name} from your wards?`)) return;
     try {
-      await unlinkChild(linkId);
-      toast.success('Child unlinked successfully');
-      fetchChildren();
+      await deleteWard(ward.id);
+      toast.success('Ward removed');
+      if (editingWardId === ward.id) cancelEdit();
+      fetchWards();
     } catch (err) {
-      toast.error('Failed to unlink child');
+      toast.error('Failed to remove ward');
     }
   };
 
   return (
     <div className="children-container">
       <div className="page-header">
-        <h1>Linked Children</h1>
-        <p>Manage canteen access for your kids</p>
+        <h1>My Wards</h1>
+        <p>Add the children you order food for</p>
       </div>
 
       <div className="children-content">
         <div className="link-section">
           <div className="card-glass p-4">
-            <h3><LinkIcon size={20} /> Link a Child</h3>
-            <form onSubmit={handleLink} className="link-form" noValidate>
+            <h3><UserPlus size={20} /> {editingWardId ? 'Edit Ward' : 'Add Your Ward'}</h3>
+            <form onSubmit={handleSubmit} className="link-form" noValidate>
               <div className="form-group">
-                <label>Admission Number</label>
+                <label>Ward Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. ADM123"
-                  value={linkForm.admissionNumber}
+                  placeholder="e.g. Aarav Sharma"
+                  value={form.name}
                   onChange={(e) => {
-                    setLinkForm({ ...linkForm, admissionNumber: e.target.value });
-                    if (errors.admissionNumber) setErrors({ ...errors, admissionNumber: null });
+                    setForm({ ...form, name: e.target.value });
+                    if (errors.name) setErrors({ ...errors, name: null });
                   }}
-                  className={errors.admissionNumber ? 'input-error' : ''}
+                  className={errors.name ? 'input-error' : ''}
                 />
-                {errors.admissionNumber && (
+                {errors.name && (
                   <span className="field-error-text">
-                    <AlertCircle size={14} /> {errors.admissionNumber}
+                    <AlertCircle size={14} /> {errors.name}
                   </span>
                 )}
               </div>
               <div className="form-group">
-                <label>Registered Parent Mobile (10 digits)</label>
+                <label>Class</label>
                 <input
-                  type="tel"
-                  maxLength={10}
-                  placeholder="10-digit mobile number"
-                  value={linkForm.parentMobile}
+                  type="text"
+                  placeholder="e.g. VIII"
+                  value={form.studentClass}
                   onChange={(e) => {
-                    setLinkForm({ ...linkForm, parentMobile: e.target.value });
-                    if (errors.parentMobile) setErrors({ ...errors, parentMobile: null });
+                    setForm({ ...form, studentClass: e.target.value });
+                    if (errors.studentClass) setErrors({ ...errors, studentClass: null });
                   }}
-                  className={errors.parentMobile ? 'input-error' : ''}
+                  className={errors.studentClass ? 'input-error' : ''}
                 />
-                {errors.parentMobile && (
+                {errors.studentClass && (
                   <span className="field-error-text">
-                    <AlertCircle size={14} /> {errors.parentMobile}
+                    <AlertCircle size={14} /> {errors.studentClass}
                   </span>
                 )}
               </div>
-              <button type="submit" className="btn-primary w-100">
-                Link Account
+              <div className="form-group">
+                <label>Section</label>
+                <input
+                  type="text"
+                  placeholder="e.g. B"
+                  value={form.section}
+                  onChange={(e) => {
+                    setForm({ ...form, section: e.target.value });
+                    if (errors.section) setErrors({ ...errors, section: null });
+                  }}
+                  className={errors.section ? 'input-error' : ''}
+                />
+                {errors.section && (
+                  <span className="field-error-text">
+                    <AlertCircle size={14} /> {errors.section}
+                  </span>
+                )}
+              </div>
+              <button type="submit" className="btn-primary w-100" disabled={saving}>
+                {editingWardId ? 'Save Changes' : 'Add Ward'}
               </button>
+              {editingWardId && (
+                <button type="button" className="btn-secondary w-100" onClick={cancelEdit}>
+                  Cancel
+                </button>
+              )}
             </form>
           </div>
         </div>
 
         <div className="children-list-section">
           {loading ? (
-            <div className="loading-state">Loading profiles...</div>
-          ) : children.length === 0 ? (
+            <div className="loading-state">Loading wards...</div>
+          ) : wards.length === 0 ? (
             <div className="empty-state">
               <Users size={48} className="text-amber" />
-              <h2>No children linked yet</h2>
-              <p>Link your child&apos;s account to order food on their behalf.</p>
+              <h2>No wards added yet</h2>
+              <p>Add a ward to order food on their behalf.</p>
             </div>
           ) : (
             <div className="children-grid">
-              {children.map((child) => (
-                <div className="child-card" key={child.linkId}>
+              {wards.map((ward) => (
+                <div className="child-card" key={ward.id}>
                   <div className="child-avatar">
                     <GraduationCap size={32} />
                   </div>
                   <div className="child-info">
-                    <h3>{child.fullName}</h3>
+                    <h3>{ward.name}</h3>
                     <div className="badges">
-                      <span className="badge badge-blue">Class: {child.studentClass}-{child.section}</span>
-                      <span className="badge badge-gray">Roll: {child.rollNumber}</span>
+                      <span className="badge badge-blue">Class: {ward.studentClass}-{ward.section}</span>
                     </div>
-                    <p className="admin-no">Adm No: {child.admissionNumber}</p>
                   </div>
-                  <button
-                    className="btn-icon-danger"
-                    onClick={() => handleUnlink(child.linkId)}
-                    title="Unlink child"
-                  >
-                    <Trash2 size={20} />
-                  </button>
+                  <div className="action-buttons">
+                    <button
+                      className="btn-icon"
+                      onClick={() => startEdit(ward)}
+                      title="Edit ward"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button
+                      className="btn-icon-danger"
+                      onClick={() => handleDelete(ward)}
+                      title="Remove ward"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

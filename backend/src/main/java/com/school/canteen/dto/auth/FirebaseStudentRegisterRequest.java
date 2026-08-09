@@ -28,7 +28,5 @@ public record FirebaseStudentRegisterRequest(
         @Size(max = 20) String seatNumber,
 
         @Pattern(regexp = ValidationRules.MOBILE_PATTERN, message = ValidationRules.MOBILE_MESSAGE)
-        String parentMobile,
-
-        @Size(max = 20) String studentMobile) {
+        String parentMobile) {
 }

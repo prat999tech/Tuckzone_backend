@@ -9,6 +9,7 @@ import com.school.canteen.entity.DeliverySlot;
 import com.school.canteen.entity.Order;
 import com.school.canteen.entity.OrderItem;
 import com.school.canteen.entity.StudentProfile;
+import com.school.canteen.entity.Ward;
 import com.school.canteen.enums.Role;
 import com.school.canteen.repository.StudentProfileRepository;
 import org.springframework.stereotype.Component;
@@ -86,15 +87,20 @@ public class OrderMapper {
     }
 
     /**
-     * Resolution order: the linked beneficiary profile (parent-for-child order) first, then
-     * the placing user's own profile if they are a student ordering for themselves, and
-     * finally a bare name with no class/section/roll for a teacher's own order.
+     * Resolution order: the linked ward (current parent-for-child flow) first, then the
+     * linked beneficiary profile (older parent-for-child flow) next, then the placing
+     * user's own profile if they are a student ordering for themselves, and finally a
+     * bare name with no class/section/roll for a teacher's own order.
      *
      * Shared by {@link #toResponse} and {@link #toAdminResponse} so the customer's own
      * order view and the admin's view of that same order always agree on the student's
      * class — neither trusts anything the client typed at checkout for it.
      */
     private StudentInfo resolveStudentInfo(Order order) {
+        Ward ward = order.getBeneficiaryWard();
+        if (ward != null) {
+            return new StudentInfo(ward.getName(), ward.getStudentClass(), ward.getSection(), null);
+        }
         StudentProfile profile = order.getBeneficiaryStudentProfile();
         if (profile == null && order.getPlacedBy().getRole() == Role.STUDENT) {
             profile = studentProfileRepository.findByUser_Id(order.getPlacedBy().getId()).orElse(null);

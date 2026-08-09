@@ -99,7 +99,6 @@ public class FirebaseAccountService {
         profile.setRollNumber(request.rollNumber());
         profile.setSeatNumber(request.seatNumber());
         profile.setParentMobile(request.parentMobile());
-        profile.setStudentMobile(request.studentMobile());
         studentProfileRepository.save(profile);
 
         sendEmailVerificationIfNeeded(user);

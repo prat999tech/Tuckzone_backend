@@ -49,7 +49,6 @@ export function RegisterScreen({ navigation, route }: Props) {
   const [rollNumber, setRollNumber] = useState('');
   const [seatNumber, setSeatNumber] = useState('');
   const [parentMobile, setParentMobile] = useState('');
-  const [studentMobile, setStudentMobile] = useState('');
 
   // Teacher-only
   const [employeeId, setEmployeeId] = useState('');
@@ -79,7 +78,6 @@ export function RegisterScreen({ navigation, route }: Props) {
       set('rollNumber', validateRequired(rollNumber, 'Roll number'));
       // Optional: only checked for a valid format when the student actually enters one.
       if (parentMobile) set('parentMobile', validateMobile(parentMobile));
-      if (studentMobile) set('studentMobile', validateMobile(studentMobile));
     }
     if (role === 'TEACHER') {
       set('employeeId', validateRequired(employeeId, 'Employee ID'));
@@ -114,7 +112,6 @@ export function RegisterScreen({ navigation, route }: Props) {
             rollNumber,
             seatNumber: seatNumber || undefined,
             parentMobile: parentMobile.trim() || undefined,
-            studentMobile: studentMobile.trim() || undefined,
           });
         } else if (role === 'TEACHER') {
           await registerTeacherWithFirebase({ ...base, employeeId, department });
@@ -137,7 +134,6 @@ export function RegisterScreen({ navigation, route }: Props) {
           rollNumber,
           seatNumber: seatNumber || undefined,
           parentMobile: parentMobile.trim() || undefined,
-          studentMobile: studentMobile.trim() || undefined,
         });
       } else if (role === 'TEACHER') {
         await authApi.registerTeacher({
@@ -295,14 +291,6 @@ export function RegisterScreen({ navigation, route }: Props) {
                 maxLength={10}
                 error={errors.parentMobile}
                 leftIcon={<Phone size={18} color={colors.textTertiary} />}
-              />
-              <Input
-                label="Student Contact (optional)"
-                value={studentMobile}
-                onChangeText={setStudentMobile}
-                keyboardType="number-pad"
-                maxLength={10}
-                error={errors.studentMobile}
               />
             </>
           )}

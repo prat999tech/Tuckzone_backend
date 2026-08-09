@@ -126,7 +126,6 @@ public class AuthServiceImpl implements AuthService {
         profile.setRollNumber(request.rollNumber());
         profile.setSeatNumber(request.seatNumber());
         profile.setParentMobile(request.parentMobile());
-        profile.setStudentMobile(request.studentMobile());
         studentProfileRepository.save(profile);
 
         sendEmailVerification(user);

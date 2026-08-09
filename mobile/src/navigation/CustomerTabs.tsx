@@ -57,7 +57,7 @@ export function CustomerTabs() {
         <Tab.Screen
           name="Children"
           component={ChildrenScreen}
-          options={{ tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }}
+          options={{ tabBarLabel: 'Wards', tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }}
         />
       )}
       <Tab.Screen

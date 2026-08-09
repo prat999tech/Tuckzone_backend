@@ -7,7 +7,6 @@ export interface ProfileUpdateRequest {
   section?: string;
   rollNumber?: string;
   seatNumber?: string;
-  studentMobile?: string;
   department?: string;
 }
 

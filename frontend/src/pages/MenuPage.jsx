@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getTodayMenu, getFixedMenu } from '../api/menu';
-import { getChildren } from '../api/parent';
+import { listWards } from '../api/wards';
 import { placeOrder } from '../api/orders';
 import { getWallet } from '../api/wallet';
 import { getConfig } from '../api/config';
@@ -17,11 +17,17 @@ export default function MenuPage() {
   const { user } = useAuth();
   const [dailyMenu, setDailyMenu] = useState([]);
   const [fixedMenu, setFixedMenu] = useState([]);
-  const [children, setChildren] = useState([]);
+  const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [walletBalance, setWalletBalance] = useState(null);
   const [mockPaymentsEnabled, setMockPaymentsEnabled] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
+  // Stable for the lifetime of one checkout attempt (including retries after a slow
+  // response or a dismissed Razorpay widget) so a resend hits the backend's existing
+  // idempotency check (OrderServiceImpl.placeOrderInTransaction) and returns the same
+  // order instead of creating a duplicate. Regenerated only once an order actually
+  // succeeds (see placeOrderAction), so the next checkout gets its own fresh key.
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [search, setSearch] = useState('');
@@ -29,7 +35,7 @@ export default function MenuPage() {
   // Cart & Order Form State
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedChild, setSelectedChild] = useState('');
+  const [selectedWard, setSelectedWard] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [errors, setErrors] = useState({});
 
@@ -54,8 +60,8 @@ export default function MenuPage() {
       setFixedMenu(fixedData);
 
       if (user?.role === 'PARENT') {
-        const childData = await getChildren();
-        setChildren(childData);
+        const wardData = await listWards();
+        setWards(wardData);
       }
     } catch (err) {
       toast.error('Failed to load menu');
@@ -112,8 +118,8 @@ export default function MenuPage() {
     const errs = {};
 
     if (user?.role === 'PARENT') {
-      if (!selectedChild) {
-        errs.child = 'Please select a child for this order';
+      if (!selectedWard) {
+        errs.child = 'Please select a ward for this order';
       }
     } else if (user?.role === 'TEACHER') {
       if (!deliveryLocation.trim()) {
@@ -145,8 +151,8 @@ export default function MenuPage() {
         menuDate: selectedDate,
         deliveryLocation: user?.role === 'TEACHER' ? deliveryLocation.trim() : undefined,
         items: cart.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
-        idempotencyKey: crypto.randomUUID(),
-        ...(user?.role === 'PARENT' && { beneficiaryStudentProfileId: selectedChild }),
+        idempotencyKey: idempotencyKeyRef.current,
+        ...(user?.role === 'PARENT' && { beneficiaryWardId: selectedWard }),
         ...(needsGateway && { paymentMode: 'WALLET_PLUS_GATEWAY' }),
       };
 
@@ -179,6 +185,9 @@ export default function MenuPage() {
       setCart([]);
       setIsCartOpen(false);
       setErrors({});
+      // This checkout is done — the next one (a new cart) must not reuse its key, or the
+      // backend's idempotency check would return this same completed order again.
+      idempotencyKeyRef.current = crypto.randomUUID();
       fetchInitialData();
       getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
     } catch (err) {
@@ -389,19 +398,19 @@ export default function MenuPage() {
 
               {user?.role === 'PARENT' ? (
                 <div className="form-group">
-                  <label>Order for Child</label>
+                  <label>Order for Ward</label>
                   <select
-                    value={selectedChild}
+                    value={selectedWard}
                     onChange={(e) => {
-                      setSelectedChild(e.target.value);
+                      setSelectedWard(e.target.value);
                       if (errors.child) setErrors({ ...errors, child: null });
                     }}
                     className={errors.child ? 'input-error' : ''}
                   >
-                    <option value="">Select child...</option>
-                    {children.map((child) => (
-                      <option key={child.linkId} value={child.studentProfileId}>
-                        {child.fullName} ({child.studentClass}-{child.section})
+                    <option value="">Select ward...</option>
+                    {wards.map((ward) => (
+                      <option key={ward.id} value={ward.id}>
+                        {ward.name} ({ward.studentClass}-{ward.section})
                       </option>
                     ))}
                   </select>
