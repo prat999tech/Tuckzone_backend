@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { authApi } from '../api/auth';
+import { authApi, StudentRegisterRequest, TeacherRegisterRequest, ParentRegisterRequest } from '../api/auth';
 import { profileApi } from '../api/profile';
 import { registerSessionExpiredHandler } from '../api/client';
 import { tokenStorage } from '../utils/storage';
-import type { UserSummary } from '../api/types';
+import type { AuthResponse, UserSummary } from '../api/types';
 
 interface AuthContextValue {
   user: UserSummary | null;
@@ -12,6 +12,16 @@ interface AuthContextValue {
   isSubAdmin: boolean;
   login: (email: string, password: string) => Promise<UserSummary>;
   loginWithOtp: (mobile: string, code: string) => Promise<UserSummary>;
+  loginWithFirebase: (idToken: string) => Promise<UserSummary>;
+  registerStudentWithFirebase: (
+    data: { idToken: string } & Omit<StudentRegisterRequest, 'password'>,
+  ) => Promise<UserSummary>;
+  registerTeacherWithFirebase: (
+    data: { idToken: string } & Omit<TeacherRegisterRequest, 'password'>,
+  ) => Promise<UserSummary>;
+  registerParentWithFirebase: (
+    data: { idToken: string } & Omit<ParentRegisterRequest, 'password'>,
+  ) => Promise<UserSummary>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -60,6 +70,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return response.user;
   }, []);
 
+  /** Applies the session a Firebase-backed call returned — identical shape to a normal
+   *  login response, so the rest of the app (token refresh, /me, logout) never needs to
+   *  know which provider verified this sign-in. */
+  const applyFirebaseSession = useCallback(async (response: AuthResponse) => {
+    await tokenStorage.setTokens(response.accessToken, response.refreshToken);
+    setUser(response.user);
+    return response.user;
+  }, []);
+
+  const loginWithFirebase = useCallback(
+    async (idToken: string) => applyFirebaseSession(await authApi.firebaseExchange(idToken)),
+    [applyFirebaseSession],
+  );
+
+  const registerStudentWithFirebase = useCallback(
+    async (data: { idToken: string } & Omit<StudentRegisterRequest, 'password'>) =>
+      applyFirebaseSession(await authApi.firebaseRegisterStudent(data)),
+    [applyFirebaseSession],
+  );
+
+  const registerTeacherWithFirebase = useCallback(
+    async (data: { idToken: string } & Omit<TeacherRegisterRequest, 'password'>) =>
+      applyFirebaseSession(await authApi.firebaseRegisterTeacher(data)),
+    [applyFirebaseSession],
+  );
+
+  const registerParentWithFirebase = useCallback(
+    async (data: { idToken: string } & Omit<ParentRegisterRequest, 'password'>) =>
+      applyFirebaseSession(await authApi.firebaseRegisterParent(data)),
+    [applyFirebaseSession],
+  );
+
   const logout = useCallback(async () => {
     const refreshToken = await tokenStorage.getRefreshToken();
     if (refreshToken) {
@@ -88,10 +130,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isSubAdmin: user?.role === 'SUB_ADMIN',
       login,
       loginWithOtp,
+      loginWithFirebase,
+      registerStudentWithFirebase,
+      registerTeacherWithFirebase,
+      registerParentWithFirebase,
       logout,
       refreshProfile,
     }),
-    [user, loading, login, loginWithOtp, logout, refreshProfile],
+    [
+      user,
+      loading,
+      login,
+      loginWithOtp,
+      loginWithFirebase,
+      registerStudentWithFirebase,
+      registerTeacherWithFirebase,
+      registerParentWithFirebase,
+      logout,
+      refreshProfile,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

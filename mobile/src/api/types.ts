@@ -328,6 +328,17 @@ export interface ExpenseResponse {
   amount: number;
 }
 
+export type PlatformFeeType = 'PERCENTAGE' | 'FIXED';
+
+export interface PlatformFeeSettingsResponse {
+  useCase: PaymentUseCase;
+  enabled: boolean;
+  feeType: PlatformFeeType;
+  feeValue: number;
+  minFee?: number | null;
+  maxFee?: number | null;
+}
+
 export interface ApiErrorBody {
   timestamp: string;
   status: number;

@@ -2,7 +2,9 @@
 
 export type AuthStackParamList = {
   Login: undefined;
-  Register: undefined;
+  /** Present when arriving from LoginScreen's Email tab after Firebase verified an
+   *  identity with no matching account yet — see FirebaseAccountService on the backend. */
+  Register: { firebaseIdToken?: string; email?: string } | undefined;
   ForgotPassword: undefined;
   /** `devCode` is only ever populated when the backend runs with OTP dev codes enabled. */
   VerifyEmail: { email: string; devCode?: string | null };
@@ -40,6 +42,7 @@ export type AdminStackParamList = {
   OrderingWindows: undefined;
   Notifications: undefined;
   SubAdmins: undefined;
+  PaymentSettings: undefined;
 };
 
 export type SubAdminTabParamList = {

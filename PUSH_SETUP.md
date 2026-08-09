@@ -1,5 +1,11 @@
 # Enabling real push notifications
 
+> **Also covers Firebase Phone Authentication.** The mobile app's "Phone" sign-in tab uses
+> the exact same `mobile/google-services.json` + backend `FIREBASE_CREDENTIALS_JSON` this
+> guide sets up for push — one Firebase project serves both. The only extra step is
+> enabling it: Firebase console → **Authentication** → **Sign-in method** → enable **Phone**.
+> No separate setup, no additional env vars.
+
 Push needs three things wired together:
 
 ```
@@ -22,7 +28,7 @@ that need your own Google and Expo accounts.
 2. On the project dashboard click the **Android** icon to add an Android app.
 3. **Android package name** — must be exactly:
    ```
-   com.schoolbite.canteen
+   com.tuckzone.canteen
    ```
    This has to match `expo.android.package` in `mobile/app.json`, or push silently fails.
 4. Register the app, then **Download `google-services.json`**.

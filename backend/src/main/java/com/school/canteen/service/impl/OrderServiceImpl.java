@@ -340,7 +340,7 @@ public class OrderServiceImpl implements OrderService {
         List<Order> orders = (status == null)
                 ? orderRepository.findByMenuDateOrderByCreatedAtAsc(date, pageable)
                 : orderRepository.findByMenuDateAndStatusOrderByCreatedAtAsc(date, status, pageable);
-        return toAdminResponses(orders, search, sort);
+        return toAdminResponses(excludeUnpaidGatewayOrders(orders), search, sort);
     }
 
     @Override
@@ -350,7 +350,22 @@ public class OrderServiceImpl implements OrderService {
         List<Order> orders = (status == null)
                 ? orderRepository.findByMenuDateOrderByCreatedAtAsc(date, unbounded)
                 : orderRepository.findByMenuDateAndStatusOrderByCreatedAtAsc(date, status, unbounded);
-        return toAdminResponses(orders, search, null);
+        return toAdminResponses(excludeUnpaidGatewayOrders(orders), search, null);
+    }
+
+    /**
+     * A gateway checkout (GATEWAY_ONLY/WALLET_PLUS_GATEWAY) creates the order row and
+     * marks it PLACED before the customer has actually completed payment — see
+     * placeWithGatewayOrSplit's javadoc — so it stays visually and functionally
+     * indistinguishable from a genuinely paid order until either the webhook/verify call
+     * settles it (paymentStatus -> PAID) or PaymentExpirySweeper reverses it, up to 15
+     * minutes later. Without this filter, a customer who opens Razorpay checkout and then
+     * cancels appears in the kitchen queue as a normal new order — this hides it from the
+     * canteen until payment is actually confirmed, matching the wallet-only path, which is
+     * never PENDING (settled synchronously at order creation).
+     */
+    private List<Order> excludeUnpaidGatewayOrders(List<Order> orders) {
+        return orders.stream().filter(order -> order.getPaymentStatus() != PaymentStatus.PENDING).toList();
     }
 
     /** Search/sort are applied in memory: a day's admin order list is a small, bounded
@@ -388,6 +403,14 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         OrderStatus target = request.status();
+
+        // Belt-and-suspenders alongside adminList's filter: a gateway checkout that's still
+        // PENDING (opened, not yet completed or cancelled) must never be actionable, even
+        // via a direct API call bypassing the queue view — see excludeUnpaidGatewayOrders.
+        if (order.getPaymentStatus() == PaymentStatus.PENDING) {
+            throw new InvalidOrderStateException(
+                    "This order's payment has not been completed yet");
+        }
 
         if (target == OrderStatus.REJECTED) {
             if (order.getStatus() != OrderStatus.PLACED && order.getStatus() != OrderStatus.ACCEPTED) {

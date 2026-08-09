@@ -6,13 +6,18 @@ import {
   ShoppingBag,
   Wallet,
   Users,
-  UserCheck,
+  UserCog,
   ChefHat,
   Calendar,
   ClipboardList,
   FileDown,
   ShieldPlus,
   CreditCard,
+  LayoutDashboard,
+  User,
+  Bell,
+  Receipt,
+  BarChart3,
   LogOut,
   Menu,
   X
@@ -37,28 +42,37 @@ const Layout = () => {
       { to: '/orders', icon: ShoppingBag,     label: 'My Orders' },
       { to: '/wallet', icon: Wallet,           label: 'Wallet' },
     ];
+    const personalLinks = [
+      { to: '/notifications', icon: Bell, label: 'Notifications' },
+      { to: '/profile',       icon: User, label: 'Profile' },
+    ];
 
     switch (role) {
       case 'STUDENT':
       case 'TEACHER':
-        return commonLinks;
+        return [...commonLinks, ...personalLinks];
       case 'PARENT':
-        return [...commonLinks, { to: '/children', icon: Users, label: 'My Children' }];
-      case 'SCHOOL_ADMIN':
-        return [{ to: '/admin/users', icon: UserCheck, label: 'User Approvals' }];
+        return [...commonLinks, { to: '/children', icon: Users, label: 'My Children' }, ...personalLinks];
       case 'CANTEEN_ADMIN':
         return [
+          { to: '/admin/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
           { to: '/admin/daily-menu', icon: Calendar,        label: 'Meal of the Day' },
           { to: '/admin/fixed-menu', icon: ChefHat,         label: 'Daily Delights' },
           { to: '/admin/orders',     icon: ClipboardList,   label: 'Orders Board' },
+          { to: '/admin/export',     icon: FileDown,        label: 'Export Orders' },
+          { to: '/admin/accounts',   icon: UserCog,         label: 'Accounts' },
+          { to: '/admin/expenses',   icon: Receipt,         label: 'Expenses' },
+          { to: '/admin/reports',    icon: BarChart3,       label: 'Reports' },
           { to: '/admin/sub-admins', icon: ShieldPlus,      label: 'Sub Admins' },
           { to: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings' },
+          { to: '/notifications',   icon: Bell,             label: 'Notifications' },
         ];
       case 'SUB_ADMIN':
         return [
           { to: '/subadmin/orders', icon: ClipboardList, label: 'Incoming Orders' },
           { to: '/subadmin/menu',   icon: ChefHat,        label: 'Menu Management' },
           { to: '/subadmin/export', icon: FileDown,       label: 'Export Orders' },
+          { to: '/notifications',   icon: Bell,           label: 'Notifications' },
         ];
       default:
         return [];

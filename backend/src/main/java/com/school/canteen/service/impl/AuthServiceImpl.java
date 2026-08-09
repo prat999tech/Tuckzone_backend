@@ -37,6 +37,7 @@ import com.school.canteen.repository.TeacherProfileRepository;
 import com.school.canteen.repository.UserRepository;
 import com.school.canteen.security.JwtService;
 import com.school.canteen.security.RateLimiterService;
+import com.school.canteen.security.SessionIssuer;
 import com.school.canteen.service.AuthService;
 import com.school.canteen.service.NotificationService;
 import com.school.canteen.service.OtpService;
@@ -73,6 +74,7 @@ public class AuthServiceImpl implements AuthService {
     private final OtpProperties otpProperties;
     private final AdminProperties adminProperties;
     private final NotificationService notificationService;
+    private final SessionIssuer sessionIssuer;
 
     public AuthServiceImpl(UserRepository userRepository,
                            StudentProfileRepository studentProfileRepository,
@@ -86,7 +88,8 @@ public class AuthServiceImpl implements AuthService {
                            OtpService otpService,
                            OtpProperties otpProperties,
                            AdminProperties adminProperties,
-                           NotificationService notificationService) {
+                           NotificationService notificationService,
+                           SessionIssuer sessionIssuer) {
         this.userRepository = userRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.teacherProfileRepository = teacherProfileRepository;
@@ -100,6 +103,7 @@ public class AuthServiceImpl implements AuthService {
         this.otpProperties = otpProperties;
         this.adminProperties = adminProperties;
         this.notificationService = notificationService;
+        this.sessionIssuer = sessionIssuer;
     }
 
     @Override
@@ -213,7 +217,7 @@ public class AuthServiceImpl implements AuthService {
         // out if the registration email was missed.
         user.setEmailVerified(true);
         notifySignIn(user, "one-time passcode");
-        return buildAuthResponse(user);
+        return sessionIssuer.issue(user);
     }
 
     @Override
@@ -250,7 +254,10 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(InvalidCredentialsException::new);
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        // A Firebase-only account (phone or email sign-in, never set a local password) has
+        // no hash to compare against — reject cleanly rather than letting BCrypt's null
+        // check surface as an unhandled 500.
+        if (user.getPasswordHash() == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new InvalidCredentialsException();
         }
 
@@ -260,7 +267,7 @@ public class AuthServiceImpl implements AuthService {
         ensureEmailVerified(user);
         rateLimiter.reset(rateKey); // successful sign-in clears the counter
         notifySignIn(user, "password");
-        return buildAuthResponse(user);
+        return sessionIssuer.issue(user);
     }
 
     @Override
@@ -378,26 +385,6 @@ public class AuthServiceImpl implements AuthService {
         if (!user.isEmailVerified()) {
             throw new EmailNotVerifiedException(user.getEmail());
         }
-    }
-
-    private AuthResponse buildAuthResponse(User user) {
-        String role = user.getRole().name();
-        String accessToken = jwtService.generateAccessToken(user.getEmail(), role);
-        String refreshToken = jwtService.generateRefreshToken(user.getEmail(), role);
-
-        // Record the session so it can be revoked later (logout, password change).
-        RefreshToken stored = new RefreshToken();
-        stored.setUser(user);
-        stored.setTokenHash(TokenHasher.sha256Hex(refreshToken));
-        stored.setExpiresAt(Instant.now().plus(jwtService.refreshTtl()));
-        refreshTokenRepository.save(stored);
-
-        return new AuthResponse(
-                TOKEN_TYPE,
-                accessToken,
-                refreshToken,
-                jwtService.accessTtlSeconds(),
-                userMapper.toSummary(user));
     }
 
     /** Removes long-expired session rows so the table does not grow without bound. */

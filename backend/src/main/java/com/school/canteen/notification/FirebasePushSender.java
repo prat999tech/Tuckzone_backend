@@ -1,8 +1,5 @@
 package com.school.canteen.notification;
 
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.BatchResponse;
@@ -12,13 +9,8 @@ import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.SendResponse;
-import com.school.canteen.config.NotificationProperties;
-import jakarta.annotation.PostConstruct;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import com.school.canteen.config.FirebaseAdminConfig;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +35,6 @@ public class FirebasePushSender implements PushSender {
 
     /** FCM's documented ceiling for a single sendEach call. */
     private static final int FCM_MAX_BATCH = 500;
-    private static final String APP_NAME = "canteen-fcm";
 
     /**
      * Must match the channel the Android app creates at startup. If they differ, Android 8+
@@ -51,55 +42,10 @@ public class FirebasePushSender implements PushSender {
      */
     private static final String ANDROID_CHANNEL_ID = "canteen_orders";
 
-    private final NotificationProperties properties;
-    private FirebaseApp firebaseApp;
+    private final FirebaseAdminConfig firebaseAdminConfig;
 
-    public FirebasePushSender(NotificationProperties properties) {
-        this.properties = properties;
-    }
-
-    @PostConstruct
-    void initialise() throws IOException {
-        // Reuse an existing app on context restart (dev reload) instead of failing on a
-        // duplicate-name registration.
-        firebaseApp = FirebaseApp.getApps().stream()
-                .filter(app -> APP_NAME.equals(app.getName()))
-                .findFirst()
-                .orElseGet(this::createApp);
-    }
-
-    private FirebaseApp createApp() {
-        try {
-            GoogleCredentials credentials = resolveCredentials();
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(credentials)
-                    .build();
-            return FirebaseApp.initializeApp(options, APP_NAME);
-        } catch (IOException ex) {
-            // Fail fast: booting with push "enabled" but unusable would hide the problem
-            // until customers silently stopped receiving order updates.
-            throw new IllegalStateException(
-                    "Firebase push is enabled but credentials could not be loaded. "
-                            + "Set FIREBASE_CREDENTIALS_JSON or GOOGLE_APPLICATION_CREDENTIALS.", ex);
-        }
-    }
-
-    /**
-     * Accepts the service-account JSON directly or base64-encoded, because most hosting
-     * platforms mangle multi-line environment variables. Falls back to the standard
-     * GOOGLE_APPLICATION_CREDENTIALS file lookup.
-     */
-    private GoogleCredentials resolveCredentials() throws IOException {
-        String configured = properties.firebaseCredentialsJson();
-        if (configured == null || configured.isBlank()) {
-            return GoogleCredentials.getApplicationDefault();
-        }
-        String json = configured.trim();
-        if (!json.startsWith("{")) {
-            json = new String(Base64.getDecoder().decode(json), StandardCharsets.UTF_8);
-        }
-        return GoogleCredentials.fromStream(
-                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
+    public FirebasePushSender(FirebaseAdminConfig firebaseAdminConfig) {
+        this.firebaseAdminConfig = firebaseAdminConfig;
     }
 
     @Override
@@ -131,7 +77,7 @@ public class FirebasePushSender implements PushSender {
                 .toList();
 
         try {
-            BatchResponse response = FirebaseMessaging.getInstance(firebaseApp).sendEach(payloads);
+            BatchResponse response = FirebaseMessaging.getInstance(firebaseAdminConfig.get()).sendEach(payloads);
             List<PushOutcome> outcomes = new ArrayList<>(messages.size());
             for (SendResponse sendResponse : response.getResponses()) {
                 outcomes.add(toOutcome(sendResponse));

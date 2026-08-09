@@ -1,17 +1,22 @@
 import client from './client';
 
-export const listUsers = async (status) => {
-  const response = await client.get('/admin/users', { params: { status } });
+export const getDashboard = async (date) => {
+  const response = await client.get('/admin/dashboard', { params: { date } });
   return response.data;
 };
 
-export const approveUser = async (id) => {
-  const response = await client.post(`/admin/users/${id}/approve`);
+export const listUsers = async (role, page, size) => {
+  const response = await client.get('/admin/users', { params: { role, page, size } });
   return response.data;
 };
 
-export const rejectUser = async (id) => {
-  const response = await client.post(`/admin/users/${id}/reject`);
+export const disableUser = async (id) => {
+  const response = await client.post(`/admin/users/${id}/disable`);
+  return response.data;
+};
+
+export const enableUser = async (id) => {
+  const response = await client.post(`/admin/users/${id}/enable`);
   return response.data;
 };
 
@@ -131,5 +136,27 @@ export const deactivateSubAdmin = async (id) => {
 
 export const deleteSubAdmin = async (id) => {
   const response = await client.delete(`/admin/sub-admins/${id}`);
+  return response.data;
+};
+
+// ─── Reporting ───
+export const getSalesReport = async (from, to) => {
+  const response = await client.get('/admin/reports/sales', { params: { from, to } });
+  return response.data;
+};
+
+// ─── Expenses ───
+export const listExpenses = async (from, to) => {
+  const response = await client.get('/admin/expenses', { params: { from, to } });
+  return response.data;
+};
+
+export const addExpense = async (data) => {
+  const response = await client.post('/admin/expenses', data);
+  return response.data;
+};
+
+export const deleteExpense = async (id) => {
+  const response = await client.delete(`/admin/expenses/${id}`);
   return response.data;
 };

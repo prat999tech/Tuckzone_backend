@@ -293,53 +293,6 @@
 
 .form-actions { margin-top: 0.25rem; }
 
-/* Divider */
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 1.25rem 0;
-  color: var(--gray-400);
-  font-size: 0.8rem;
-}
-
-.login-divider::before,
-.login-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--gray-200);
-}
-
-/* Canteen Admin Quick Login */
-.btn-admin-quick {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.7rem;
-  background: var(--primary-light);
-  color: var(--primary-600);
-  border: 1.5px solid var(--primary-100);
-  border-radius: var(--radius);
-  font-family: var(--font);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-admin-quick:hover:not(:disabled) {
-  background: var(--primary-100);
-  border-color: var(--primary);
-}
-
-.btn-admin-quick:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .login-footer {
   text-align: center;
   margin-top: 1.5rem;
@@ -353,6 +306,12 @@
   color: var(--primary);
   text-decoration: none;
   font-weight: 600;
+}
+
+.forgot-password-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
 }
 
 .link-amber:hover {

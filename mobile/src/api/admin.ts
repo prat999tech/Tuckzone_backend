@@ -12,6 +12,9 @@ import type {
   OrderStatus,
   OrderingStatus,
   OrderingWindowResponse,
+  PaymentUseCase,
+  PlatformFeeSettingsResponse,
+  PlatformFeeType,
   Role,
   SalesReportResponse,
   UserSummary,
@@ -59,6 +62,14 @@ export interface SubAdminUpdateRequest {
   email: string;
   mobile: string;
   newPassword?: string;
+}
+
+export interface PlatformFeeSettingsUpdateRequest {
+  enabled: boolean;
+  feeType: PlatformFeeType;
+  feeValue: number;
+  minFee?: number | null;
+  maxFee?: number | null;
 }
 
 export const adminApi = {
@@ -126,6 +137,12 @@ export const adminApi = {
   addExpense: (data: ExpenseRequest) =>
     apiClient.post<ExpenseResponse>('/admin/expenses', data).then((r) => r.data),
   deleteExpense: (id: string) => apiClient.delete<void>(`/admin/expenses/${id}`).then((r) => r.data),
+
+  // Payment settings (platform fee)
+  listPaymentSettings: () =>
+    apiClient.get<PlatformFeeSettingsResponse[]>('/admin/payment-settings').then((r) => r.data),
+  updatePaymentSettings: (useCase: PaymentUseCase, data: PlatformFeeSettingsUpdateRequest) =>
+    apiClient.put<PlatformFeeSettingsResponse>(`/admin/payment-settings/${useCase}`, data).then((r) => r.data),
 
   // Accounts
   listUsers: (role?: Role, page = 0, size = 100) =>

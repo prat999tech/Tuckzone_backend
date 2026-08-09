@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   User,
   Mail,
@@ -9,11 +9,13 @@ import {
   BookOpen,
   Layers,
   Users,
+  KeyRound,
   Loader2,
   UserPlus,
   AlertCircle,
 } from 'lucide-react';
-import { registerParent, registerStudent, registerTeacher } from '../api/auth';
+import { registerAdmin, registerParent, registerStudent, registerTeacher } from '../api/auth';
+import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
 import './RegisterPage.css';
@@ -23,11 +25,23 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
+  const location = useLocation();
+  const { registerStudentWithFirebase, registerTeacherWithFirebase, registerParentWithFirebase } = useAuth();
+
+  // Arrives here from LoginPage's Phone tab when a verified Firebase identity has no
+  // matching account yet — this identity already proved ownership of the number, so no
+  // password is collected and the account is created + signed in directly on submit.
+  const firebaseIdToken = location.state?.firebaseIdToken ?? null;
+  // Only true for the Firebase-EMAIL flow: that email was itself the verified identity, so
+  // changing it here would no longer match what Firebase proved — the backend rejects a
+  // mismatch (FirebaseAccountService.newFirebaseUser). The phone flow's email is just
+  // profile data (unverified either way), so it stays editable there.
+  const emailLocked = Boolean(location.state?.emailLocked);
 
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
-    mobile: '',
+    email: location.state?.email ?? '',
+    mobile: location.state?.mobile ?? '',
     password: '',
     admissionNumber: '',
     studentClass: '',
@@ -37,6 +51,7 @@ export default function RegisterPage() {
     studentMobile: '',
     employeeId: '',
     department: '',
+    signupCode: '',
   });
 
   const handleChange = (e) => {
@@ -69,10 +84,12 @@ export default function RegisterPage() {
       errs.mobile = 'Mobile number must be exactly 10 digits';
     }
 
-    if (!formData.password) {
-      errs.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      errs.password = 'Password must be at least 6 characters';
+    if (!firebaseIdToken) {
+      if (!formData.password) {
+        errs.password = 'Password is required';
+      } else if (formData.password.length < 6) {
+        errs.password = 'Password must be at least 6 characters';
+      }
     }
 
     if (role === 'STUDENT') {
@@ -112,6 +129,12 @@ export default function RegisterPage() {
       }
     }
 
+    if (role === 'ADMIN') {
+      if (!formData.signupCode.trim()) {
+        errs.signupCode = 'Canteen signup code is required';
+      }
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -125,6 +148,34 @@ export default function RegisterPage() {
 
     try {
       setLoading(true);
+
+      if (firebaseIdToken) {
+        // Identity already verified by Firebase — this creates the account and signs the
+        // user in immediately, same shape of response as a normal login.
+        const base = { idToken: firebaseIdToken, fullName: formData.fullName, email: formData.email, mobile: formData.mobile };
+        const res = role === 'STUDENT'
+          ? await registerStudentWithFirebase({
+              ...base,
+              admissionNumber: formData.admissionNumber,
+              studentClass: formData.studentClass,
+              section: formData.section,
+              rollNumber: formData.rollNumber,
+              parentMobile: formData.parentMobile.trim() || undefined,
+              studentMobile: formData.studentMobile || '',
+            })
+          : role === 'TEACHER'
+            ? await registerTeacherWithFirebase({
+                ...base,
+                employeeId: formData.employeeId,
+                department: formData.department,
+              })
+            : await registerParentWithFirebase(base);
+
+        toast.success(`Welcome, ${res.user.fullName?.split(' ')[0]}!`);
+        navigate(res.user.role === 'CANTEEN_ADMIN' ? '/admin/dashboard'
+          : res.user.role === 'SUB_ADMIN' ? '/subadmin/orders' : '/menu');
+        return;
+      }
 
       if (role === 'STUDENT') {
         await registerStudent({
@@ -148,6 +199,14 @@ export default function RegisterPage() {
           employeeId: formData.employeeId,
           department: formData.department,
         });
+      } else if (role === 'ADMIN') {
+        await registerAdmin({
+          fullName: formData.fullName,
+          email: formData.email,
+          mobile: formData.mobile,
+          password: formData.password,
+          signupCode: formData.signupCode,
+        });
       } else {
         await registerParent({
           fullName: formData.fullName,
@@ -157,8 +216,8 @@ export default function RegisterPage() {
         });
       }
 
-      toast.success('Registration successful! You can now sign in.');
-      navigate('/login');
+      toast.success('Account created! Enter the code we emailed you to finish.');
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');
     } finally {
@@ -174,7 +233,11 @@ export default function RegisterPage() {
             <UserPlus size={28} className="text-amber" />
           </div>
           <h1>Create Account</h1>
-          <p>Fill in your details to register with TuckZone</p>
+          <p>
+            {firebaseIdToken
+              ? 'Your identity is verified — just a few more details to finish setting up your account.'
+              : 'Fill in your details to register with TuckZone'}
+          </p>
         </div>
 
         <div className="role-tabs">
@@ -208,6 +271,20 @@ export default function RegisterPage() {
           >
             Parent
           </button>
+          {/* Canteen/admin self-registration stays on the invite-code + password path
+              only — a Firebase-verified identity isn't sufficient for admin access. */}
+          {!firebaseIdToken && (
+            <button
+              className={`role-tab ${role === 'ADMIN' ? 'active' : ''}`}
+              onClick={() => {
+                setRole('ADMIN');
+                setErrors({});
+              }}
+              type="button"
+            >
+              Canteen
+            </button>
+          )}
         </div>
 
         <form className="register-form" onSubmit={handleSubmit} noValidate>
@@ -243,8 +320,15 @@ export default function RegisterPage() {
                   value={formData.email}
                   onChange={handleChange}
                   className={errors.email ? 'input-error' : ''}
+                  disabled={emailLocked}
+                  readOnly={emailLocked}
                 />
               </div>
+              {emailLocked && (
+                <span className="field-error-text" style={{ color: 'inherit', opacity: 0.7 }}>
+                  Verified with Firebase — can&apos;t be changed here
+                </span>
+              )}
               {errors.email && (
                 <span className="field-error-text">
                   <AlertCircle size={14} /> {errors.email}
@@ -276,20 +360,24 @@ export default function RegisterPage() {
             </div>
 
             <div className="form-group">
-              <label>Password</label>
-              <PasswordInput
-                icon={Lock}
-                iconSize={20}
-                name="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                className={errors.password ? 'input-error' : ''}
-              />
-              {errors.password && (
-                <span className="field-error-text">
-                  <AlertCircle size={14} /> {errors.password}
-                </span>
+              {firebaseIdToken ? null : (
+                <>
+                  <label>Password</label>
+                  <PasswordInput
+                    icon={Lock}
+                    iconSize={20}
+                    name="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className={errors.password ? 'input-error' : ''}
+                  />
+                  {errors.password && (
+                    <span className="field-error-text">
+                      <AlertCircle size={14} /> {errors.password}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -466,6 +554,35 @@ export default function RegisterPage() {
                     <AlertCircle size={14} /> {errors.department}
                   </span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {role === 'ADMIN' && (
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Canteen Signup Code</label>
+                <div className="input-with-icon">
+                  <KeyRound className="input-icon" size={20} />
+                  <input
+                    type="text"
+                    name="signupCode"
+                    placeholder="Ask whoever set up TuckZone"
+                    value={formData.signupCode}
+                    onChange={handleChange}
+                    className={errors.signupCode ? 'input-error' : ''}
+                  />
+                </div>
+                {errors.signupCode && (
+                  <span className="field-error-text">
+                    <AlertCircle size={14} /> {errors.signupCode}
+                  </span>
+                )}
+                <span className="field-hint">
+                  Whoever set up TuckZone for your school chose this code when installing
+                  the server. Ask them for it — it is what stops anyone from giving
+                  themselves canteen access.
+                </span>
               </div>
             </div>
           )}

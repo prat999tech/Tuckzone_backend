@@ -75,4 +75,21 @@ export const authApi = {
 
   logout: (refreshToken: string) =>
     apiClient.post<void>('/auth/logout', { refreshToken }).then((r) => r.data),
+
+  // ── Firebase phone OTP, additive alongside everything above ──
+
+  /** Rejects with apiErrorCode(error) === 'FIREBASE_USER_NOT_REGISTERED' if this identity
+   *  has no linked account yet — the caller should route to one of the register* calls
+   *  below with the same idToken. */
+  firebaseExchange: (idToken: string) =>
+    apiClient.post<AuthResponse>('/auth/firebase/exchange', { idToken }).then((r) => r.data),
+
+  firebaseRegisterStudent: (data: { idToken: string } & Omit<StudentRegisterRequest, 'password'>) =>
+    apiClient.post<AuthResponse>('/auth/firebase/register/student', data).then((r) => r.data),
+
+  firebaseRegisterTeacher: (data: { idToken: string } & Omit<TeacherRegisterRequest, 'password'>) =>
+    apiClient.post<AuthResponse>('/auth/firebase/register/teacher', data).then((r) => r.data),
+
+  firebaseRegisterParent: (data: { idToken: string } & Omit<ParentRegisterRequest, 'password'>) =>
+    apiClient.post<AuthResponse>('/auth/firebase/register/parent', data).then((r) => r.data),
 };

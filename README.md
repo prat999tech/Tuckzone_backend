@@ -63,8 +63,9 @@ school-canteen/
 | API | Spring Boot 4, Java 21 | — |
 | Database | PostgreSQL + Flyway | Money and stock need real transactions and row locks |
 | Auth | JWT access + refresh, revocable server-side | Logout/password change actually kill a session |
+| Auth (alt.) | Firebase Authentication (phone OTP + email) | Additive alongside the JWT login above — see `RUNNING_LOCALLY.md` |
 | OTP | 6-digit codes **by email** | No SMS gateway, no India DLT registration, no per-message cost |
-| Email | **Plain SMTP** (JavaMail) | Any provider works — Gmail, Zoho, SES, self-hosted. No vendor lock-in |
+| Email | **Plain SMTP** (JavaMail) | Any provider works — Gmail, Zoho, Amazon SES's SMTP interface, self-hosted. No vendor lock-in |
 | Push | Firebase Cloud Messaging | Free, and the only way to get real-time order updates on a phone |
 | Mobile | React Native (Expo) + TypeScript | — |
 

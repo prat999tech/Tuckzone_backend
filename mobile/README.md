@@ -40,7 +40,7 @@ send to. To receive real pushes you need a **development build** with your own F
 project wired in:
 
 1. Create a Firebase project (console.firebase.google.com), add an Android app with
-   package name `com.schoolbite.canteen` (see `app.json`), download `google-services.json`
+   package name `com.tuckzone.canteen` (see `app.json`), download `google-services.json`
    into this folder, and add this line back to `app.json` under `expo.android`:
    ```json
    "googleServicesFile": "./google-services.json"
