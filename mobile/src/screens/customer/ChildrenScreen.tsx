@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Link as LinkIcon, Trash2, GraduationCap, Users } from 'lucide-react-native';
+import { Pencil, Trash2, GraduationCap, Users, UserPlus } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
@@ -9,27 +9,29 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
-import { parentApi } from '../../api/parent';
+import { wardsApi } from '../../api/wards';
 import { apiErrorMessage } from '../../api/client';
-import { validateMobile, validateRequired } from '../../utils/validation';
-import { colors, radius, spacing, typography } from '../../theme';
-import type { ChildResponse } from '../../api/types';
+import { validateRequired } from '../../utils/validation';
+import { colors, spacing, typography } from '../../theme';
+import type { WardResponse } from '../../api/types';
+
+const EMPTY_FORM = { name: '', studentClass: '', section: '' };
 
 export function ChildrenScreen() {
-  const [children, setChildren] = useState<ChildResponse[]>([]);
+  const [wards, setWards] = useState<WardResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [admissionNumber, setAdmissionNumber] = useState('');
-  const [parentMobile, setParentMobile] = useState('');
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingWardId, setEditingWardId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [linking, setLinking] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const data = await parentApi.getChildren();
-      setChildren(data);
+      const data = await wardsApi.list();
+      setWards(data);
     } catch (error) {
-      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to load children') });
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to load your wards') });
     } finally {
       setLoading(false);
     }
@@ -41,42 +43,67 @@ export function ChildrenScreen() {
     }, [load]),
   );
 
-  async function handleLink() {
+  function startEdit(ward: WardResponse) {
+    setEditingWardId(ward.id);
+    setForm({ name: ward.name, studentClass: ward.studentClass, section: ward.section });
+    setErrors({});
+  }
+
+  function cancelEdit() {
+    setEditingWardId(null);
+    setForm(EMPTY_FORM);
+    setErrors({});
+  }
+
+  async function handleSubmit() {
     const nextErrors: Record<string, string> = {};
-    const admissionError = validateRequired(admissionNumber, 'Admission number');
-    const mobileError = validateMobile(parentMobile);
-    if (admissionError) nextErrors.admissionNumber = admissionError;
-    if (mobileError) nextErrors.parentMobile = mobileError;
+    const nameError = validateRequired(form.name, 'Ward name');
+    const classError = validateRequired(form.studentClass, 'Class');
+    const sectionError = validateRequired(form.section, 'Section');
+    if (nameError) nextErrors.name = nameError;
+    if (classError) nextErrors.studentClass = classError;
+    if (sectionError) nextErrors.section = sectionError;
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    setLinking(true);
+    const payload = {
+      name: form.name.trim(),
+      studentClass: form.studentClass.trim(),
+      section: form.section.trim(),
+    };
+
+    setSaving(true);
     try {
-      await parentApi.linkChild(admissionNumber.trim(), parentMobile.trim());
-      setAdmissionNumber('');
-      setParentMobile('');
-      Toast.show({ type: 'success', text1: 'Child linked successfully' });
+      if (editingWardId) {
+        await wardsApi.update(editingWardId, payload);
+        Toast.show({ type: 'success', text1: 'Ward updated' });
+      } else {
+        await wardsApi.create(payload);
+        Toast.show({ type: 'success', text1: 'Ward added' });
+      }
+      cancelEdit();
       load();
     } catch (error) {
-      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not link child') });
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not save ward') });
     } finally {
-      setLinking(false);
+      setSaving(false);
     }
   }
 
-  function confirmUnlink(child: ChildResponse) {
-    Alert.alert('Unlink child?', `Remove ${child.fullName} from your account?`, [
+  function confirmDelete(ward: WardResponse) {
+    Alert.alert('Remove ward?', `Remove ${ward.name} from your wards?`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Unlink',
+        text: 'Remove',
         style: 'destructive',
         onPress: async () => {
           try {
-            await parentApi.unlinkChild(child.linkId);
-            Toast.show({ type: 'success', text1: 'Child unlinked' });
+            await wardsApi.remove(ward.id);
+            Toast.show({ type: 'success', text1: 'Ward removed' });
+            if (editingWardId === ward.id) cancelEdit();
             load();
           } catch (error) {
-            Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not unlink') });
+            Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not remove ward') });
           }
         },
       },
@@ -87,62 +114,83 @@ export function ChildrenScreen() {
 
   return (
     <ScreenContainer edges={['top']}>
-      <Text style={typography.h1}>Linked Children</Text>
-      <Text style={styles.subtitle}>Manage canteen access for your kids</Text>
+      <Text style={typography.h1}>My Wards</Text>
+      <Text style={styles.subtitle}>Add the children you order food for</Text>
 
       <Card style={styles.linkCard}>
         <View style={styles.linkHeader}>
-          <LinkIcon size={18} color={colors.primaryDark} />
-          <Text style={typography.h3}>Link a Child</Text>
+          <UserPlus size={18} color={colors.primaryDark} />
+          <Text style={typography.h3}>{editingWardId ? 'Edit Ward' : 'Add Your Ward'}</Text>
         </View>
         <Input
-          label="Admission Number"
-          placeholder="e.g. ADM-2026-001"
-          value={admissionNumber}
-          onChangeText={setAdmissionNumber}
-          error={errors.admissionNumber}
+          label="Ward Name"
+          placeholder="e.g. Aarav Sharma"
+          value={form.name}
+          onChangeText={(text) => setForm({ ...form, name: text })}
+          error={errors.name}
         />
-        <Input
-          label="Registered Parent Mobile"
-          placeholder="10-digit mobile number"
-          value={parentMobile}
-          onChangeText={setParentMobile}
-          keyboardType="number-pad"
-          maxLength={10}
-          error={errors.parentMobile}
-        />
-        <Button label="Link Account" onPress={handleLink} loading={linking} />
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <Input
+              label="Class"
+              placeholder="e.g. VIII"
+              value={form.studentClass}
+              onChangeText={(text) => setForm({ ...form, studentClass: text })}
+              error={errors.studentClass}
+            />
+          </View>
+          <View style={styles.half}>
+            <Input
+              label="Section"
+              placeholder="e.g. B"
+              value={form.section}
+              onChangeText={(text) => setForm({ ...form, section: text })}
+              error={errors.section}
+            />
+          </View>
+        </View>
+        <Button label={editingWardId ? 'Save Changes' : 'Add Ward'} onPress={handleSubmit} loading={saving} />
+        {editingWardId && <Button label="Cancel" variant="secondary" onPress={cancelEdit} />}
       </Card>
 
-      <Text style={[typography.h2, styles.sectionTitle]}>Your Children</Text>
-      {children.length === 0 ? (
+      <Text style={[typography.h2, styles.sectionTitle]}>Your Wards</Text>
+      {wards.length === 0 ? (
         <EmptyState
           icon={<Users color={colors.primaryDark} size={26} />}
-          title="No children linked yet"
-          message="Link your child's account above to order on their behalf."
+          title="No wards added yet"
+          message="Add a ward above to order food on their behalf."
         />
       ) : (
         <View style={{ gap: spacing.md }}>
-          {children.map((child) => (
-            <Card key={child.linkId} style={styles.childCard}>
+          {wards.map((ward) => (
+            <Card key={ward.id} style={styles.childCard}>
               <View style={styles.childAvatar}>
                 <GraduationCap size={24} color={colors.primaryDark} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={typography.h3}>{child.fullName}</Text>
+                <Text style={typography.h3}>{ward.name}</Text>
                 <Text style={styles.childMeta}>
-                  Class {child.studentClass}-{child.section} · Roll {child.rollNumber}
+                  Class {ward.studentClass}-{ward.section}
                 </Text>
-                <Text style={styles.childAdmission}>Adm No: {child.admissionNumber}</Text>
               </View>
-              <Button
-                label=""
-                variant="ghost"
-                fullWidth={false}
-                icon={<Trash2 size={18} color={colors.danger} />}
-                onPress={() => confirmUnlink(child)}
-                style={styles.unlinkButton}
-              />
+              <View style={styles.actionButtons}>
+                <Button
+                  label=""
+                  variant="ghost"
+                  fullWidth={false}
+                  icon={<Pencil size={18} color={colors.textSecondary} />}
+                  onPress={() => startEdit(ward)}
+                  style={styles.iconButton}
+                />
+                <Button
+                  label=""
+                  variant="ghost"
+                  fullWidth={false}
+                  icon={<Trash2 size={18} color={colors.danger} />}
+                  onPress={() => confirmDelete(ward)}
+                  style={styles.iconButton}
+                />
+              </View>
             </Card>
           ))}
         </View>
@@ -155,6 +203,8 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.bodySmall, marginTop: 2, marginBottom: spacing.lg },
   linkCard: { gap: spacing.sm },
   linkHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  row: { flexDirection: 'row', gap: spacing.md },
+  half: { flex: 1 },
   sectionTitle: { marginTop: spacing.xxl, marginBottom: spacing.md },
   childCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   childAvatar: {
@@ -166,6 +216,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   childMeta: { ...typography.bodySmall, marginTop: 2 },
-  childAdmission: { ...typography.caption, marginTop: 2 },
-  unlinkButton: { paddingHorizontal: 0, paddingVertical: 0, width: 36 },
+  actionButtons: { flexDirection: 'row', gap: spacing.xs },
+  iconButton: { paddingHorizontal: 0, paddingVertical: 0, width: 36 },
 });

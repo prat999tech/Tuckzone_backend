@@ -40,9 +40,6 @@ public class StudentProfile extends BaseEntity {
     @Column(name = "parent_mobile")
     private String parentMobile;
 
-    @Column(name = "student_mobile")
-    private String studentMobile;
-
     public User getUser() {
         return user;
     }
@@ -97,13 +94,5 @@ public class StudentProfile extends BaseEntity {
 
     public void setParentMobile(String parentMobile) {
         this.parentMobile = parentMobile;
-    }
-
-    public String getStudentMobile() {
-        return studentMobile;
-    }
-
-    public void setStudentMobile(String studentMobile) {
-        this.studentMobile = studentMobile;
     }
 }

@@ -8,6 +8,7 @@ import {
   updateDailyMenu,
   updateMenuItem,
 } from '../../api/admin';
+import { formatDate } from '../../utils/format';
 import toast from 'react-hot-toast';
 import './MenuManagementPage.css';
 
@@ -239,7 +240,7 @@ export default function MenuManagementPage() {
           )}
 
           <div className="page-header">
-            <h2 className="section-title">Today&apos;s Schedule</h2>
+            <h2 className="section-title">Schedule for {formatDate(date)}</h2>
           </div>
 
           <div className="daily-menu-controls">
@@ -287,7 +288,7 @@ export default function MenuManagementPage() {
                 </div>
 
                 <button className="btn-primary" onClick={handleAddDailyItem}>
-                  <Plus size={18} /> Add to Today
+                  <Plus size={18} /> Add for {formatDate(date)}
                 </button>
               </div>
             </div>
@@ -296,7 +297,7 @@ export default function MenuManagementPage() {
           {loadingDaily ? (
             <div className="loading-state">Loading availability...</div>
           ) : dailyItems.length === 0 ? (
-            <div className="empty-state">No items scheduled for {date} yet.</div>
+            <div className="empty-state">No items scheduled for {formatDate(date)} yet.</div>
           ) : (
             <div className="daily-items-list">
               {dailyItems.map((item) => (

@@ -28,7 +28,6 @@ export default function ProfilePage() {
     section: user?.section ?? '',
     rollNumber: user?.rollNumber ?? '',
     seatNumber: user?.seatNumber ?? '',
-    studentMobile: user?.studentMobile ?? '',
     department: user?.department ?? '',
   });
 
@@ -41,7 +40,6 @@ export default function ProfilePage() {
       section: user.section ?? '',
       rollNumber: user.rollNumber ?? '',
       seatNumber: user.seatNumber ?? '',
-      studentMobile: user.studentMobile ?? '',
       department: user.department ?? '',
     });
     setErrors({});
@@ -83,7 +81,6 @@ export default function ProfilePage() {
         section: user.role === 'STUDENT' ? formData.section : undefined,
         rollNumber: user.role === 'STUDENT' ? formData.rollNumber : undefined,
         seatNumber: user.role === 'STUDENT' ? formData.seatNumber || undefined : undefined,
-        studentMobile: user.role === 'STUDENT' ? formData.studentMobile || undefined : undefined,
         department: user.role === 'TEACHER' ? formData.department : undefined,
       });
       await refreshProfile();
@@ -183,16 +180,6 @@ export default function ProfilePage() {
               <div className="form-group">
                 <label>Seat No. (optional)</label>
                 <input type="text" name="seatNumber" value={formData.seatNumber} onChange={handleChange} />
-              </div>
-              <div className="form-group">
-                <label>Contact Number (optional)</label>
-                <input
-                  type="tel"
-                  name="studentMobile"
-                  maxLength={10}
-                  value={formData.studentMobile}
-                  onChange={handleChange}
-                />
               </div>
             </>
           )}

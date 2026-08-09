@@ -22,6 +22,8 @@ import com.school.canteen.enums.PaymentUseCase;
 import com.school.canteen.enums.RefundStatus;
 import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.ResourceNotFoundException;
+import com.school.canteen.mapper.OrderMapper;
+import com.school.canteen.notification.NotificationMessages;
 import com.school.canteen.payment.HmacSignatureVerifier;
 import com.school.canteen.payment.PaymentProvider;
 import com.school.canteen.payment.PaymentCompensation;
@@ -426,8 +428,24 @@ public class PaymentServiceImpl implements PaymentService {
         if (order.getPaymentStatus() == PaymentStatus.PENDING) {
             order.setPaymentStatus(PaymentStatus.PAID);
             orderRepository.save(order);
+            String orderNumber = OrderMapper.formatOrderNumber(order.getOrderNumber());
+
+            // The "order placed" notification for a gateway/split checkout is sent from
+            // here — deliberately not at order-creation time — because until this line
+            // runs, the customer has not actually paid; OrderServiceImpl.placeWithGatewayOrSplit
+            // only sends it immediately when the order settled from wallet alone. Sending
+            // both together here means a gateway checkout always gets exactly one
+            // "your order is confirmed" signal, and only after real payment.
+            notificationService.notifyUser(order.getPlacedBy(),
+                    NotificationMessages.eventFor(OrderStatus.PLACED),
+                    NotificationMessages.titleFor(OrderStatus.PLACED),
+                    NotificationMessages.bodyFor(OrderStatus.PLACED, orderNumber,
+                            order.getRecipientName(), order.getDeliveryPersonName()),
+                    Map.of("orderId", order.getId().toString(),
+                            "orderNumber", orderNumber,
+                            "status", OrderStatus.PLACED.name()));
             notificationService.notifyUser(order.getPlacedBy(), NotificationEvent.PAYMENT_SUCCESSFUL,
-                    "Payment successful", "Paid " + payment.getGrandTotal() + " for order " + order.getOrderNumber() + ".",
+                    "Payment successful", "Paid " + payment.getGrandTotal() + " for order " + orderNumber + ".",
                     Map.of("orderId", order.getId().toString(), "amount", payment.getGrandTotal().toPlainString()));
         }
     }

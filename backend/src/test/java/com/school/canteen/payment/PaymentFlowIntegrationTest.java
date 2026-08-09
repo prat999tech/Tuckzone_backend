@@ -108,7 +108,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
 
         UUID itemId = publishItem(BigDecimal.valueOf(50), 10); // 3 units = 150, more than the 100 in wallet
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, 3)), "split-" + UUID.randomUUID(), PaymentMode.WALLET_PLUS_GATEWAY);
 
         OrderResponse order = orderService.placeOrder(userId, request);
@@ -139,7 +139,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
 
         UUID itemId = publishItem(BigDecimal.valueOf(40), 10);
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, 2)), "full-wallet-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY);
 
@@ -160,7 +160,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
 
         UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, 2)), "refund-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY);
         OrderResponse order = orderService.placeOrder(userId, request);
@@ -182,7 +182,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
 
         UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, 3)), "cancel-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY);
         OrderResponse order = orderService.placeOrder(userId, request);
@@ -208,7 +208,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
 
         UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, 3)), "double-cancel-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY);
         OrderResponse order = orderService.placeOrder(userId, request);
@@ -230,7 +230,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
 
         UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, 3)), "paid-cancel-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY);
         OrderResponse order = orderService.placeOrder(userId, request);
@@ -252,7 +252,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
 
         UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, null, "Staff Room",
                 List.of(new OrderLineRequest(itemId, 3)), "other-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY);
         OrderResponse order = orderService.placeOrder(userId, request);

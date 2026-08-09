@@ -15,6 +15,7 @@ import com.school.canteen.entity.Order;
 import com.school.canteen.entity.OrderItem;
 import com.school.canteen.entity.StudentProfile;
 import com.school.canteen.entity.User;
+import com.school.canteen.entity.Ward;
 import com.school.canteen.enums.MenuType;
 import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.OrderStatus;
@@ -38,6 +39,7 @@ import com.school.canteen.repository.OrderRepository;
 import com.school.canteen.repository.ParentChildLinkRepository;
 import com.school.canteen.repository.StudentProfileRepository;
 import com.school.canteen.repository.UserRepository;
+import com.school.canteen.repository.WardRepository;
 import com.school.canteen.service.CreatePaymentCommand;
 import com.school.canteen.service.NotificationService;
 import com.school.canteen.service.OrderService;
@@ -97,6 +99,7 @@ public class OrderServiceImpl implements OrderService {
     private final DeliverySlotRepository deliverySlotRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final ParentChildLinkRepository parentChildLinkRepository;
+    private final WardRepository wardRepository;
     private final UserRepository userRepository;
     private final WalletService walletService;
     private final PaymentService paymentService;
@@ -117,6 +120,7 @@ public class OrderServiceImpl implements OrderService {
                             DeliverySlotRepository deliverySlotRepository,
                             StudentProfileRepository studentProfileRepository,
                             ParentChildLinkRepository parentChildLinkRepository,
+                            WardRepository wardRepository,
                             UserRepository userRepository,
                             WalletService walletService,
                             PaymentService paymentService,
@@ -131,6 +135,7 @@ public class OrderServiceImpl implements OrderService {
         this.deliverySlotRepository = deliverySlotRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.parentChildLinkRepository = parentChildLinkRepository;
+        this.wardRepository = wardRepository;
         this.userRepository = userRepository;
         this.walletService = walletService;
         this.paymentService = paymentService;
@@ -284,11 +289,20 @@ public class OrderServiceImpl implements OrderService {
 
         // "PAID" means createPayment already settled this order in full from wallet alone
         // (see PaymentServiceImpl.settleOrder, which mutated this same managed entity
-        // within this same transaction) — order.getPaymentStatus() now reflects that.
-        // Otherwise it's still PENDING, and PAYMENT_SUCCESSFUL fires later, from
-        // PaymentService, once the gateway leg is confirmed via verify or webhook.
-        notifyStatus(order, OrderStatus.PLACED);
+        // within this same transaction) — order.getPaymentStatus() now reflects that, and
+        // it is safe to tell the customer their order is placed right now.
+        //
+        // Otherwise a gateway leg is still PENDING: the order is NOT confirmed yet, so we
+        // must not say "order placed" here — that would tell the customer they have an
+        // order before they have actually paid for it (this was a real bug: this call used
+        // to fire unconditionally, sending a false "order placed" email the instant the
+        // Razorpay order was created, before the widget even opened). Both the "order
+        // placed" and "payment successful" notifications now fire together, only once
+        // payment is actually verified — see PaymentServiceImpl.settleOrder.
         boolean settledImmediately = "PAID".equals(payment.status());
+        if (settledImmediately) {
+            notifyStatus(order, OrderStatus.PLACED);
+        }
         return orderMapper.toResponse(order, settledImmediately ? null : payment);
     }
 
@@ -470,6 +484,20 @@ public class OrderServiceImpl implements OrderService {
      */
     private void applyRecipientAndLocation(User user, PlaceOrderRequest request, Order order) {
         if (user.getRole() == Role.PARENT) {
+            // Current flow: a ward the parent entered directly (no login, no admission
+            // number, so no roll-number suffix on the delivery location).
+            if (request.beneficiaryWardId() != null) {
+                Ward ward = wardRepository.findByIdAndParent_Id(request.beneficiaryWardId(), user.getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Ward not found"));
+                order.setBeneficiaryWard(ward);
+                order.setRecipientName(ward.getName());
+                order.setDeliveryLocation("Class " + ward.getStudentClass() + "-" + ward.getSection());
+                return;
+            }
+
+            // Older flow: a real, login-capable student account linked by admission
+            // number. Kept for historical/older-client compatibility only — no longer
+            // reachable from either frontend's UI.
             if (request.beneficiaryStudentProfileId() == null) {
                 throw new BadRequestException("Select which child this order is for");
             }

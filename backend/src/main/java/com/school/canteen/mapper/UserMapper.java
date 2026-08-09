@@ -81,7 +81,6 @@ public class UserMapper {
                 studentProfile != null ? studentProfile.getSection() : null,
                 studentProfile != null ? studentProfile.getRollNumber() : null,
                 studentProfile != null ? studentProfile.getSeatNumber() : null,
-                studentProfile != null ? studentProfile.getStudentMobile() : null,
                 studentProfile != null ? studentProfile.getParentMobile() : null,
                 teacherProfile != null ? teacherProfile.getEmployeeId() : null,
                 teacherProfile != null ? teacherProfile.getDepartment() : null);

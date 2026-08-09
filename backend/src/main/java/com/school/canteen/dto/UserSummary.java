@@ -23,7 +23,6 @@ public record UserSummary(
         String section,
         String rollNumber,
         String seatNumber,
-        String studentMobile,
         String parentMobile,
         String employeeId,
         String department) {

@@ -90,7 +90,7 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
         UUID userId = teacherWithWallet(BigDecimal.valueOf(20));
         UUID itemId = publishItem(BigDecimal.valueOf(30), 5); // total 90, wallet only covers 20 of it
 
-        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null,
+        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null, null,
                 "Staff Room", List.of(new OrderLineRequest(itemId, 3)), "cancel-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY));
 
@@ -121,7 +121,7 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
     void cancellingTwiceIsIdempotent() {
         UUID userId = teacherWithWallet(BigDecimal.valueOf(20));
         UUID itemId = publishItem(BigDecimal.valueOf(30), 5);
-        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null,
+        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null, null,
                 "Staff Room", List.of(new OrderLineRequest(itemId, 3)), "cancel-twice-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY));
 
@@ -139,7 +139,7 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
     void cancelledPaymentCannotBeVerifiedAfterTheFact() {
         UUID userId = teacherWithWallet(BigDecimal.valueOf(20));
         UUID itemId = publishItem(BigDecimal.valueOf(30), 5);
-        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null,
+        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null, null,
                 "Staff Room", List.of(new OrderLineRequest(itemId, 3)), "cancel-then-verify-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY));
         UUID paymentId = order.payment().paymentId();
@@ -157,7 +157,7 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
     void cannotCancelAnotherUsersPayment() {
         UUID owner = teacherWithWallet(BigDecimal.valueOf(20));
         UUID itemId = publishItem(BigDecimal.valueOf(30), 5);
-        OrderResponse order = orderService.placeOrder(owner, new PlaceOrderRequest(null, menuDate(), null,
+        OrderResponse order = orderService.placeOrder(owner, new PlaceOrderRequest(null, menuDate(), null, null,
                 "Staff Room", List.of(new OrderLineRequest(itemId, 3)), "not-yours-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY));
 
@@ -171,7 +171,7 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
     void cannotCancelAPaidPayment() {
         UUID userId = teacherWithWallet(BigDecimal.valueOf(20));
         UUID itemId = publishItem(BigDecimal.valueOf(30), 5);
-        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null,
+        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null, null,
                 "Staff Room", List.of(new OrderLineRequest(itemId, 3)), "already-paid-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY));
         paymentService.mockComplete(userId, order.payment().paymentId());
@@ -186,7 +186,7 @@ class PaymentCancellationIntegrationTest extends IntegrationTestBase {
     void rejectingSplitPaidOrderRefundsProportionally() {
         UUID userId = teacherWithWallet(BigDecimal.valueOf(100));
         UUID itemId = publishItem(BigDecimal.valueOf(30), 10); // total 150: wallet 100 + gateway 50
-        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null,
+        OrderResponse order = orderService.placeOrder(userId, new PlaceOrderRequest(null, menuDate(), null, null,
                 "Staff Room", List.of(new OrderLineRequest(itemId, 5)), "split-refund-" + UUID.randomUUID(),
                 PaymentMode.WALLET_PLUS_GATEWAY));
         assertThat(order.payment().pricing().walletUsed()).isEqualByComparingTo("100.00");

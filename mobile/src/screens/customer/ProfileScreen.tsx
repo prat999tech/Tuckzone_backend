@@ -24,7 +24,6 @@ export function ProfileScreen() {
   const [section, setSection] = useState(user?.section ?? '');
   const [rollNumber, setRollNumber] = useState(user?.rollNumber ?? '');
   const [seatNumber, setSeatNumber] = useState(user?.seatNumber ?? '');
-  const [studentMobile, setStudentMobile] = useState(user?.studentMobile ?? '');
   const [department, setDepartment] = useState(user?.department ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -36,7 +35,6 @@ export function ProfileScreen() {
     setSection(user!.section ?? '');
     setRollNumber(user!.rollNumber ?? '');
     setSeatNumber(user!.seatNumber ?? '');
-    setStudentMobile(user!.studentMobile ?? '');
     setDepartment(user!.department ?? '');
     setErrors({});
     setEditing(true);
@@ -63,7 +61,6 @@ export function ProfileScreen() {
         section: user!.role === 'STUDENT' ? section : undefined,
         rollNumber: user!.role === 'STUDENT' ? rollNumber : undefined,
         seatNumber: user!.role === 'STUDENT' ? seatNumber || undefined : undefined,
-        studentMobile: user!.role === 'STUDENT' ? studentMobile || undefined : undefined,
         department: user!.role === 'TEACHER' ? department : undefined,
       });
       await refreshProfile();
@@ -121,7 +118,6 @@ export function ProfileScreen() {
                 </View>
               </View>
               <Input label="Seat No." value={seatNumber} onChangeText={setSeatNumber} />
-              <Input label="Contact Number" value={studentMobile} onChangeText={setStudentMobile} keyboardType="number-pad" maxLength={10} />
             </>
           )}
           {user.role === 'TEACHER' && (

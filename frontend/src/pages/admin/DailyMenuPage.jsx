@@ -13,6 +13,7 @@ import {
   updateMenuItem,
 } from '../../api/admin';
 import { getDeliverySlots } from '../../api/menu';
+import { formatDate } from '../../utils/format';
 import toast from 'react-hot-toast';
 import EmptyState from '../../components/EmptyState';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -350,7 +351,7 @@ export default function DailyMenuPage() {
       </div>
 
       <div className="page-header">
-        <h2 className="section-title">Today&apos;s Schedule</h2>
+        <h2 className="section-title">Schedule for {formatDate(date)}</h2>
       </div>
 
       <div className="daily-menu-controls">

@@ -1,8 +1,6 @@
 package com.school.canteen.dto.profile;
 
-import com.school.canteen.dto.auth.ValidationRules;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -27,9 +25,6 @@ public record ProfileUpdateRequest(
         @Size(max = 10) String section,
         @Size(max = 20) String rollNumber,
         @Size(max = 20) String seatNumber,
-        @Pattern(regexp = "^$|" + ValidationRules.MOBILE_PATTERN,
-                message = ValidationRules.MOBILE_MESSAGE)
-        String studentMobile,
 
         // Teacher-only field; ignored for other roles.
         @Size(max = 80) String department) {

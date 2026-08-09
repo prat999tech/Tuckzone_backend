@@ -3,13 +3,17 @@ package com.school.canteen.payment;
 import com.school.canteen.entity.Order;
 import com.school.canteen.entity.OrderItem;
 import com.school.canteen.entity.Payment;
+import com.school.canteen.enums.NotificationEvent;
 import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.enums.PaymentStatus;
 import com.school.canteen.enums.PaymentTxnStatus;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.OrderRepository;
 import com.school.canteen.repository.PaymentRepository;
+import com.school.canteen.mapper.OrderMapper;
+import com.school.canteen.service.NotificationService;
 import com.school.canteen.service.WalletService;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,15 +42,18 @@ public class PaymentCompensation {
     private final OrderRepository orderRepository;
     private final DailyMenuItemRepository dailyMenuItemRepository;
     private final WalletService walletService;
+    private final NotificationService notificationService;
 
     public PaymentCompensation(PaymentRepository paymentRepository,
                                OrderRepository orderRepository,
                                DailyMenuItemRepository dailyMenuItemRepository,
-                               WalletService walletService) {
+                               WalletService walletService,
+                               NotificationService notificationService) {
         this.paymentRepository = paymentRepository;
         this.orderRepository = orderRepository;
         this.dailyMenuItemRepository = dailyMenuItemRepository;
         this.walletService = walletService;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -71,11 +78,11 @@ public class PaymentCompensation {
                     "Reversing the wallet portion of an unpaid checkout");
         }
 
-        releaseOrder(payment);
+        releaseOrder(payment, reason);
     }
 
     /** Cancels the reserved order and puts its stock back, if this payment made one. */
-    private void releaseOrder(Payment payment) {
+    private void releaseOrder(Payment payment, String reason) {
         if (!"ORDER".equals(payment.getReferenceType()) || payment.getReferenceId() == null) {
             return; // wallet recharge, or a payment that never got as far as an order
         }
@@ -102,5 +109,17 @@ public class PaymentCompensation {
         }
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
+
+        // A gateway checkout deliberately withholds the "order placed" notification until
+        // payment settles, so cancelling silently would leave the customer with no signal
+        // at all about where their order went. Skipped when they cancelled it themselves —
+        // they already know, and "payment was not received in time" would be wrong.
+        if (!"CANCELLED".equals(reason)) {
+            String orderNumber = OrderMapper.formatOrderNumber(order.getOrderNumber());
+            notificationService.notifyUser(order.getPlacedBy(), NotificationEvent.ORDER_CANCELLED,
+                    "Order cancelled",
+                    "Order " + orderNumber + " was cancelled — payment was not received in time.",
+                    Map.of("orderId", order.getId().toString(), "orderNumber", orderNumber));
+        }
     }
 }

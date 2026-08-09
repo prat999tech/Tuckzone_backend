@@ -47,7 +47,6 @@ export interface UserSummary {
   section?: string | null;
   rollNumber?: string | null;
   seatNumber?: string | null;
-  studentMobile?: string | null;
   parentMobile?: string | null;
   employeeId?: string | null;
   department?: string | null;
@@ -239,15 +238,17 @@ export interface VerifyPaymentRequest {
   signature: string;
 }
 
-export interface ChildResponse {
-  linkId: string;
-  studentProfileId: string;
-  studentUserId: string;
-  fullName: string;
-  admissionNumber: string;
+export interface WardResponse {
+  id: string;
+  name: string;
   studentClass: string;
   section: string;
-  rollNumber: string;
+}
+
+export interface WardRequest {
+  name: string;
+  studentClass: string;
+  section: string;
 }
 
 export interface NotificationResponse {

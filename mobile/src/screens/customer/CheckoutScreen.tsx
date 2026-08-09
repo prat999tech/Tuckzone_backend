@@ -13,7 +13,7 @@ import { QuantityStepper } from '../../components/QuantityStepper';
 import { EmptyState } from '../../components/EmptyState';
 import { menuApi } from '../../api/menu';
 import { ordersApi } from '../../api/orders';
-import { parentApi } from '../../api/parent';
+import { wardsApi } from '../../api/wards';
 import { walletApi } from '../../api/wallet';
 import { paymentsApi } from '../../api/payments';
 import { configApi } from '../../api/config';
@@ -22,7 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { classLabel, formatCurrency, formatDate } from '../../utils/format';
 import { colors, radius, shadowFloating, spacing, typography } from '../../theme';
-import type { DeliverySlotResponse, ChildResponse, OrderingWindowResponse } from '../../api/types';
+import type { DeliverySlotResponse, WardResponse, OrderingWindowResponse } from '../../api/types';
 import type { CustomerStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<CustomerStackParamList, 'Checkout'>;
@@ -46,8 +46,8 @@ export function CheckoutScreen({ navigation }: Props) {
   const [orderingStatus, setOrderingStatus] = useState<OrderingWindowResponse | null>(null);
 
   const [deliveryLocation, setDeliveryLocation] = useState('');
-  const [children, setChildren] = useState<ChildResponse[]>([]);
-  const [selectedChildId, setSelectedChildId] = useState('');
+  const [wards, setWards] = useState<WardResponse[]>([]);
+  const [selectedWardId, setSelectedWardId] = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
@@ -64,7 +64,7 @@ export function CheckoutScreen({ navigation }: Props) {
       if (data.length > 0) setSelectedSlotId(data[0].id);
     });
     if (isParent) {
-      parentApi.getChildren().then(setChildren).catch(() => undefined);
+      wardsApi.list().then(setWards).catch(() => undefined);
     }
     walletApi.getWallet().then((w) => setWalletBalance(w.balance)).catch(() => undefined);
     configApi.get().then((c) => setMockPaymentsEnabled(c.mockPaymentsEnabled)).catch(() => undefined);
@@ -88,7 +88,7 @@ export function CheckoutScreen({ navigation }: Props) {
   function validate(): boolean {
     const next: Record<string, string> = {};
     if (!selectedSlotId) next.slot = 'Recess is unavailable right now — please try again';
-    if (isParent && !selectedChildId) next.child = 'Please select which child this order is for';
+    if (isParent && !selectedWardId) next.child = 'Please select which ward this order is for';
     if (isTeacher && !deliveryLocation.trim()) {
       next.location = 'Delivery location is required';
     }
@@ -108,7 +108,7 @@ export function CheckoutScreen({ navigation }: Props) {
     try {
       const order = await ordersApi.place({
         menuDate,
-        beneficiaryStudentProfileId: isParent ? selectedChildId : undefined,
+        beneficiaryWardId: isParent ? selectedWardId : undefined,
         deliveryLocation: isTeacher ? deliveryLocation.trim() : undefined,
         items: lines.map((line) => ({ menuItemId: line.dayItem.menuItem.id, quantity: line.quantity })),
         idempotencyKey: idempotencyKeyRef.current,
@@ -288,12 +288,12 @@ export function CheckoutScreen({ navigation }: Props) {
             <View>
               <Text style={styles.fieldLabel}>Order For</Text>
               <View style={styles.childRow}>
-                {children.map((child) => (
+                {wards.map((ward) => (
                   <Chip
-                    key={child.linkId}
-                    label={`${child.fullName} (${child.studentClass}-${child.section})`}
-                    active={selectedChildId === child.studentProfileId}
-                    onPress={() => setSelectedChildId(child.studentProfileId)}
+                    key={ward.id}
+                    label={`${ward.name} (${ward.studentClass}-${ward.section})`}
+                    active={selectedWardId === ward.id}
+                    onPress={() => setSelectedWardId(ward.id)}
                   />
                 ))}
               </View>

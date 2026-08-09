@@ -14,3 +14,11 @@ export function classLabel(studentClass, section) {
   if (!studentClass) return '';
   return section ? `${studentClass}-${section}` : studentClass;
 }
+
+/** Short, readable date (e.g. "9 Aug 2026"), matching mobile's formatDate exactly so a
+ *  date reads the same wherever a user might see both apps. Accepts an ISO date/datetime
+ *  string (a plain YYYY-MM-DD parses as UTC midnight, which is fine for en-IN display). */
+export function formatDate(iso) {
+  const date = new Date(iso);
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
