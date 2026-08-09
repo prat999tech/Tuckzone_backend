@@ -7,6 +7,7 @@ import { ExpensesScreen } from '../screens/admin/ExpensesScreen';
 import { UsersScreen } from '../screens/admin/UsersScreen';
 import { SubAdminsScreen } from '../screens/admin/SubAdminsScreen';
 import { OrderingWindowsScreen } from '../screens/admin/OrderingWindowsScreen';
+import { PaymentSettingsScreen } from '../screens/admin/PaymentSettingsScreen';
 import { NotificationsScreen } from '../screens/customer/NotificationsScreen';
 import type { AdminStackParamList } from './types';
 
@@ -33,6 +34,11 @@ export function AdminNavigator() {
         options={{ title: 'Advance Ordering' }}
       />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
+      <Stack.Screen
+        name="PaymentSettings"
+        component={PaymentSettingsScreen}
+        options={{ title: 'Payment Settings' }}
+      />
     </Stack.Navigator>
   );
 }
