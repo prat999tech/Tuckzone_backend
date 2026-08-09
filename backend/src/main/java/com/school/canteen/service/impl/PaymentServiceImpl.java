@@ -22,6 +22,7 @@ import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.payment.HmacSignatureVerifier;
 import com.school.canteen.payment.PaymentProvider;
+import com.school.canteen.payment.PaymentCompensation;
 import com.school.canteen.payment.PaymentProviderFactory;
 import com.school.canteen.payment.PaymentProviderType;
 import com.school.canteen.payment.ProviderCreateOrderCommand;
@@ -74,13 +75,15 @@ public class PaymentServiceImpl implements PaymentService {
     private final RateLimiterService rateLimiter;
     private final RateLimitProperties rateLimitProperties;
     private final PaymentProperties paymentProperties;
+    private final PaymentCompensation paymentCompensation;
 
     public PaymentServiceImpl(PaymentRepository paymentRepository, RefundRepository refundRepository,
                               OrderRepository orderRepository, UserRepository userRepository,
                               PricingService pricingService, PaymentProviderFactory paymentProviderFactory,
                               WalletService walletService, NotificationService notificationService,
                               RateLimiterService rateLimiter, RateLimitProperties rateLimitProperties,
-                              PaymentProperties paymentProperties) {
+                              PaymentProperties paymentProperties,
+                              PaymentCompensation paymentCompensation) {
         this.paymentRepository = paymentRepository;
         this.refundRepository = refundRepository;
         this.orderRepository = orderRepository;
@@ -92,6 +95,7 @@ public class PaymentServiceImpl implements PaymentService {
         this.rateLimiter = rateLimiter;
         this.rateLimitProperties = rateLimitProperties;
         this.paymentProperties = paymentProperties;
+        this.paymentCompensation = paymentCompensation;
     }
 
     @Override
@@ -317,6 +321,33 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
+    public PaymentStatusResponse cancelPayment(UUID userId, UUID paymentId) {
+        Payment payment = paymentRepository.lockById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+        // Same 404 for "not yours" as for "doesn't exist", matching verifyPayment: a 403
+        // would confirm that someone else's payment id is real.
+        if (!payment.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("Payment not found");
+        }
+
+        // Cancelling something already paid must never reverse it — that would hand back
+        // money for an order the canteen is about to cook. The gateway is the source of
+        // truth here, and a customer tapping "back" after paying is a real race.
+        if (payment.getStatus() == PaymentTxnStatus.PAID) {
+            throw new BadRequestException("This payment has already completed and cannot be cancelled");
+        }
+        // Already failed or expired: nothing left to release, and reversing twice would
+        // credit the wallet a second time. Report the current state instead.
+        if (payment.getStatus() != PaymentTxnStatus.PENDING) {
+            return toStatusResponse(payment);
+        }
+
+        paymentCompensation.reversePending(payment, "CANCELLED");
+        return toStatusResponse(payment);
+    }
+
+    @Override
+    @Transactional
     public void handleWebhook(PaymentProviderType providerType, String rawBody, String signatureHeader) {
         PaymentProvider provider = paymentProviderFactory.resolve(providerType);
         WebhookVerificationResult result = provider.verifyWebhookSignature(rawBody, signatureHeader);
@@ -333,8 +364,18 @@ public class PaymentServiceImpl implements PaymentService {
             log.warn("{} webhook referenced unknown provider order {}", providerType, result.providerOrderId());
             return;
         }
+        if (payment.getStatus() == PaymentTxnStatus.PAID) {
+            return; // already settled by a client verify call — idempotent no-op
+        }
         if (payment.getStatus() != PaymentTxnStatus.PENDING) {
-            return; // already settled (by a client verify call) or already failed — no-op either way
+            // The gateway says this was paid, but we already gave up on it (cancelled or
+            // swept) and handed the wallet portion back. Settling now would double-credit;
+            // staying silent would keep real gateway money with no order behind it. Neither
+            // is acceptable unattended, so make it loud enough to reconcile by hand.
+            log.error("RECONCILE: {} reported payment for {} (payment {}) but it is already {}. "
+                            + "Gateway funds may need a manual refund.",
+                    providerType, result.providerOrderId(), payment.getId(), payment.getStatus());
+            return;
         }
         payment.setProviderPaymentId(result.providerPaymentId());
         payment.setStatus(PaymentTxnStatus.PAID);

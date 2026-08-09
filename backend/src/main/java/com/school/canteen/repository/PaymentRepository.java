@@ -42,6 +42,17 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     Optional<Payment> findByUser_IdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
+    /** Locked read by id, for the explicit-cancel path. Same reason as
+     *  {@link #lockByProviderOrderId}: cancelling and a racing verify/webhook must not both
+     *  act on the same PENDING payment. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Payment p where p.id = :id")
+    Optional<Payment> lockById(@Param("id") UUID id);
+
+    /** Backs PaymentExpirySweeper: legs a customer never came back to finish, across every
+     *  use case rather than checkouts alone. */
+    List<Payment> findByStatusAndCreatedAtBefore(PaymentTxnStatus status, Instant cutoff);
+
     /** Backs PaymentExpirySweeper: gateway legs a customer never came back to finish. */
     List<Payment> findByUseCaseAndStatusAndCreatedAtBefore(
             PaymentUseCase useCase, PaymentTxnStatus status, Instant cutoff);

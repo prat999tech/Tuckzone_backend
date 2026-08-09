@@ -1,5 +1,8 @@
 package com.school.canteen.payment;
 
+import com.school.canteen.exception.ResourceNotFoundException;
+import com.school.canteen.exception.BadRequestException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.school.canteen.IntegrationTestBase;
@@ -169,5 +172,96 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         orderService.cancelMyOrder(userId, order.id());
 
         assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @DisplayName("cancelling the gateway sheet immediately returns the wallet portion and frees the stock")
+    void cancellingPaymentReleasesWalletAndStock() {
+        UUID userId = registerTeacher();
+        TopupInitResponse topup = walletService.initiateTopup(userId, new TopupRequest(BigDecimal.valueOf(100)));
+        walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
+
+        UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+                List.of(new OrderLineRequest(itemId, 3)), "cancel-" + UUID.randomUUID(),
+                PaymentMode.WALLET_PLUS_GATEWAY);
+        OrderResponse order = orderService.placeOrder(userId, request);
+
+        // The wallet was charged up front, before the customer ever saw the gateway sheet.
+        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("0.00");
+
+        var status = paymentService.cancelPayment(userId, order.payment().paymentId());
+
+        // Backing out must hand the money straight back, not hold it for the 15-minute
+        // expiry sweep — that delay is what reads as "you took my money even though I
+        // cancelled".
+        assertThat(status.status()).isEqualTo("FAILED");
+        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("100.00");
+        assertThat(orderService.getMyOrder(userId, order.id()).status()).isEqualTo(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("cancelling twice credits the wallet once, never twice")
+    void cancellingTwiceDoesNotDoubleCredit() {
+        UUID userId = registerTeacher();
+        TopupInitResponse topup = walletService.initiateTopup(userId, new TopupRequest(BigDecimal.valueOf(100)));
+        walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
+
+        UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+                List.of(new OrderLineRequest(itemId, 3)), "double-cancel-" + UUID.randomUUID(),
+                PaymentMode.WALLET_PLUS_GATEWAY);
+        OrderResponse order = orderService.placeOrder(userId, request);
+        UUID paymentId = order.payment().paymentId();
+
+        paymentService.cancelPayment(userId, paymentId);
+        // A retried cancel — double tap, or the sweeper arriving behind the customer — must
+        // be an idempotent no-op rather than a second refund of money already returned.
+        paymentService.cancelPayment(userId, paymentId);
+
+        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @DisplayName("a payment that already completed cannot be cancelled")
+    void cannotCancelAnAlreadyPaidPayment() {
+        UUID userId = registerTeacher();
+        TopupInitResponse topup = walletService.initiateTopup(userId, new TopupRequest(BigDecimal.valueOf(100)));
+        walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
+
+        UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+                List.of(new OrderLineRequest(itemId, 3)), "paid-cancel-" + UUID.randomUUID(),
+                PaymentMode.WALLET_PLUS_GATEWAY);
+        OrderResponse order = orderService.placeOrder(userId, request);
+        UUID paymentId = order.payment().paymentId();
+        paymentService.mockComplete(userId, paymentId);
+
+        // Racing "back" against a completed payment must not refund an order the canteen is
+        // about to cook.
+        assertThatThrownBy(() -> paymentService.cancelPayment(userId, paymentId))
+                .isInstanceOf(BadRequestException.class);
+        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("another user cannot cancel someone else's payment")
+    void cannotCancelAnotherUsersPayment() {
+        UUID userId = registerTeacher();
+        TopupInitResponse topup = walletService.initiateTopup(userId, new TopupRequest(BigDecimal.valueOf(100)));
+        walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
+
+        UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
+        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
+                List.of(new OrderLineRequest(itemId, 3)), "other-" + UUID.randomUUID(),
+                PaymentMode.WALLET_PLUS_GATEWAY);
+        OrderResponse order = orderService.placeOrder(userId, request);
+
+        UUID attacker = registerTeacher();
+        assertThatThrownBy(() -> paymentService.cancelPayment(attacker, order.payment().paymentId()))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        // And the victim's money is untouched by the attempt.
+        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("0.00");
     }
 }

@@ -82,6 +82,14 @@ public class PaymentController {
         return paymentService.mockComplete(principal.getUser().getId(), id);
     }
 
+    /** Called when the customer dismisses the gateway sheet, so the wallet portion charged
+     *  at create time comes straight back instead of waiting out the 15-minute sweep. */
+    @PostMapping("/{id}/cancel")
+    public PaymentStatusResponse cancel(@AuthenticationPrincipal AppUserDetails principal,
+                                        @PathVariable UUID id) {
+        return paymentService.cancelPayment(principal.getUser().getId(), id);
+    }
+
     @GetMapping("/{id}")
     public PaymentStatusResponse getStatus(@AuthenticationPrincipal AppUserDetails principal, @PathVariable UUID id) {
         return paymentService.getPaymentStatus(principal.getUser().getId(), id);

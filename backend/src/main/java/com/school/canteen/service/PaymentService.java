@@ -36,6 +36,15 @@ public interface PaymentService {
 
     PaymentStatusResponse getPaymentStatus(UUID userId, UUID paymentId);
 
+    /**
+     * Abandons a payment the customer backed out of, releasing everything it held.
+     *
+     * Called when the gateway sheet is dismissed. Without it the wallet portion — which is
+     * charged up front — stayed debited until the 15-minute expiry sweep, which is exactly
+     * what "money deducted even though I cancelled" looks like to a customer.
+     */
+    PaymentStatusResponse cancelPayment(UUID userId, UUID paymentId);
+
     /** Admin-only; not ownership-scoped to a single user. */
     RefundResponse refundPayment(UUID paymentId, RefundRequest request);
 
