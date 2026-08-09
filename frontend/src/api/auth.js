@@ -41,6 +41,11 @@ export const loginWithOtp = async (email, code) => {
   return response.data;
 };
 
+export const resetPassword = async (email, code, newPassword) => {
+  const response = await client.post('/auth/password/reset', { email, code, newPassword });
+  return response.data;
+};
+
 export const refresh = async (data) => {
   const response = await client.post('/auth/refresh', data);
   return response.data;

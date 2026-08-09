@@ -308,6 +308,12 @@
   font-weight: 600;
 }
 
+.forgot-password-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+}
+
 .link-amber:hover {
   text-decoration: underline;
   color: var(--primary-dark);

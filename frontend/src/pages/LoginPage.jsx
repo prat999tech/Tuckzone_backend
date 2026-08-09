@@ -365,6 +365,9 @@ export default function LoginPage() {
                     <AlertCircle size={13} /> {errors.password}
                   </span>
                 )}
+                <Link to="/forgot-password" className="link-amber forgot-password-link">
+                  Forgot password?
+                </Link>
               </div>
 
               <div className="form-actions">
