@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Package, Clock, CheckCircle, Truck } from 'lucide-react';
-import { cancelOrder, getMyOrders } from '../api/orders';
+import { getMyOrders } from '../api/orders';
 import { classLabel, orderStatusLabel } from '../utils/format';
 import toast from 'react-hot-toast';
 import './OrdersPage.css';
@@ -21,16 +21,6 @@ export default function OrdersPage() {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const cancelOrderAction = async (orderId) => {
-    try {
-      await cancelOrder(orderId);
-      toast.success('Order cancelled successfully');
-      fetchOrders();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to cancel order');
     }
   };
 
@@ -125,11 +115,6 @@ export default function OrdersPage() {
               </div>
 
               <div className="order-footer">
-                {order.status === 'PLACED' && (
-                  <button className="btn-danger-outline" onClick={() => cancelOrderAction(order.id)}>
-                    Cancel Order
-                  </button>
-                )}
                 {order.status === 'OUT_FOR_DELIVERY' && order.deliveryPersonName && (
                   <div className="delivery-info">
                     <Truck size={16} />

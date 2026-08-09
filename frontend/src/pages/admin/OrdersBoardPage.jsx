@@ -60,13 +60,12 @@ export default function OrdersBoardPage() {
 
   const renderActionButtons = (order) => {
     switch (order.status) {
+      // No Accept/Reject step: a PLACED order is already confirmed and paid, so kitchen
+      // staff go straight to preparing it rather than approving something already real.
       case 'PLACED':
-        return (
-          <div className="action-buttons">
-            <button className="btn-success" onClick={() => updateStatusAction(order.id, 'ACCEPTED')}>Accept</button>
-            <button className="btn-danger" onClick={() => updateStatusAction(order.id, 'REJECTED')}>Reject</button>
-          </div>
-        );
+        return <button className="btn-primary w-100" onClick={() => updateStatusAction(order.id, 'PREPARING')}>Start Preparing</button>;
+      // No order can newly reach ACCEPTED anymore, but this stays so any order already
+      // sitting in it from before this change still has a way forward.
       case 'ACCEPTED':
         return <button className="btn-primary w-100" onClick={() => updateStatusAction(order.id, 'PREPARING')}>Start Preparing</button>;
       case 'PREPARING':

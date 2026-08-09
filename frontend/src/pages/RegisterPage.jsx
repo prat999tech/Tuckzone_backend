@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { registerAdmin, registerParent, registerStudent, registerTeacher } from '../api/auth';
+import { apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
 import toast from 'react-hot-toast';
@@ -220,7 +221,7 @@ export default function RegisterPage() {
         setErrors(fieldErrors);
         toast.error(Object.values(fieldErrors)[0]);
       } else {
-        toast.error(error.response?.data?.message || 'Registration failed');
+        toast.error(apiErrorMessage(error, 'Registration failed'));
       }
     } finally {
       setLoading(false);

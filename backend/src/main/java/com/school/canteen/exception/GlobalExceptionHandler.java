@@ -53,6 +53,12 @@ public class GlobalExceptionHandler {
                 FirebaseUserNotRegisteredException.CODE);
     }
 
+    @ExceptionHandler(OrderingClosedException.class)
+    public ResponseEntity<ApiError> handleOrderingClosed(OrderingClosedException ex,
+                                                          HttpServletRequest request) {
+        return build(ex.getStatus(), ex.getMessage(), List.of(), request, OrderingClosedException.CODE);
+    }
+
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest request) {
         return build(ex.getStatus(), ex.getMessage(), List.of(), request);

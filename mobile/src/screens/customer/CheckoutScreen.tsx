@@ -17,7 +17,7 @@ import { wardsApi } from '../../api/wards';
 import { walletApi } from '../../api/wallet';
 import { paymentsApi } from '../../api/payments';
 import { configApi } from '../../api/config';
-import { apiErrorMessage } from '../../api/client';
+import { apiErrorCode, apiErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { classLabel, formatCurrency, formatDate } from '../../utils/format';
@@ -140,7 +140,17 @@ export function CheckoutScreen({ navigation }: Props) {
       // the order number and pickup instructions immediately, not a list to hunt through.
       navigation.replace('OrderConfirmation', { orderId: order.id });
     } catch (error) {
-      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to place order') });
+      if (apiErrorCode(error) === 'ORDERING_CLOSED') {
+        // Stale screen: cutoff passed for this cart's date while it sat open. The backend
+        // already rejected it — the cart's items are scoped to a date that's now closed, so
+        // recover by clearing it and sending the shopper back to Menu, which resolves a
+        // fresh (and now-current) default date on its own.
+        Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Ordering has closed for this date.') });
+        clearCart();
+        navigation.goBack();
+      } else {
+        Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to place order') });
+      }
     } finally {
       setPlacing(false);
     }

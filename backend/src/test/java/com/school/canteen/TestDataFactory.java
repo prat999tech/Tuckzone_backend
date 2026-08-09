@@ -78,7 +78,6 @@ public final class TestDataFactory {
                 costPrice,
                 MenuType.DAILY,
                 true,
-                null,
                 null);
     }
 

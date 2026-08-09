@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Truck, KeyRound } from 'lucide-react-native';
@@ -7,7 +7,6 @@ import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
-import { Button } from '../../components/Button';
 import { LoadingView } from '../../components/LoadingView';
 import { ordersApi } from '../../api/orders';
 import { apiErrorMessage } from '../../api/client';
@@ -22,7 +21,6 @@ export function OrderDetailScreen({ route }: Props) {
   const { orderId } = route.params;
   const [order, setOrder] = useState<OrderResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -40,26 +38,6 @@ export function OrderDetailScreen({ route }: Props) {
       load();
     }, [load]),
   );
-
-  function confirmCancel() {
-    Alert.alert('Cancel this order?', 'Your wallet will be refunded immediately.', [
-      { text: 'Keep Order', style: 'cancel' },
-      { text: 'Cancel Order', style: 'destructive', onPress: handleCancel },
-    ]);
-  }
-
-  async function handleCancel() {
-    setCancelling(true);
-    try {
-      const updated = await ordersApi.cancel(orderId);
-      setOrder(updated);
-      Toast.show({ type: 'success', text1: 'Order cancelled', text2: 'Refunded to your wallet' });
-    } catch (error) {
-      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not cancel order') });
-    } finally {
-      setCancelling(false);
-    }
-  }
 
   if (loading || !order) return <LoadingView />;
 
@@ -119,16 +97,6 @@ export function OrderDetailScreen({ route }: Props) {
           <Text style={[typography.h3, { color: colors.primaryDark }]}>{formatCurrency(order.totalAmount)}</Text>
         </View>
       </Card>
-
-      {order.status === 'PLACED' && (
-        <Button
-          label="Cancel Order"
-          variant="danger"
-          onPress={confirmCancel}
-          loading={cancelling}
-          style={styles.cancelButton}
-        />
-      )}
     </ScreenContainer>
   );
 }
@@ -181,5 +149,4 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  cancelButton: { marginTop: spacing.xxl },
 });

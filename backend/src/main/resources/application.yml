@@ -8,6 +8,14 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:canteen}
     password: ${SPRING_DATASOURCE_PASSWORD:canteen}
 
+  servlet:
+    multipart:
+      # MenuItemServiceImpl enforces the real, friendlier 3 MB ceiling first; this is the
+      # hard backstop so a request over that never even reaches application code. Spring
+      # Boot's own default (1 MB) is smaller than a typical phone photo.
+      max-file-size: 5MB
+      max-request-size: 5MB
+
   jpa:
     # validate = Hibernate checks its entity mappings against the schema Flyway created,
     # but never creates or alters tables itself. Flyway is the single source of truth.

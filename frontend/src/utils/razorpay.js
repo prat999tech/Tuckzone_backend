@@ -43,6 +43,18 @@ export async function openRazorpayCheckout({ providerOrderId, providerKeyId, nam
         ondismiss: () => reject(new Error('Payment was cancelled')),
       },
     });
+    // Without this, a payment Razorpay itself reports as failed (declined card, bank
+    // timeout, a misconfigured key pair rejecting the charge, ...) never settles this
+    // promise at all — the caller's "Opening/Confirming payment..." state hangs forever
+    // with no error and nothing in the console, since neither handler nor ondismiss ever
+    // fires for this case. Closing the widget here is deliberate: this app's order/payment
+    // state machine (see PaymentService.cancelPayment) assumes a rejected attempt is over,
+    // so the user can't retry inside a modal we're about to void — they get a clear error
+    // and start a fresh attempt instead, same as every other failure path in this flow.
+    rzp.on('payment.failed', (response) => {
+      rzp.close();
+      reject(new Error(response.error?.description || 'Payment failed'));
+    });
     rzp.open();
   });
 }

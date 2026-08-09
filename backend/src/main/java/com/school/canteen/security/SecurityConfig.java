@@ -2,6 +2,7 @@ package com.school.canteen.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -50,6 +51,11 @@ public class SecurityConfig {
                         // from the provider signature verified inside PaymentService.handleWebhook,
                         // not from Spring Security.
                         .requestMatchers("/api/payments/webhooks/**").permitAll()
+                        // Public, GET only: a plain <img src> tag can never present this app's
+                        // bearer token (it's not cookie-based auth), and a food photo isn't
+                        // sensitive enough to need a signed-URL scheme instead. Uploading one
+                        // still requires CANTEEN_ADMIN/SUB_ADMIN — see MenuItemAdminController.
+                        .requestMatchers(HttpMethod.GET, "/api/menu-items/*/image").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

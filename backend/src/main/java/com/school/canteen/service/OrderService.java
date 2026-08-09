@@ -31,8 +31,6 @@ public interface OrderService {
 
     OrderResponse getMyOrder(UUID userId, UUID orderId);
 
-    OrderResponse cancelMyOrder(UUID userId, UUID orderId);
-
     List<DeliverySlotResponse> listSlots();
 
     // --- canteen admin / sub admin ---

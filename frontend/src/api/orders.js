@@ -15,7 +15,5 @@ export const getOrder = async (id) => {
   return response.data;
 };
 
-export const cancelOrder = async (id) => {
-  const response = await client.delete(`/orders/${id}`);
-  return response.data;
-};
+// No cancelOrder here: once placed, an order can no longer be cancelled by the buyer —
+// the backend has removed the capability entirely (DELETE /orders/{id} no longer exists).

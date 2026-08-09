@@ -1,5 +1,6 @@
 package com.school.canteen.controller;
 
+import com.school.canteen.dto.order.DefaultOrderingDateResponse;
 import com.school.canteen.dto.order.DemandRow;
 import com.school.canteen.dto.order.DeliverySlotResponse;
 import com.school.canteen.dto.order.OrderingWindowRequest;
@@ -42,6 +43,16 @@ public class OrderingWindowController {
     public List<OrderingWindowResponse> status(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return orderingWindowService.statusFor(date);
+    }
+
+    /**
+     * The single source of truth for "what date should the ordering screen default to right
+     * now" — web/mobile call this on login, on opening the ordering screen, and again after
+     * a stale order is rejected past its cutoff, instead of each guessing "tomorrow" locally.
+     */
+    @GetMapping("/ordering-status/default")
+    public DefaultOrderingDateResponse defaultOrderingDate() {
+        return orderingWindowService.resolveDefaultOrderingDate();
     }
 
     @PostMapping("/admin/ordering/close")

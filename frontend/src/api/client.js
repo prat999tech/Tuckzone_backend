@@ -63,4 +63,20 @@ client.interceptors.response.use(
   }
 );
 
+/** Pulls the backend's message out of a failed request, falling back to something generic
+ *  rather than ever showing the user "[object Object]" or a raw stack trace. Prefers
+ *  `details` (per-field validation messages) over the generic top-level `message`, mirroring
+ *  mobile's `apiErrorMessage` so the two platforms show the same text for the same error. */
+export const apiErrorMessage = (error, fallback = 'Something went wrong') => {
+  const body = error?.response?.data;
+  if (body?.details?.length) return body.details.join('\n');
+  if (body?.message) return body.message;
+  return error?.message || fallback;
+};
+
+/** Reads the stable error marker the backend sets for conditions the app must react to
+ *  rather than merely display (e.g. ORDERING_CLOSED, EMAIL_NOT_VERIFIED). Kept separate from
+ *  `apiErrorMessage` since that one is rendered straight to the user. */
+export const apiErrorCode = (error) => error?.response?.data?.code ?? null;
+
 export default client;
