@@ -9,10 +9,12 @@ import com.school.canteen.dto.payment.RefundRequest;
 import com.school.canteen.dto.payment.RefundResponse;
 import com.school.canteen.dto.payment.VerifyPaymentRequest;
 import com.school.canteen.entity.Order;
+import com.school.canteen.entity.OrderItem;
 import com.school.canteen.entity.Payment;
 import com.school.canteen.entity.Refund;
 import com.school.canteen.entity.User;
 import com.school.canteen.enums.NotificationEvent;
+import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.enums.PaymentMode;
 import com.school.canteen.enums.PaymentStatus;
 import com.school.canteen.enums.PaymentTxnStatus;
@@ -31,9 +33,11 @@ import com.school.canteen.payment.ProviderRefundCommand;
 import com.school.canteen.payment.ProviderRefundResult;
 import com.school.canteen.payment.ProviderVerificationResult;
 import com.school.canteen.payment.ProviderVerifyPaymentCommand;
+import com.school.canteen.payment.WebhookOutcome;
 import com.school.canteen.payment.WebhookVerificationResult;
 import com.school.canteen.pricing.PricingBreakdown;
 import com.school.canteen.pricing.PricingService;
+import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.OrderRepository;
 import com.school.canteen.repository.PaymentRepository;
 import com.school.canteen.repository.RefundRepository;
@@ -68,6 +72,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final RefundRepository refundRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final DailyMenuItemRepository dailyMenuItemRepository;
     private final PricingService pricingService;
     private final PaymentProviderFactory paymentProviderFactory;
     private final WalletService walletService;
@@ -79,6 +84,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     public PaymentServiceImpl(PaymentRepository paymentRepository, RefundRepository refundRepository,
                               OrderRepository orderRepository, UserRepository userRepository,
+                              DailyMenuItemRepository dailyMenuItemRepository,
                               PricingService pricingService, PaymentProviderFactory paymentProviderFactory,
                               WalletService walletService, NotificationService notificationService,
                               RateLimiterService rateLimiter, RateLimitProperties rateLimitProperties,
@@ -88,6 +94,7 @@ public class PaymentServiceImpl implements PaymentService {
         this.refundRepository = refundRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.dailyMenuItemRepository = dailyMenuItemRepository;
         this.pricingService = pricingService;
         this.paymentProviderFactory = paymentProviderFactory;
         this.walletService = walletService;
@@ -143,6 +150,7 @@ public class PaymentServiceImpl implements PaymentService {
         // any other transaction could observe it.
         payment.setProviderOrderId("pending_" + UUID.randomUUID());
         payment = paymentRepository.save(payment);
+        linkToOrderIfCheckout(command, payment);
 
         // Wallet portion is charged synchronously, same as the pre-existing wallet-only
         // flow — there is no external dependency for it, so there is no reason to make the
@@ -243,6 +251,23 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
+    public PaymentStatusResponse cancelPayment(UUID userId, UUID paymentId) {
+        Payment payment = paymentRepository.lockById(paymentId)
+                .filter(p -> p.getUser().getId().equals(userId))
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+
+        if (payment.getStatus() == PaymentTxnStatus.FAILED) {
+            return toStatusResponse(payment); // already void — idempotent, e.g. a retried dismiss
+        }
+        if (payment.getStatus() != PaymentTxnStatus.PENDING) {
+            throw new BadRequestException("Only a payment awaiting completion can be cancelled");
+        }
+        paymentCompensation.reversePending(payment, "CANCELLED");
+        return toStatusResponse(payment);
+    }
+
+    @Override
+    @Transactional
     public RefundResponse refundPayment(UUID paymentId, RefundRequest request) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
@@ -319,32 +344,6 @@ public class PaymentServiceImpl implements PaymentService {
         };
     }
 
-    @Override
-    @Transactional
-    public PaymentStatusResponse cancelPayment(UUID userId, UUID paymentId) {
-        Payment payment = paymentRepository.lockById(paymentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-        // Same 404 for "not yours" as for "doesn't exist", matching verifyPayment: a 403
-        // would confirm that someone else's payment id is real.
-        if (!payment.getUser().getId().equals(userId)) {
-            throw new ResourceNotFoundException("Payment not found");
-        }
-
-        // Cancelling something already paid must never reverse it — that would hand back
-        // money for an order the canteen is about to cook. The gateway is the source of
-        // truth here, and a customer tapping "back" after paying is a real race.
-        if (payment.getStatus() == PaymentTxnStatus.PAID) {
-            throw new BadRequestException("This payment has already completed and cannot be cancelled");
-        }
-        // Already failed or expired: nothing left to release, and reversing twice would
-        // credit the wallet a second time. Report the current state instead.
-        if (payment.getStatus() != PaymentTxnStatus.PENDING) {
-            return toStatusResponse(payment);
-        }
-
-        paymentCompensation.reversePending(payment, "CANCELLED");
-        return toStatusResponse(payment);
-    }
 
     @Override
     @Transactional
@@ -355,8 +354,9 @@ public class PaymentServiceImpl implements PaymentService {
             log.warn("Rejected {} webhook with an invalid signature", providerType);
             throw new BadRequestException("Invalid webhook signature");
         }
-        if (result.providerOrderId() == null) {
-            log.info("Ignoring {} webhook event '{}' with no order reference", providerType, result.eventType());
+        if (result.outcome() == WebhookOutcome.IGNORE || result.providerOrderId() == null) {
+            log.info("Ignoring {} webhook (outcome={}, providerOrderId={})",
+                    providerType, result.outcome(), result.providerOrderId());
             return;
         }
         Payment payment = paymentRepository.lockByProviderOrderId(result.providerOrderId()).orElse(null);
@@ -368,13 +368,19 @@ public class PaymentServiceImpl implements PaymentService {
             return; // already settled by a client verify call — idempotent no-op
         }
         if (payment.getStatus() != PaymentTxnStatus.PENDING) {
-            // The gateway says this was paid, but we already gave up on it (cancelled or
-            // swept) and handed the wallet portion back. Settling now would double-credit;
-            // staying silent would keep real gateway money with no order behind it. Neither
-            // is acceptable unattended, so make it loud enough to reconcile by hand.
-            log.error("RECONCILE: {} reported payment for {} (payment {}) but it is already {}. "
-                            + "Gateway funds may need a manual refund.",
-                    providerType, result.providerOrderId(), payment.getId(), payment.getStatus());
+            // Already settled by a client verify call, already voided by a user cancel or
+            // PaymentExpirySweeper — no-op, EXCEPT a success arriving for a payment we
+            // already marked FAILED is worth a loud flag: the gateway may have actually
+            // captured money after we gave up on it and restored stock/cancelled the order.
+            if (result.outcome() == WebhookOutcome.SUCCESS && payment.getStatus() == PaymentTxnStatus.FAILED) {
+                log.error("RECONCILE: {} reported payment.captured for payment {}, which this app already "
+                        + "marked FAILED (cancelled or expired) — its order/stock may need manual review",
+                        providerType, payment.getId());
+            }
+            return;
+        }
+        if (result.outcome() == WebhookOutcome.FAILURE) {
+            paymentCompensation.reversePending(payment, "GATEWAY_FAILED");
             return;
         }
         payment.setProviderPaymentId(result.providerPaymentId());
@@ -382,6 +388,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentRepository.save(payment);
         applySettlementSideEffects(payment);
     }
+
 
     /** Fires whichever use-case-specific effect turns a PAID payment into a real outcome:
      *  crediting the wallet for a recharge, or marking an order paid for a checkout. */
@@ -423,6 +430,33 @@ public class PaymentServiceImpl implements PaymentService {
                     "Payment successful", "Paid " + payment.getGrandTotal() + " for order " + order.getOrderNumber() + ".",
                     Map.of("orderId", order.getId().toString(), "amount", payment.getGrandTotal().toPlainString()));
         }
+    }
+
+    /**
+     * Sets {@code Order.payment} to the row just created, so {@code OrderServiceImpl.
+     * refundAndRestore} can later refund it proportionally (wallet share + gateway share)
+     * through {@link #refundPayment} instead of falling back to crediting the wallet with
+     * the order's full total — a fallback that exists only for the original wallet-only
+     * fast path, which never creates a Payment at all. Without this link, that fallback
+     * fires for every gateway/split order too: the wallet gets over-credited (the full
+     * total, not just the wallet share it actually took) while the gateway-charged portion
+     * is never refunded through the provider at all.
+     */
+    private void linkToOrderIfCheckout(CreatePaymentCommand command, Payment payment) {
+        if (!"ORDER".equals(command.referenceType()) || command.referenceId() == null) {
+            return;
+        }
+        UUID orderId;
+        try {
+            orderId = UUID.fromString(command.referenceId());
+        } catch (IllegalArgumentException ex) {
+            log.warn("Payment {} has a malformed order reference '{}'", payment.getId(), command.referenceId());
+            return;
+        }
+        orderRepository.findById(orderId).ifPresent(order -> {
+            order.setPayment(payment);
+            orderRepository.save(order);
+        });
     }
 
     private PaymentInitiationResponse toInitiationResponse(Payment payment) {

@@ -16,6 +16,16 @@ export const verifyPayment = async (paymentId, data) => {
   return response.data;
 };
 
+/**
+ * Tells the backend a checkout was abandoned — the gateway widget was dismissed, or it
+ * never opened at all — so it voids the payment (and any order tied to it) right away
+ * instead of leaving it looking "placed" until PaymentExpirySweeper's 15-minute sweep.
+ */
+export const cancelPayment = async (paymentId) => {
+  const response = await client.post(`/payments/${paymentId}/cancel`);
+  return response.data;
+};
+
 /** Dev-only: simulates a successful gateway callback when mock payments are allowed. */
 export const mockCompletePayment = async (paymentId) => {
   const response = await client.post(`/payments/${paymentId}/mock-complete`);

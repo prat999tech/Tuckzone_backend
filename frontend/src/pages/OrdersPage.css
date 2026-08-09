@@ -67,6 +67,7 @@
 .status-delivered       { background: var(--success-bg);  color: var(--success); border: 1px solid var(--success-border); }
 .status-cancelled       { background: var(--error-bg);    color: var(--error);   border: 1px solid var(--error-border);   }
 .status-rejected        { background: var(--error-bg);    color: var(--error);   border: 1px solid var(--error-border);   }
+.status-payment-pending { background: var(--warning-bg);  color: var(--warning); border: 1px solid var(--warning-border); }
 
 /* ─── Order Details Grid ─── */
 .order-details-grid {

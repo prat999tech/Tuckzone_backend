@@ -63,10 +63,17 @@ export default function OrdersPage() {
                   <h3>Order {order.orderNumber}</h3>
                   <span className="order-date">{new Date(order.createdAt).toLocaleDateString()}</span>
                 </div>
-                <div className={`status-badge status-${order.status.toLowerCase()}`}>
-                  {getStatusIcon(order.status)}
-                  <span>{orderStatusLabel(order.status)}</span>
-                </div>
+                {order.status === 'PLACED' && order.paymentStatus === 'PENDING' ? (
+                  <div className="status-badge status-payment-pending">
+                    <Clock size={20} className="text-amber" />
+                    <span>Payment pending</span>
+                  </div>
+                ) : (
+                  <div className={`status-badge status-${order.status.toLowerCase()}`}>
+                    {getStatusIcon(order.status)}
+                    <span>{orderStatusLabel(order.status)}</span>
+                  </div>
+                )}
               </div>
 
               <div className="order-details-grid">

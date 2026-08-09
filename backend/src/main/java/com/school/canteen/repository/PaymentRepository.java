@@ -42,9 +42,11 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     Optional<Payment> findByUser_IdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
-    /** Locked read by id, for the explicit-cancel path. Same reason as
-     *  {@link #lockByProviderOrderId}: cancelling and a racing verify/webhook must not both
-     *  act on the same PENDING payment. */
+    /** Locked read for the user-initiated cancel path (PaymentServiceImpl.cancelPayment) —
+     *  same PESSIMISTIC_WRITE guarantee as {@link #lockByProviderOrderId}, keyed by our own
+     *  id since that is all the client knows when dismissing the checkout widget. Locking
+     *  the same row this way still mutually excludes a concurrent verify/webhook, which
+     *  lock it via providerOrderId — Postgres locks the row, not the predicate used to find it. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Payment p where p.id = :id")
     Optional<Payment> lockById(@Param("id") UUID id);

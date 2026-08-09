@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, AlertCircle, ShieldCheck } from 'lucide-react';
 import { getTransactions, getWallet, initiateTopup, mockCompleteTopup, verifyTopup } from '../api/wallet';
 import { getConfig } from '../api/config';
+import { cancelPayment } from '../api/payments';
 import { openRazorpayCheckout } from '../utils/razorpay';
 import toast from 'react-hot-toast';
 import './WalletPage.css';
@@ -86,13 +87,26 @@ export default function WalletPage() {
       }
 
       toast.loading('Opening payment...', { id: 'payment' });
-      const result = await openRazorpayCheckout({
-        providerOrderId: topup.gatewayOrderId,
-        providerKeyId: topup.gatewayKeyId,
-        description: 'TuckZone wallet top-up',
-      });
+      let result;
+      try {
+        result = await openRazorpayCheckout({
+          providerOrderId: topup.gatewayOrderId,
+          providerKeyId: topup.gatewayKeyId,
+          description: 'TuckZone wallet top-up',
+        });
+      } catch (dismissed) {
+        // Dismissing the widget leaves a PENDING payment behind — void it now rather than
+        // relying solely on PaymentExpirySweeper's 15-minute sweep.
+        await cancelPayment(topup.topupId).catch(() => undefined);
+        throw dismissed;
+      }
       toast.loading('Confirming payment...', { id: 'payment' });
-      await finishTopup(result.providerOrderId, result.providerPaymentId, result.signature);
+      try {
+        await finishTopup(result.providerOrderId, result.providerPaymentId, result.signature);
+      } catch (verifyFailed) {
+        await cancelPayment(topup.topupId).catch(() => undefined);
+        throw verifyFailed;
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || 'Top-up failed', { id: 'payment' });
     } finally {
