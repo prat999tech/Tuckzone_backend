@@ -12,14 +12,18 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import MenuPage from './pages/MenuPage';
 import OrdersPage from './pages/OrdersPage';
 import WalletPage from './pages/WalletPage';
+import ProfilePage from './pages/ProfilePage';
+import NotificationsPage from './pages/NotificationsPage';
 import ChildrenPage from './pages/ChildrenPage';
-import UserApprovalPage from './pages/admin/UserApprovalPage';
 import DashboardPage from './pages/admin/DashboardPage';
 import FixedMenuPage from './pages/admin/FixedMenuPage';
 import DailyMenuPage from './pages/admin/DailyMenuPage';
 import OrdersBoardPage from './pages/admin/OrdersBoardPage';
 import SubAdminsPage from './pages/admin/SubAdminsPage';
 import PaymentSettingsPage from './pages/admin/PaymentSettingsPage';
+import AccountsPage from './pages/admin/AccountsPage';
+import ExpensesPage from './pages/admin/ExpensesPage';
+import ReportsPage from './pages/admin/ReportsPage';
 import IncomingOrdersPage from './pages/subadmin/IncomingOrdersPage';
 import MenuManagementPage from './pages/subadmin/MenuManagementPage';
 import ExportOrdersPage from './pages/subadmin/ExportOrdersPage';
@@ -61,15 +65,12 @@ function App() {
                 <Route path="/menu" element={<MenuPage />} />
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/wallet" element={<WalletPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
 
                 {/* Parent Only */}
                 <Route element={<ProtectedRoute allowedRoles={['PARENT']} />}>
                   <Route path="/children" element={<ChildrenPage />} />
-                </Route>
-
-                {/* School Admin Only */}
-                <Route element={<ProtectedRoute allowedRoles={['SCHOOL_ADMIN']} />}>
-                  <Route path="/admin/users" element={<UserApprovalPage />} />
                 </Route>
 
                 {/* Canteen Admin Only */}
@@ -78,6 +79,10 @@ function App() {
                   <Route path="/admin/fixed-menu" element={<FixedMenuPage />} />
                   <Route path="/admin/daily-menu" element={<DailyMenuPage />} />
                   <Route path="/admin/orders" element={<OrdersBoardPage />} />
+                  <Route path="/admin/export" element={<ExportOrdersPage />} />
+                  <Route path="/admin/accounts" element={<AccountsPage />} />
+                  <Route path="/admin/expenses" element={<ExpensesPage />} />
+                  <Route path="/admin/reports" element={<ReportsPage />} />
                   <Route path="/admin/sub-admins" element={<SubAdminsPage />} />
                   <Route path="/admin/payment-settings" element={<PaymentSettingsPage />} />
                 </Route>

@@ -1,0 +1,137 @@
+/* ─── Expenses Page ─── */
+.date-range-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  max-width: 420px;
+}
+
+.date-range-row .form-group {
+  flex: 1;
+}
+
+.date-range-row input {
+  width: 100%;
+}
+
+.total-card {
+  background: var(--primary-light);
+  border-color: var(--primary-100);
+  margin-bottom: 1.25rem;
+}
+
+.total-label {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--gray-600);
+}
+
+.total-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary-dark);
+  margin-top: 0.25rem;
+}
+
+.add-expense-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.expenses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.expense-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.expense-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.expense-category {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.expense-desc,
+.expense-date {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+}
+
+.expense-amount {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.icon-btn-danger {
+  background: transparent;
+  border: none;
+  color: var(--error);
+  cursor: pointer;
+  padding: 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+}
+
+.icon-btn-danger:hover {
+  background: var(--error-bg);
+}
+
+.modal-content form {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.pill-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--gray-600);
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.pill-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+.pill-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+@media (max-width: 480px) {
+  .date-range-row {
+    flex-direction: column;
+    max-width: none;
+  }
+}

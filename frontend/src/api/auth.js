@@ -51,6 +51,11 @@ export const getMe = async () => {
   return response.data;
 };
 
+export const updateMe = async (data) => {
+  const response = await client.put('/me', data);
+  return response.data;
+};
+
 // ── Firebase (phone OTP / email), additive alongside the endpoints above ──
 
 /** Signs in with a Firebase ID token. Rejects with response.data.code ===

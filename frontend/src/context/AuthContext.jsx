@@ -82,6 +82,15 @@ export const AuthProvider = ({ children }) => {
     return applySession(data);
   };
 
+  /** Re-fetches the caller's own profile and refreshes the cached copy — call after a
+   *  successful profile edit so the sidebar/header reflect the new name immediately. */
+  const refreshProfile = async () => {
+    const userData = await getMe();
+    setUser(userData);
+    localStorage.setItem('canteen_user', JSON.stringify(userData));
+    return userData;
+  };
+
   const logout = () => {
     localStorage.removeItem('canteen_token');
     localStorage.removeItem('canteen_refresh_token');
@@ -103,6 +112,7 @@ export const AuthProvider = ({ children }) => {
         registerStudentWithFirebase,
         registerTeacherWithFirebase,
         registerParentWithFirebase,
+        refreshProfile,
         logout,
       }}
     >

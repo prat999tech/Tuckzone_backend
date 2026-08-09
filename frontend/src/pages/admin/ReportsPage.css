@@ -1,0 +1,89 @@
+/* ─── Reports Page ─── */
+.reports-container {
+  max-width: 900px;
+}
+
+.date-range-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  max-width: 420px;
+}
+
+.date-range-row .form-group {
+  flex: 1;
+}
+
+.date-range-row input {
+  width: 100%;
+}
+
+.order-count {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  margin-top: 0.5rem;
+}
+
+.daily-breakdown-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.daily-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 0;
+}
+
+.daily-row + .daily-row {
+  border-top: 1px solid var(--gray-200);
+}
+
+.daily-date {
+  font-size: 0.875rem;
+  color: var(--gray-800);
+  flex: 1;
+}
+
+.daily-orders {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+}
+
+.daily-revenue {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.peak-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.peak-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 56px;
+}
+
+.peak-hour {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+}
+
+.peak-orders {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+@media (max-width: 480px) {
+  .date-range-row {
+    flex-direction: column;
+    max-width: none;
+  }
+}
