@@ -68,6 +68,19 @@ export function WalletScreen() {
       setError(`Maximum top-up amount is ${formatCurrency(maxTopup)}`);
       return;
     }
+    // A real (non-mock) gateway needs a checkout widget to actually collect payment, and
+    // that bridge isn't wired up on mobile yet (the web app has it — see WalletPage.jsx).
+    // Checked before creating anything server-side, so a customer without card/UPI access
+    // in the app never has a real gateway order created (and left to expire) for nothing.
+    if (!mockPayments) {
+      Toast.show({
+        type: 'info',
+        text1: 'Card/UPI top-up not available in the app yet',
+        text2: 'Please use the web app to add money to your wallet.',
+      });
+      return;
+    }
+
     setError(undefined);
     setProcessingAmount(amount);
     try {
@@ -75,12 +88,10 @@ export function WalletScreen() {
       // here so a customer sees exactly what they'll pay before confirming, computed
       // entirely server-side (see PricingService), never by this screen.
       const topup = await walletApi.initiateTopup(amount);
-      if (mockPayments) {
-        // No real gateway integrated yet — see backend app.payment.allow-mock-topup.
-        // Once a real gateway is wired up, this call is replaced by the gateway's
-        // checkout SDK flow; everything else on this screen stays the same.
-        await walletApi.mockCompleteTopup(topup.gatewayOrderId);
-      }
+      // No real gateway integrated yet — see backend app.payment.allow-mock-topup. Once a
+      // real gateway is wired up, this call is replaced by the gateway's checkout SDK flow;
+      // everything else on this screen stays the same.
+      await walletApi.mockCompleteTopup(topup.gatewayOrderId);
       Toast.show({
         type: 'success',
         text1: 'Wallet recharged',
