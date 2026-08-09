@@ -7,7 +7,6 @@ import com.school.canteen.dto.order.OrderResponse;
 import com.school.canteen.dto.order.OrderStatusUpdateRequest;
 import com.school.canteen.dto.order.PlaceOrderRequest;
 import com.school.canteen.dto.payment.PaymentInitiationResponse;
-import com.school.canteen.dto.payment.RefundRequest;
 import com.school.canteen.entity.DailyMenuItem;
 import com.school.canteen.entity.DeliverySlot;
 import com.school.canteen.entity.MenuItem;
@@ -68,8 +67,24 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OrderServiceImpl implements OrderService {
 
-    /** Allowed forward moves the canteen admin can make. REJECTED is handled separately
-     *  (it refunds), and CANCELLED is a customer action. */
+    /**
+     * Allowed forward moves the canteen admin can make. There is deliberately no manual
+     * "Accept" step and no REJECTED destination: a PLACED order is already fully confirmed
+     * and paid (see placeOrderInTransaction/placeWithGatewayOrSplit), so kitchen staff go
+     * straight to PREPARING rather than clicking through an approval gate that never
+     * decided whether the order was real. {@link OrderStatus#REJECTED} remains in the enum
+     * only so historical orders placed before this change keep deserializing and displaying
+     * correctly — nothing can be newly assigned that status. There is likewise no
+     * cancellation path left once an order reaches PLACED (see the removed {@code
+     * cancelMyOrder}) — only a still-pending gateway payment can be voided
+     * (PaymentService.cancelPayment / PaymentExpirySweeper), which happens before an order
+     * is ever confirmed in the first place.
+     *
+     * {@link OrderStatus#ACCEPTED} keeps one outbound edge (→PREPARING) even though no new
+     * order can ever reach it (PLACED skips straight to PREPARING): any order already
+     * sitting in ACCEPTED from before this change deployed must still have a way forward,
+     * not get stranded.
+     */
     private static final Map<OrderStatus, Set<OrderStatus>> ADMIN_FORWARD = new EnumMap<>(OrderStatus.class);
 
     /** Export must never silently truncate a day's orders the way the normal 200-row page
@@ -77,7 +92,7 @@ public class OrderServiceImpl implements OrderService {
     private static final int EXPORT_MAX_ROWS = 5000;
 
     static {
-        ADMIN_FORWARD.put(OrderStatus.PLACED, Set.of(OrderStatus.ACCEPTED));
+        ADMIN_FORWARD.put(OrderStatus.PLACED, Set.of(OrderStatus.PREPARING));
         ADMIN_FORWARD.put(OrderStatus.ACCEPTED, Set.of(OrderStatus.PREPARING));
         ADMIN_FORWARD.put(OrderStatus.PREPARING, Set.of(OrderStatus.PACKED));
         ADMIN_FORWARD.put(OrderStatus.PACKED, Set.of(OrderStatus.OUT_FOR_DELIVERY));
@@ -311,20 +326,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    @Transactional
-    public OrderResponse cancelMyOrder(UUID userId, UUID orderId) {
-        Order order = orderRepository.findByIdAndPlacedBy_Id(orderId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
-        if (order.getStatus() != OrderStatus.PLACED) {
-            throw new InvalidOrderStateException(
-                    "Only an order that hasn't been accepted yet can be cancelled");
-        }
-        refundAndRestore(order, OrderStatus.CANCELLED);
-        notifyStatus(order, OrderStatus.CANCELLED);
-        return orderMapper.toResponse(order);
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public List<DeliverySlotResponse> listSlots() {
         return deliverySlotRepository.findByActiveTrueOrderByOrderCutoffTimeAsc().stream()
@@ -412,15 +413,9 @@ public class OrderServiceImpl implements OrderService {
                     "This order's payment has not been completed yet");
         }
 
-        if (target == OrderStatus.REJECTED) {
-            if (order.getStatus() != OrderStatus.PLACED && order.getStatus() != OrderStatus.ACCEPTED) {
-                throw new InvalidOrderStateException("Only a new or accepted order can be rejected");
-            }
-            refundAndRestore(order, OrderStatus.REJECTED);
-            notifyStatus(order, OrderStatus.REJECTED);
-            return orderMapper.toAdminResponse(order);
-        }
-
+        // No REJECTED destination is ever in ADMIN_FORWARD's allowed sets (see its
+        // javadoc), so a request targeting it lands here and is rejected the same as any
+        // other invalid transition — there is no special-cased reject-and-refund path left.
         Set<OrderStatus> allowed = ADMIN_FORWARD.getOrDefault(order.getStatus(), Set.of());
         if (!allowed.contains(target)) {
             throw new InvalidOrderStateException(
@@ -590,34 +585,4 @@ public class OrderServiceImpl implements OrderService {
                         "status", status.name()));
     }
 
-    /** Puts stock back and refunds (if paid), then moves to a terminal status. */
-    private void refundAndRestore(Order order, OrderStatus terminalStatus) {
-        for (OrderItem item : order.getItems()) {
-            // menuItem can be null if the catalog row was permanently deleted after this
-            // order was placed — nothing to restore stock against in that case, so skip it
-            // rather than NPE and leave the whole refund half-done.
-            if (item.getMenuItem() != null) {
-                dailyMenuItemRepository.restore(order.getMenuDate(),
-                        item.getMenuItem().getId(), item.getQuantity());
-            }
-        }
-        if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            if (order.getPayment() != null) {
-                // Placed through the gateway/split path: refund proportionally to how it
-                // was actually funded (wallet share back to wallet, gateway share back
-                // through the provider, platform fee excluded from both) instead of always
-                // crediting the wallet in full — see PaymentServiceImpl.refundPayment.
-                paymentService.refundPayment(order.getPayment().getId(), new RefundRequest(null,
-                        "Order " + OrderMapper.formatOrderNumber(order.getOrderNumber()) + " " + terminalStatus));
-            } else {
-                // Original wallet-only path, unchanged: it was funded entirely from
-                // wallet, with no Payment row and nothing to split.
-                walletService.credit(order.getPlacedBy().getId(), order.getTotalAmount(),
-                        "REFUND", order.getId().toString(),
-                        "Refund for " + OrderMapper.formatOrderNumber(order.getOrderNumber()));
-            }
-            order.setPaymentStatus(PaymentStatus.REFUNDED);
-        }
-        order.setStatus(terminalStatus);
-    }
 }

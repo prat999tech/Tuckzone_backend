@@ -9,11 +9,14 @@ import com.school.canteen.dto.UserSummary;
 import com.school.canteen.dto.menu.MenuItemResponse;
 import com.school.canteen.dto.order.OrderLineRequest;
 import com.school.canteen.dto.order.OrderResponse;
+import com.school.canteen.dto.order.OrderStatusUpdateRequest;
 import com.school.canteen.dto.order.PlaceOrderRequest;
 import com.school.canteen.dto.wallet.MockTopupCompleteRequest;
 import com.school.canteen.dto.wallet.TopupInitResponse;
 import com.school.canteen.dto.wallet.TopupRequest;
+import com.school.canteen.enums.OrderStatus;
 import com.school.canteen.exception.InsufficientBalanceException;
+import com.school.canteen.exception.InvalidOrderStateException;
 import com.school.canteen.repository.DailyMenuItemRepository;
 import com.school.canteen.repository.NotificationOutboxRepository;
 import com.school.canteen.service.AuthService;
@@ -165,23 +168,41 @@ class OrderConcurrencyIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("cancelling refunds the wallet and returns the stock")
-    void cancellationRefundsAndRestores() {
+    @DisplayName("a placed order can never be cancelled or rejected — it goes straight to PREPARING, "
+            + "with no Accept step and no REJECTED destination left")
+    void placedOrderHasNoCancellationOrRejectionPath() {
         UUID userId = teacherWithBalance(BigDecimal.valueOf(200));
         UUID itemId = publishItem(BigDecimal.valueOf(40), 10);
 
         OrderResponse placed = orderService.placeOrder(userId,
-                order(itemId, 2, "cancel-" + UUID.randomUUID()));
-        assertThat(walletService.getWallet(userId).balance())
-                .isEqualByComparingTo(BigDecimal.valueOf(120));
+                order(itemId, 2, "no-cancel-" + UUID.randomUUID()));
+        assertThat(placed.status()).isEqualTo(OrderStatus.PLACED);
+        BigDecimal balanceAfterOrder = walletService.getWallet(userId).balance();
 
-        orderService.cancelMyOrder(userId, placed.id());
+        // No cancellation capability exists anywhere for the buyer — enforced at compile
+        // time (OrderService no longer declares cancelMyOrder), the strongest possible
+        // guarantee. The old DELETE /api/orders/{id} endpoint is gone from OrderController
+        // too, so a stale/scripted client hitting it now gets a 404, not a stale 200.
 
-        assertThat(walletService.getWallet(userId).balance())
-                .isEqualByComparingTo(BigDecimal.valueOf(200));
+        // Admin can no longer reject it either — REJECTED is not in ADMIN_FORWARD's allowed
+        // set for any status, so the request is rejected the same as any other invalid move.
+        assertThatThrownBy(() -> orderService.adminTransition(placed.id(),
+                new OrderStatusUpdateRequest(OrderStatus.REJECTED, null)))
+                .isInstanceOf(InvalidOrderStateException.class);
+
+        // Nor is there a manual "Accept" step — PLACED goes directly to PREPARING.
+        assertThatThrownBy(() -> orderService.adminTransition(placed.id(),
+                new OrderStatusUpdateRequest(OrderStatus.ACCEPTED, null)))
+                .isInstanceOf(InvalidOrderStateException.class);
+        var afterPrepare = orderService.adminTransition(placed.id(),
+                new OrderStatusUpdateRequest(OrderStatus.PREPARING, null));
+        assertThat(afterPrepare.status()).isEqualTo(OrderStatus.PREPARING);
+
+        // Untouched throughout: no refund, no stock restoration — this order was never voided.
+        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo(balanceAfterOrder);
         assertThat(dailyMenuItemRepository
                 .findByMenuDateAndMenuItem_Id(menuDate(), itemId).orElseThrow()
-                .getRemainingQuantity()).isEqualTo(10);
+                .getRemainingQuantity()).isEqualTo(8);
     }
 
     @Test

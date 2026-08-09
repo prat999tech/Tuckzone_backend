@@ -149,25 +149,7 @@ class PaymentFlowIntegrationTest extends IntegrationTestBase {
         assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("420.00");
     }
 
-    @Test
-    @DisplayName("cancelling a split-funded order refunds the wallet portion back to the wallet")
-    void cancellingSplitOrderRefundsWalletPortion() {
-        UUID userId = registerTeacher();
-        TopupInitResponse topup = walletService.initiateTopup(userId, new TopupRequest(BigDecimal.valueOf(100)));
-        walletService.mockCompleteTopup(userId, new MockTopupCompleteRequest(topup.gatewayOrderId()));
-
-        UUID itemId = publishItem(BigDecimal.valueOf(50), 10);
-        PlaceOrderRequest request = new PlaceOrderRequest(null, menuDate(), null, "Staff Room",
-                List.of(new OrderLineRequest(itemId, 2)), "refund-" + UUID.randomUUID(),
-                PaymentMode.WALLET_PLUS_GATEWAY);
-        OrderResponse order = orderService.placeOrder(userId, request);
-        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("0.00");
-
-        // Wallet-only orders can be cancelled while PLACED regardless of payment status;
-        // this one is still PENDING (gateway leg never completed) — cancellation must still
-        // hand back the wallet portion it already took.
-        orderService.cancelMyOrder(userId, order.id());
-
-        assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo("100.00");
-    }
+    // A placed order (wallet-funded or otherwise) can no longer be cancelled at all — see
+    // OrderConcurrencyIntegrationTest.placedOrderHasNoCancellationOrRejectionPath, which
+    // covers that directly. cancelMyOrder no longer exists on OrderService.
 }

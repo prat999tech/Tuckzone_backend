@@ -27,5 +27,6 @@ export const ordersApi = {
 
   getById: (id: string) => apiClient.get<OrderResponse>(`/orders/${id}`).then((r) => r.data),
 
-  cancel: (id: string) => apiClient.delete<OrderResponse>(`/orders/${id}`).then((r) => r.data),
+  // No cancel here: once placed, an order can no longer be cancelled by the buyer — the
+  // backend has removed the capability entirely (DELETE /orders/{id} no longer exists).
 };
