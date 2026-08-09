@@ -10,7 +10,7 @@ import { Button } from '../../components/Button';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { authApi } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
-import { apiErrorMessage } from '../../api/client';
+import { apiErrorMessage, apiFieldErrors } from '../../api/client';
 import {
   validateEmail,
   validateMobile,
@@ -168,7 +168,20 @@ export function RegisterScreen({ navigation, route }: Props) {
       // password until the emailed code is entered.
       navigation.navigate('VerifyEmail', { email: email.trim() });
     } catch (error) {
-      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Registration failed') });
+      // The backend validates more than this form does (length caps, uniqueness, password
+      // rules), so a rejection can name a field we never checked. Put each message on its
+      // own input rather than leaving the user to guess which box the toast is about.
+      const serverErrors = apiFieldErrors(error);
+      if (Object.keys(serverErrors).length > 0) {
+        setErrors(serverErrors);
+        Toast.show({
+          type: 'error',
+          text1: 'Please fix the highlighted fields',
+          text2: Object.values(serverErrors)[0],
+        });
+      } else {
+        Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Registration failed') });
+      }
     } finally {
       setLoading(false);
     }

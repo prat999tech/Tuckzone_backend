@@ -4,6 +4,10 @@ import com.school.canteen.dto.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
+import org.springframework.validation.FieldError;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -72,7 +76,18 @@ public class GlobalExceptionHandler {
         List<String> details = ex.getBindingResult().getFieldErrors().stream()
                 .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
                 .toList();
-        return build(HttpStatus.BAD_REQUEST, "Validation failed", details, request);
+        // Also returned keyed by field so a form can highlight the offending input rather
+        // than showing the caller a combined blob it would have to parse back apart.
+        // Merge keeps the first message when one field trips several constraints — showing
+        // one clear reason beats stacking them under a single input.
+        Map<String, String> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        fieldError -> fieldError.getDefaultMessage() == null
+                                ? "Invalid value" : fieldError.getDefaultMessage(),
+                        (first, second) -> first,
+                        LinkedHashMap::new));
+        return build(HttpStatus.BAD_REQUEST, "Validation failed", details, request, null, fieldErrors);
     }
 
     /**
@@ -120,12 +135,18 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message,
                                            List<String> details, HttpServletRequest request) {
-        return build(status, message, details, request, null);
+        return build(status, message, details, request, null, null);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message,
                                            List<String> details, HttpServletRequest request,
                                            String code) {
+        return build(status, message, details, request, code, null);
+    }
+
+    private ResponseEntity<ApiError> build(HttpStatus status, String message,
+                                           List<String> details, HttpServletRequest request,
+                                           String code, Map<String, String> fieldErrors) {
         ApiError body = new ApiError(
                 Instant.now(),
                 status.value(),
@@ -133,7 +154,8 @@ public class GlobalExceptionHandler {
                 message,
                 request.getRequestURI(),
                 details,
-                code);
+                code,
+                fieldErrors);
         return ResponseEntity.status(status).body(body);
     }
 }

@@ -348,4 +348,6 @@ export interface ApiErrorBody {
   details: string[];
   /** Stable marker for errors the app must branch on, e.g. 'EMAIL_NOT_VERIFIED'. */
   code?: string | null;
+  /** Validation failures keyed by field name, so a form can mark the offending input. */
+  fieldErrors?: Record<string, string> | null;
 }

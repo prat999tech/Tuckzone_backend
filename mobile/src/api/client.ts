@@ -119,3 +119,19 @@ export function apiErrorCode(error: unknown): string | null {
   }
   return null;
 }
+
+/**
+ * Server-side validation failures, keyed by field name.
+ *
+ * The backend validates far more than any form can sensibly duplicate — length caps,
+ * uniqueness, password rules — so a rejection can name a field the client never checked.
+ * Without this, those came back as one combined toast and the user had to guess which box
+ * was wrong. Merge the result into the form's error state to mark the actual input.
+ */
+export function apiFieldErrors(error: unknown): Record<string, string> {
+  if (axios.isAxiosError(error)) {
+    const body = error.response?.data as ApiErrorBody | undefined;
+    if (body?.fieldErrors) return body.fieldErrors;
+  }
+  return {};
+}

@@ -219,7 +219,16 @@ export default function RegisterPage() {
       toast.success('Account created! Enter the code we emailed you to finish.');
       navigate('/verify-email', { state: { email: formData.email } });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      // The backend validates more than this form does, so a rejection can name a field we
+      // never checked. Previously only the top-level message survived — the user saw
+      // "Validation failed" with nothing marked and no way to tell which input was wrong.
+      const fieldErrors = error.response?.data?.fieldErrors;
+      if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+        setErrors(fieldErrors);
+        toast.error(Object.values(fieldErrors)[0]);
+      } else {
+        toast.error(error.response?.data?.message || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -290,7 +299,7 @@ export default function RegisterPage() {
         <form className="register-form" onSubmit={handleSubmit} noValidate>
           <div className="form-row">
             <div className="form-group">
-              <label>Full Name</label>
+              <label>Full Name<span className="required-mark">*</span></label>
               <div className="input-with-icon">
                 <User className="input-icon" size={20} />
                 <input
@@ -310,7 +319,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="form-group">
-              <label>Email Address</label>
+              <label>Email Address<span className="required-mark">*</span></label>
               <div className="input-with-icon">
                 <Mail className="input-icon" size={20} />
                 <input
@@ -339,7 +348,7 @@ export default function RegisterPage() {
 
           <div className="form-row">
             <div className="form-group">
-              <label>{role === 'STUDENT' ? 'Login Mobile (10 digits)' : 'Mobile Number (10 digits)'}</label>
+              <label>{role === 'STUDENT' ? 'Login Mobile (10 digits)' : 'Mobile Number (10 digits)'}<span className="required-mark">*</span></label>
               <div className="input-with-icon">
                 <Phone className="input-icon" size={20} />
                 <input
@@ -362,7 +371,7 @@ export default function RegisterPage() {
             <div className="form-group">
               {firebaseIdToken ? null : (
                 <>
-                  <label>Password</label>
+                  <label>Password<span className="required-mark">*</span></label>
                   <PasswordInput
                     icon={Lock}
                     iconSize={20}
@@ -386,7 +395,7 @@ export default function RegisterPage() {
             <>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Admission Number</label>
+                  <label>Admission Number<span className="required-mark">*</span></label>
                   <div className="input-with-icon">
                     <Hash className="input-icon" size={20} />
                     <input
@@ -452,7 +461,7 @@ export default function RegisterPage() {
 
               <div className="form-row triple">
                 <div className="form-group">
-                  <label>Class</label>
+                  <label>Class<span className="required-mark">*</span></label>
                   <div className="input-with-icon">
                     <BookOpen className="input-icon" size={20} />
                     <input
@@ -472,7 +481,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Section</label>
+                  <label>Section<span className="required-mark">*</span></label>
                   <div className="input-with-icon">
                     <Layers className="input-icon" size={20} />
                     <input
@@ -492,7 +501,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Roll No.</label>
+                  <label>Roll No.<span className="required-mark">*</span></label>
                   <div className="input-with-icon">
                     <Hash className="input-icon" size={20} />
                     <input
@@ -517,7 +526,7 @@ export default function RegisterPage() {
           {role === 'TEACHER' && (
             <div className="form-row">
               <div className="form-group">
-                <label>Employee ID</label>
+                <label>Employee ID<span className="required-mark">*</span></label>
                 <div className="input-with-icon">
                   <Hash className="input-icon" size={20} />
                   <input
@@ -537,7 +546,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="form-group">
-                <label>Department</label>
+                <label>Department<span className="required-mark">*</span></label>
                 <div className="input-with-icon">
                   <Users className="input-icon" size={20} />
                   <input
@@ -561,7 +570,7 @@ export default function RegisterPage() {
           {role === 'ADMIN' && (
             <div className="form-row">
               <div className="form-group" style={{ flex: 1 }}>
-                <label>Canteen Signup Code</label>
+                <label>Canteen Signup Code<span className="required-mark">*</span></label>
                 <div className="input-with-icon">
                   <KeyRound className="input-icon" size={20} />
                   <input

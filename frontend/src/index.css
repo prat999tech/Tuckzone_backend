@@ -482,3 +482,11 @@ textarea.input-error {
 @media (max-width: 640px) {
   .card { padding: 1rem; }
 }
+
+/* Marks a field the form will refuse to submit without. Same convention as the mobile
+   app's Input `required` prop, so "must fill this in" reads identically on both. */
+.required-mark {
+  color: var(--error);
+  margin-left: 2px;
+  font-weight: 700;
+}
